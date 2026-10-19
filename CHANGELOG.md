@@ -72,6 +72,10 @@ del Café* (la anterior, con sus preguntas del café).
   organizador, las fechas y el color del evento; «festival» pasa a «evento» y
   «stand» a «espacio» donde lo lee el público.
 - La contraseña de un promotor tampoco puede contener el nombre del evento.
+- **Panel → Espacios** abre con el resumen del evento: nombre, fechas, lugar,
+  organizador y si la inscripción y la pregunta de compra están activas.
+- Abrir o recargar `/admin/stands/{id}/edit` ya no monta el editor como si el
+  espacio fuera nuevo: espera a tener los datos (fallo previo a esta versión).
 
 ### Para una instalación de La Mejor Taza que se actualice
 
@@ -83,7 +87,9 @@ subidas se conservan).
 ### Base de datos
 
 `php db/migrate.php` (o el instalador con `?reinstall=`) añade las tres columnas
-nuevas. Son aditivas: no se borra ni se renombra nada.
+nuevas y, en MySQL, amplía `ajustes.valor` de `TEXT` a `MEDIUMTEXT` (la
+configuración con muchas preguntas y una política de datos larga puede pasar de
+64 KB). Todo es aditivo: no se borra ni se renombra nada.
 
 ### Cómo volver atrás
 

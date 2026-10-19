@@ -223,7 +223,19 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
 // Punto único del panel admin: switch interno por sección
 const AdminPage = ({ section, user, stands, comentarios, editingId }) => {
   if (section === "stands")  return <AdminShell active="stands" user={user}><StandsList stands={stands}/></AdminShell>;
-  if (section === "editor")  return <AdminShell active="stands" user={user}><StandEditor stand={editingId ? stands.find((s) => s.id === editingId) : null}/></AdminShell>;
+  if (section === "editor") {
+    // Abierto desde la URL (o al recargar), el editor llegaba antes que los
+    // espacios: se montaba como «nuevo» y guardar no tocaba el espacio que se
+    // quería editar. Se espera a tenerlo, y la `key` lo vuelve a montar con
+    // sus datos en cuanto llegan.
+    const st = editingId ? stands.find((s) => s.id === editingId) : null;
+    if (editingId && !st) {
+      return <AdminShell active="stands" user={user}><div className="admin-page">
+        <p className="mono" style={{ color: "var(--ink-3)" }}>{stands.length ? "Ese espacio no existe." : "Cargando el espacio…"}</p>
+      </div></AdminShell>;
+    }
+    return <AdminShell active="stands" user={user}><StandEditor key={st ? st.id : "nuevo"} stand={st}/></AdminShell>;
+  }
   if (section === "qr")      return <AdminShell active="qr" user={user}><QRPrintView stands={stands}/></AdminShell>;
   if (section === "live")    return <AdminShell active="live" user={user}><ActivityLive stands={stands} comentarios={comentarios || (window.COMENTARIOS_DEMO || [])}/></AdminShell>;
   if (section === "promotores") return <AdminShell active="promotores" user={user}><AdminPromotores stands={stands}/></AdminShell>;
@@ -233,6 +245,47 @@ const AdminPage = ({ section, user, stands, comentarios, editingId }) => {
   if (section === "cuentas")    return <AdminShell active="cuentas" user={user}><AdminCuentas user={user}/></AdminShell>;
   if (section === "sistema")    return <AdminShell active="sistema" user={user}><SistemaPage/></AdminShell>;
   return <AdminShell active="stands" user={user}><div style={{ padding: 32 }}>—</div></AdminShell>;
+};
+
+const ResumenEvento = () => {
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  const abierta = !(aj.estado && aj.estado.inscripcion_abierta === false);
+  const datos = filasDatosEvento(aj).filter(([k]) => k !== "Contacto");
+  const chip = (activo, si, no) => (
+    <span className="mono" style={{
+      display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999,
+      border: "1px solid " + (activo ? "var(--good)" : "var(--line-2)"), color: activo ? "var(--good)" : "var(--ink-3)",
+    }}>
+      <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: activo ? "var(--good)" : "var(--ink-3)" }}/>
+      {activo ? si : no}
+    </span>
+  );
+  return (
+    <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "16px 20px", marginBottom: 24, background: "var(--paper-2)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+        <div>
+          <div className="mono">Evento</div>
+          <div style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontWeight: "var(--display-weight)", fontSize: 24, lineHeight: 1.1, marginTop: 2 }}>
+            {nombreEvento(aj)}
+          </div>
+        </div>
+        <a href="/admin/festival" data-route className="mono" style={{ color: "var(--grano)" }}>Configurar →</a>
+      </div>
+      {datos.length > 0 && (
+        <div style={{ display: "flex", gap: "8px 22px", flexWrap: "wrap", marginTop: 10, fontSize: 13, color: "var(--ink-2)" }}>
+          {datos.map(([k, v]) => <span key={k}><span className="mono" style={{ marginRight: 6 }}>{k}</span>{v}</span>)}
+        </div>
+      )}
+      {!ev.fecha_inicio && (
+        <p className="ayuda" style={{ marginTop: 8 }}>Aún no tiene fechas: se ponen en Configuración del evento → Evento.</p>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+        {chip(abierta, "Inscripción abierta", "Inscripción cerrada")}
+        {chip(compraActiva(), "Pregunta de compra activa", "Sin pregunta de compra")}
+      </div>
+    </div>
+  );
 };
 
 const StandsList = ({ stands }) => {
@@ -246,6 +299,10 @@ const StandsList = ({ stands }) => {
         </div>
         <a href="/admin/stands/new" data-route className="btn btn-primary">+ Registrar espacio</a>
       </div>
+
+      {/* El evento de un vistazo: qué se está celebrando, cuándo y dónde, y
+          los dos interruptores que más cambian lo que vive el público. */}
+      <ResumenEvento/>
 
       <div className="grid-4" style={{ marginBottom: 32 }}>
         {[

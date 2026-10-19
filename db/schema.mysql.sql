@@ -300,7 +300,9 @@ CREATE TABLE IF NOT EXISTS visitantes (
 -- api/config.php clave a clave; si la fila no existe, manda el fichero.
 CREATE TABLE IF NOT EXISTS ajustes (
   clave      VARCHAR(64) NOT NULL PRIMARY KEY,
-  valor      TEXT NOT NULL,
+  -- MEDIUMTEXT: la configuración del evento (política de datos, catálogos,
+  -- preguntas propias) puede pasar de los 64 KB de un TEXT.
+  valor      MEDIUMTEXT NOT NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

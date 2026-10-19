@@ -1,7 +1,7 @@
 // GENERADO POR tools/build-components.mjs — NO EDITAR A MANO.
 // Fuente: components/Shared.jsx, components/Mapa.jsx, components/Admin.jsx, components/QRPrint.jsx, components/VoteFlow.jsx, components/Passport.jsx, components/Dashboard.jsx, components/Recorrido.jsx, components/Promotores.jsx, components/Cuentas.jsx, components/Perfil.jsx, components/Caracterizacion.jsx, components/Economia.jsx, components/Encuesta.jsx, components/Festival.jsx, components/Sistema.jsx, components/Correo.jsx, components/App.jsx
 // Regenerar tras tocar cualquier .jsx:  node tools/build-components.mjs
-// Huella de las fuentes: 958d6eabbd38cfd2
+// Huella de las fuentes: c8ea8628f7572767
 /* components/Shared.jsx */
 (function () {
 const LogoTaza = ({
@@ -3154,12 +3154,29 @@ const AdminPage = ({
   }, React.createElement(StandsList, {
     stands: stands
   }));
-  if (section === "editor") return React.createElement(AdminShell, {
-    active: "stands",
-    user: user
-  }, React.createElement(StandEditor, {
-    stand: editingId ? stands.find(s => s.id === editingId) : null
-  }));
+  if (section === "editor") {
+    const st = editingId ? stands.find(s => s.id === editingId) : null;
+    if (editingId && !st) {
+      return React.createElement(AdminShell, {
+        active: "stands",
+        user: user
+      }, React.createElement("div", {
+        className: "admin-page"
+      }, React.createElement("p", {
+        className: "mono",
+        style: {
+          color: "var(--ink-3)"
+        }
+      }, stands.length ? "Ese espacio no existe." : "Cargando el espacio…")));
+    }
+    return React.createElement(AdminShell, {
+      active: "stands",
+      user: user
+    }, React.createElement(StandEditor, {
+      key: st ? st.id : "nuevo",
+      stand: st
+    }));
+  }
   if (section === "qr") return React.createElement(AdminShell, {
     active: "qr",
     user: user
@@ -3210,6 +3227,95 @@ const AdminPage = ({
     }
   }, "\u2014"));
 };
+const ResumenEvento = () => {
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  const abierta = !(aj.estado && aj.estado.inscripcion_abierta === false);
+  const datos = filasDatosEvento(aj).filter(([k]) => k !== "Contacto");
+  const chip = (activo, si, no) => React.createElement("span", {
+    className: "mono",
+    style: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "4px 10px",
+      borderRadius: 999,
+      border: "1px solid " + (activo ? "var(--good)" : "var(--line-2)"),
+      color: activo ? "var(--good)" : "var(--ink-3)"
+    }
+  }, React.createElement("span", {
+    "aria-hidden": "true",
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: "50%",
+      background: activo ? "var(--good)" : "var(--ink-3)"
+    }
+  }), activo ? si : no);
+  return React.createElement("div", {
+    style: {
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: "16px 20px",
+      marginBottom: 24,
+      background: "var(--paper-2)"
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 12,
+      flexWrap: "wrap",
+      alignItems: "baseline"
+    }
+  }, React.createElement("div", null, React.createElement("div", {
+    className: "mono"
+  }, "Evento"), React.createElement("div", {
+    style: {
+      fontFamily: "var(--font-display)",
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
+      fontSize: 24,
+      lineHeight: 1.1,
+      marginTop: 2
+    }
+  }, nombreEvento(aj))), React.createElement("a", {
+    href: "/admin/festival",
+    "data-route": true,
+    className: "mono",
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Configurar \u2192")), datos.length > 0 && React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px 22px",
+      flexWrap: "wrap",
+      marginTop: 10,
+      fontSize: 13,
+      color: "var(--ink-2)"
+    }
+  }, datos.map(([k, v]) => React.createElement("span", {
+    key: k
+  }, React.createElement("span", {
+    className: "mono",
+    style: {
+      marginRight: 6
+    }
+  }, k), v))), !ev.fecha_inicio && React.createElement("p", {
+    className: "ayuda",
+    style: {
+      marginTop: 8
+    }
+  }, "A\xFAn no tiene fechas: se ponen en Configuraci\xF3n del evento \u2192 Evento."), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+      marginTop: 12
+    }
+  }, chip(abierta, "Inscripción abierta", "Inscripción cerrada"), chip(compraActiva(), "Pregunta de compra activa", "Sin pregunta de compra")));
+};
 const StandsList = ({
   stands
 }) => {
@@ -3233,7 +3339,7 @@ const StandsList = ({
     href: "/admin/stands/new",
     "data-route": true,
     className: "btn btn-primary"
-  }, "+ Registrar espacio")), React.createElement("div", {
+  }, "+ Registrar espacio")), React.createElement(ResumenEvento, null), React.createElement("div", {
     className: "grid-4",
     style: {
       marginBottom: 32

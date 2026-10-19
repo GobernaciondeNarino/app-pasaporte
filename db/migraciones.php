@@ -203,6 +203,22 @@ function lmt_migrar(PDO $pdo, bool $dryRun = false): array
         }
     }
 
+    // La configuración del evento (ajustes.festival) guarda la política de
+    // datos, los catálogos y las preguntas propias. En MySQL un TEXT se queda
+    // en 64 KB y un evento con muchas preguntas se acerca; MEDIUMTEXT da 16 MB.
+    // SQLite no tiene ese límite. Sólo se agranda: nunca se encoge nada.
+    if (!$dryRun && $driver === 'mysql') {
+        try {
+            $tipo = $pdo->query("SHOW COLUMNS FROM `ajustes` LIKE 'valor'")->fetch(PDO::FETCH_ASSOC);
+            if ($tipo && strtolower((string) $tipo['Type']) === 'text') {
+                $pdo->exec('ALTER TABLE `ajustes` MODIFY `valor` MEDIUMTEXT NOT NULL');
+                $log[] = '· ajustes.valor ampliado a MEDIUMTEXT.';
+            }
+        } catch (\Throwable $e) {
+            $errores[] = 'No se pudo ampliar ajustes.valor: ' . $e->getMessage();
+        }
+    }
+
     // Normalizar municipio y región de lo que ya está guardado.
     if (!$dryRun) {
         $r = lmt_normalizar_territorio($pdo);
