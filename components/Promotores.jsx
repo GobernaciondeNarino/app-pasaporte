@@ -716,6 +716,8 @@ const ACCESO_ENTRADA = {
 };
 
 const PromotorLoginPage = ({ onEntrar }) => {
+  const ajEvento = usarAjustesFestival();
+  const inscripcionAbierta = !(ajEvento.estado && ajEvento.estado.inscripcion_abierta === false);
   // El QR abre /promotor?correo=…&acceso=TOKEN: si viene así, se rellena todo
   // y sólo queda pulsar. Escribir 32 caracteres a mano en un móvil, de pie en
   // un stand, no es una opción razonable.
@@ -802,7 +804,7 @@ const PromotorLoginPage = ({ onEntrar }) => {
           </button>
         </form>
         <p className="mono" style={{ textAlign: "center", color: "var(--ink-3)", marginTop: 24, lineHeight: 1.7 }}>
-          ¿Aún no te inscribes? <a href="/inscripcion" data-route style={{ color: "var(--grano)" }}>Solicita tu acceso</a><br/>
+          {inscripcionAbierta && <>¿Aún no te inscribes? <a href="/inscripcion" data-route style={{ color: "var(--grano)" }}>Solicita tu acceso</a><br/></>}
           Si perdiste tu acceso, pide al organizador que te dé uno nuevo.
         </p>
       </div>

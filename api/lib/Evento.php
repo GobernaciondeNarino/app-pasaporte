@@ -702,10 +702,10 @@ final class Evento
                 $act['marca']['pie'] = $pie !== '' ? $pie : $def['marca']['pie'];
             }
             if (array_key_exists('mostrar_nombre', $b['marca'])) $act['marca']['mostrar_nombre'] = (bool) $b['marca']['mostrar_nombre'];
-            if (in_array($b['marca']['simbolo'] ?? '', self::SIMBOLOS, true)) $act['marca']['simbolo'] = (string) $b['marca']['simbolo'];
+            if (in_array(self::str($b['marca']['simbolo'] ?? ''), self::SIMBOLOS, true)) $act['marca']['simbolo'] = self::str($b['marca']['simbolo']);
             // El logo sólo se cambia por su ruta de subida o se quita con '':
             // aceptar cualquier ruta permitiría apuntar a otro fichero.
-            if (array_key_exists('logo', $b['marca']) && (string) $b['marca']['logo'] === '') $act['marca']['logo'] = '';
+            if (array_key_exists('logo', $b['marca']) && self::str($b['marca']['logo']) === '' && !is_array($b['marca']['logo'])) $act['marca']['logo'] = '';
         }
 
         if (isset($b['simbolos']) && is_array($b['simbolos'])) {
@@ -732,22 +732,22 @@ final class Evento
             if (isset($t['colores']) && is_array($t['colores'])) {
                 foreach (self::COLORES as $k) {
                     if (!array_key_exists($k, $t['colores'])) continue;
-                    $v = strtolower(trim((string) $t['colores'][$k]));
+                    $v = strtolower(trim(self::str($t['colores'][$k])));
                     if ($v !== '' && !self::esHex($v)) throw new \RuntimeException('color_invalido');
                     $act['tema']['colores'][$k] = $v;
                 }
             }
             $fuentes = self::fuentes();
             foreach (['display', 'texto', 'meta'] as $rol) {
-                $v = (string) ($t['fuentes'][$rol] ?? '');
+                $v = self::str($t['fuentes'][$rol] ?? '');
                 if ($v !== '' && isset($fuentes[$v])) $act['tema']['fuentes'][$rol] = $v;
             }
             if (array_key_exists('titulos_cursiva', $t)) $act['tema']['titulos_cursiva'] = (bool) $t['titulos_cursiva'];
             if (array_key_exists('titulos_peso', $t)) $act['tema']['titulos_peso'] = self::peso($t['titulos_peso']);
-            if (isset($t['esquinas']) && isset(self::ESQUINAS[$t['esquinas']])) $act['tema']['esquinas'] = (string) $t['esquinas'];
-            if (isset($t['preset']) && (isset(self::presetsTema()[$t['preset']]) || $t['preset'] === 'personalizado')) {
-                $act['tema']['preset'] = (string) $t['preset'];
-            }
+            $esq = self::str($t['esquinas'] ?? '');
+            if (isset(self::ESQUINAS[$esq])) $act['tema']['esquinas'] = $esq;
+            $preset = self::str($t['preset'] ?? '');
+            if (isset(self::presetsTema()[$preset]) || $preset === 'personalizado') $act['tema']['preset'] = $preset;
         }
 
         if (isset($b['encuesta']) && is_array($b['encuesta'])) {
@@ -794,7 +794,7 @@ final class Evento
                     ? $def['pasaporte'][$k] : $v;
             }
             if (array_key_exists('prefijo', $p)) {
-                $pre = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $p['prefijo']) ?? '');
+                $pre = strtoupper(preg_replace('/[^A-Za-z]/', '', self::str($p['prefijo'])) ?? '');
                 $act['pasaporte']['prefijo'] = $pre !== '' ? substr($pre, 0, 4) : $def['pasaporte']['prefijo'];
             }
         }
@@ -806,7 +806,7 @@ final class Evento
                 $act['datos']['texto'] = $t !== '' ? $t : $def['datos']['texto'];
             }
             if (array_key_exists('enlace', $d)) {
-                $enlace = trim((string) ($d['enlace'] ?? ''));
+                $enlace = trim(self::str($d['enlace'] ?? ''));
                 if ($enlace === '') $act['datos']['enlace'] = '';
                 else {
                     $u = Validate::url($enlace, 400);
@@ -926,7 +926,7 @@ final class Evento
             if (!is_array($o)) continue;
             $texto = Validate::texto($o[1] ?? '', 300);
             if ($texto === '') continue;
-            $clave = (string) ($o[0] ?? '');
+            $clave = self::str($o[0] ?? '');
             if (!preg_match('/\A[a-z0-9_]{1,40}\z/', $clave)) {
                 $base = trim((string) preg_replace('/[^a-z0-9]+/', '_', Validate::plegarAscii($texto)), '_');
                 $clave = substr($base !== '' ? $base : 'opcion', 0, 32);
@@ -948,7 +948,7 @@ final class Evento
         $ids = [];
         foreach (array_slice($lista, 0, 40) as $p) {
             if (!is_array($p)) continue;
-            $id = (string) ($p['id'] ?? '');
+            $id = self::str($p['id'] ?? '');
             $sistema = $esEncuesta && isset(self::ESTRELLAS_SISTEMA[$id]);
             if (!$sistema && !preg_match('/\Ap_[a-z0-9]{4,16}\z/', $id)) continue;
             if (in_array($id, $ids, true)) continue;
@@ -959,7 +959,7 @@ final class Evento
                           'activa' => !empty($p['activa']), 'sistema' => true];
                 continue;
             }
-            $tipo = (string) ($p['tipo'] ?? '');
+            $tipo = self::str($p['tipo'] ?? '');
             if (!in_array($tipo, $tipos, true) || $etiqueta === '') continue;
             $q = [
                 'id' => $id, 'tipo' => $tipo, 'etiqueta' => $etiqueta,
@@ -989,9 +989,15 @@ final class Evento
         return $out;
     }
 
+    /** Un escalar como texto; cualquier otra cosa (lista, objeto) como ''. */
+    private static function str($v): string
+    {
+        return is_scalar($v) ? (string) $v : '';
+    }
+
     private static function fecha($v): string
     {
-        $v = trim((string) $v);
+        $v = trim(self::str($v));
         if (!preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $v)) return '';
         [$y, $m, $d] = array_map('intval', explode('-', $v));
         return checkdate($m, $d, $y) ? $v : '';
@@ -999,7 +1005,7 @@ final class Evento
 
     private static function enlace($v): string
     {
-        $v = trim((string) $v);
+        $v = trim(self::str($v));
         if ($v === '') return '';
         $u = Validate::url($v, 255);
         if ($u === null) throw new \RuntimeException('enlace_invalido');

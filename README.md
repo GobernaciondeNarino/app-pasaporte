@@ -1,14 +1,25 @@
-# La Mejor Taza
+# Pasaporte del Evento
 
-**Pasaporte digital del café de Nariño** — votación pública con QR, libreta
-de sellos y dashboard en tiempo real para el Festival del Café 2026 de la
-Gobernación de Nariño.
+**Pasaporte digital para eventos de la Gobernación de Nariño** — votación
+pública con QR, libreta de sellos, inscripción de espacios y tablero en tiempo
+real, **configurable para cualquier evento** desde el panel: nombre, logo,
+símbolos, colores, tipografías, encuesta, formulario de inscripción y textos del
+pasaporte.
+
+Nació como **La Mejor Taza**, el pasaporte del Festival del Café de Nariño 2026.
+Esa configuración sigue disponible como plantilla (ver
+[Configuración del evento](#1octies-configuración-del-evento)). Por eso en el
+código y en este documento siguen apareciendo «festival», `LMT_` o `lmt.`: son
+nombres técnicos que no ve nadie.
+
+> **Guía para quien organiza un evento:**
+> [docs/CONFIGURACION-DEL-EVENTO.md](docs/CONFIGURACION-DEL-EVENTO.md).
 
 > Frontend estático (React + Three.js, sin build step) sobre un backend
 > **PHP 8 + PDO** con MySQL/MariaDB o SQLite. Toda la capa de seguridad
 > (sesiones, CSRF, rate limiting, validación) vive en el servidor.
 
-**Versión 2.7.3.** Qué trae cada versión y —lo que de verdad importa el día del
+**Versión 3.0.0.** Qué trae cada versión y —lo que de verdad importa el día del
 evento— **cómo volver atrás**, en [CHANGELOG.md](CHANGELOG.md). La versión
 desplegada se consulta en `/api/health` con sesión de administrador.
 
@@ -23,7 +34,7 @@ desplegada se consulta en `/api/health` con sesión de administrador.
    - [Correo saliente](#1quinquies-correo-saliente)
    - [Mi recorrido](#1sexies-mi-recorrido)
    - [Actividad económica](#1septies-actividad-económica)
-   - [Personalización](#1octies-personalización)
+   - [Configuración del evento](#1octies-configuración-del-evento)
    - [Empezar de cero](#1nonies-empezar-de-cero)
 2. [Arquitectura](#2-arquitectura)
 3. [Requisitos](#3-requisitos)
@@ -71,7 +82,8 @@ lee en pantalla.
 | `/admin/live`                        | Admin     | Actividad y ranking en tiempo real.                       |
 | `/admin/promotores`                  | Admin     | **Verificar inscripciones** y enviar la clave por correo. |
 | `/admin/economia`                    | Admin     | **Actividad económica**: compras del evento y por stand.  |
-| `/admin/festival`                    | Admin     | **Personalización**: marca, textos, columnas y fondos.    |
+| `/admin/encuesta`                    | Admin     | **Resultados de la encuesta** del voto, por pregunta.     |
+| `/admin/festival`                    | Admin     | **Configuración del evento**: datos, marca, colores, encuesta, inscripción, pasaporte. |
 | `/admin/correos`                     | Admin     | Bitácora de correo saliente (¿salió la clave?).           |
 | `/admin/sistema`                     | Propietario | **Empezar de cero**: borrar los datos de prueba.        |
 | `/install.php`                       | One-shot  | Asistente de instalación (auto-bloquea al terminar).      |
@@ -703,27 +715,69 @@ convierte el informe en un disparate.
 
 ---
 
-## 1.octies. Personalización
+## 1.octies. Configuración del evento
 
-`/admin/festival` — lo que el organizador cambia sin tocar código.
+`/admin/festival` — todo lo que hace que la plataforma sirva para un evento
+distinto sin tocar código. La guía paso a paso para quien organiza está en
+[docs/CONFIGURACION-DEL-EVENTO.md](docs/CONFIGURACION-DEL-EVENTO.md); aquí, lo
+que conviene saber para mantenerlo.
 
-- **Nombre de la edición**: el renglón que va bajo «La Mejor Taza» —de fábrica
-  «Festival · Nariño 2026»— en toda la aplicación y en la cabecera de los
-  correos. Se configura porque el año cambia y la muestra puede llamarse de otra
-  forma en la siguiente edición, y eso no debería costar un despliegue. Hay una
-  vista previa del logotipo al lado, que es donde se ve el espacio de más antes
-  de guardarlo.
-- **Títulos de las tres valoraciones.** Cambiar el nombre no toca lo ya votado:
-  las claves son las columnas de la base y siguen siendo la misma valoración.
-- **Columnas de «Mi recorrido»**, por separado en computador (1-6) y móvil (1-3).
-- **Política de tratamiento de datos**: el texto del aviso que lee quien se
-  inscribe y el enlace a la política publicada por la Gobernación. Quien tiene
-  que poder cambiar un aviso de habeas data es el área jurídica, no quien
-  despliega: la finalidad y el responsable cambian de una vigencia a otra, y un
-  texto desactualizado ahí no es un detalle de redacción. El enlace se valida
-  —sólo `http(s)`— para que un `javascript:` no acabe en un enlace que pulsa el
-  público, y hay un botón para ver cómo queda el aviso antes de guardarlo.
-- **Fondos del pasaporte**: portada, contraportada y hojas internas.
+| Pestaña | Qué cambia |
+| --- | --- |
+| **Evento** | Nombre, lema, descripción, textos de la portada; **fechas, horario, lugar, ciudad, organizador, web y contacto**, que se ven en la portada y en el tablero principal; pie de página. |
+| **Marca y símbolos** | Logo (también icono del navegador), símbolo cuando no hay logo, texto bajo el nombre, los tres **emoji del voto** y su palabra, palabra del sello, rótulo del primer lugar. |
+| **Colores y letra** | Paletas, 14 colores por función, tipografía de títulos, texto y metadatos, peso y cursiva de los títulos, esquinas. |
+| **Encuesta del voto** | Textos; **¿Compraste algo? sí/no** (y el importe); comentario sí/no; valoraciones de sistema activables y renombrables; **preguntas propias**. |
+| **Inscripción** | **Abierta/cerrada** (con cierre automático por fecha); cada campo activable, obligatorio y renombrable; opciones de los catálogos; **preguntas adicionales**. |
+| **Pasaporte** | Rótulos de portada y hoja de datos, prefijo del número, textos de invitación y cierre, columnas de «Mi recorrido», fondos. |
+| **Datos personales** | Responsable, aviso de la Ley 1581 de 2012, enlace a la política. |
+
+**Un borrador, un botón.** El panel edita un borrador de toda la configuración y
+lo guarda de una vez; el servidor lo valida (`Evento::sanear()`) y devuelve lo
+guardado, que se aplica al momento en toda la aplicación —también el tema, que
+se reescribe en `<style id="lmt-tema">` sin recargar—. Las imágenes son la
+excepción: se guardan al subirlas.
+
+**Plantillas.** *Evento genérico · Gobernación de Nariño* (la de fábrica) y *La
+Mejor Taza · Festival del Café* cargan una configuración completa en el
+borrador. Viven en `Evento::plantillas()`.
+
+**Dónde vive.** El esquema, los valores de fábrica, las plantillas, la
+validación y el CSS del tema están en [`api/lib/Evento.php`](api/lib/Evento.php).
+Se guarda en la tabla `ajustes` bajo la clave `festival` —la misma que usaba la
+personalización de La Mejor Taza—, así que lo que una instalación anterior tenía
+configurado se conserva. `GET /api/festival/ajustes` es público (no hay nada
+personal ni secreto) y además viaja dentro del HTML en `LMT_BOOTSTRAP.festival`.
+
+**El tema, sin parpadeo y sin inyección.** `app.php` calcula el CSS del tema
+(sólo variables sobre `:root`) y lo escribe antes de enviar la página, con el
+`<title>`, el `theme-color` y el icono. Los colores se aceptan sólo como
+`#rgb`/`#rrggbb` y las tipografías salen de un catálogo del servidor
+(`Evento::fuentes()`): nada de lo que se escribe en el panel llega tal cual a un
+`<style>`. Los títulos usan `var(--display-style)` y `var(--display-weight)`
+para que la cursiva fina de una serif editorial y la negrita de Hind Madurai
+salgan de la misma interfaz.
+
+**Identidad institucional por defecto.** La paleta y las tipografías de fábrica
+siguen el Manual de Identidad Visual (2024) y el Manual de Sitios Web (2025) de
+la Gobernación de Nariño: verde `#10A13B`, amarillo `#FFD500`, azul `#003366`;
+Hind Madurai, Nunito Sans y Source Sans 3, **autoalojadas** en `styles/fonts/`
+como el resto (sin pedir nada a Google).
+
+**Preguntas propias.** Las de la encuesta se guardan en `votos.respuestas` y las
+de la inscripción en `promotores.respuestas_extra` y `stands.respuestas_extra`
+(JSON `{id: valor}`; las opciones por su texto). Se validan contra la
+configuración con `Evento::validarRespuestas()`. Al público sólo llegan las de
+preguntas marcadas como públicas. Los resultados están en `/admin/encuesta` y en
+`votos.csv` / `stands.csv`, una columna por pregunta.
+
+**Campos de la inscripción.** `Catalogos::ficha()` valida contra los campos y
+opciones configurados: en la inscripción pública, un campo desactivado no se
+guarda aunque llegue; en el editor del panel se conserva y se aceptan claves ya
+retiradas del catálogo. Nombre, correo, empresa y municipio los necesita el
+sistema y no se pueden desactivar.
+
+### Fondos del pasaporte
 
 Las hojas internas se reparten **en orden** y se **repiten** cuando se acaban: con
 dos imágenes y ocho sellos, cada una sale cuatro veces y siempre la misma en la
@@ -741,16 +795,10 @@ casi siempre son permisos del archivo, y la propia miniatura enlaza al botón qu
 los corrige (ver «Permisos de las imágenes» más abajo). Un cuadro gris roto no
 dice cuál de los tres es.
 
-Al terminar se pulsa **«Guardar y aplicar al pasaporte»**: guarda los ajustes,
-los vuelve a leer del servidor y refresca el pasaporte en caliente, sin recargar
-la página. Al lado queda el enlace **«Ver el pasaporte →»** para comprobar cómo
-quedaron las hojas de verdad, que es donde se nota si una foto queda demasiado
-oscura debajo del velo.
-
-Todo se guarda en la tabla `ajustes` bajo la clave `festival`, y el cliente lo
-lee una sola vez al arrancar: lo pinta media interfaz y pedirlo en cada
-componente sería una ráfaga de peticiones para algo que no cambia durante la
-visita.
+Cada fondo se guarda al subirlo y se aplica en ese momento al pasaporte, sin
+recargar. El enlace **«Ver el pasaporte →»** de la pestaña lleva a comprobar
+cómo quedaron las hojas de verdad, que es donde se nota si una foto queda
+demasiado oscura debajo del velo.
 
 ### Permisos de las imágenes
 
@@ -765,7 +813,7 @@ las carpetas en **`0755`**, que es lo mínimo para que el servidor web las
 entregue.
 
 Las imágenes subidas **antes** de esa versión siguen con los permisos viejos. En
-*Panel → Stands* y en *Panel → Personalización* hay un bloque de **estado del
+*Panel → Espacios* y en *Panel → Configuración del evento → Pasaporte* hay un bloque de **estado del
 almacenamiento** que cuenta cuántas están ilegibles y trae el botón **«Corregir
 permisos de las imágenes»** (`POST /api/admin/uploads/permisos`), que recorre
 `assets/uploads/` y las arregla. Es idempotente: se puede pulsar las veces que
@@ -1236,9 +1284,11 @@ Todas las respuestas usan `application/json` y la forma:
 | `GET`   | `/api/admin/uploads`          | admin        | Dónde se guardan las imágenes, si la carpeta es escribible y cuántas están ilegibles. |
 | `POST`  | `/api/admin/uploads/permisos` | admin        | Repara los permisos (`0755`/`0644`) de lo ya subido. |
 | **Personalización** | | | |
-| `GET`   | `/api/festival/ajustes`       | público      | Marca, títulos, columnas, política de datos y fondos. |
-| `PUT`   | `/api/admin/festival/ajustes` | admin        | Guarda los textos y los números. |
-| `POST/DELETE` | `/api/admin/festival/fondo` | admin  | Sube o quita un fondo del pasaporte. |
+| `GET`   | `/api/festival/ajustes`       | público      | Configuración del evento + `estado.inscripcion_abierta` + `tema_css`. |
+| `GET`   | `/api/admin/festival/catalogo`| admin        | Tipografías, paletas y plantillas para el panel. |
+| `PUT`   | `/api/admin/festival/ajustes` | admin        | Guarda la configuración (todo o un grupo). Errores: `color_invalido`, `enlace_invalido`. |
+| `POST/DELETE` | `/api/admin/festival/fondo` | admin  | Sube o quita el logo (`destino=logo`) o un fondo del pasaporte. |
+| `GET`   | `/api/admin/encuesta?stand=`  | admin        | Resultados de cada pregunta de la encuesta. |
 | **Sistema** | | | |
 | `GET`   | `/api/admin/sistema/inventario` | propietario | Qué hay en la base y la frase de confirmación. |
 | `POST`  | `/api/admin/sistema/reiniciar` | propietario | Borra los conjuntos elegidos. Exige la frase exacta. |
@@ -1389,8 +1439,12 @@ la-mejor-taza/
 ├── index.html                 # redirección a app.php
 ├── router.php                 # router para `php -S` en desarrollo
 ├── .htaccess                  # cabeceras globales + rewrites
+├── docs/CONFIGURACION-DEL-EVENTO.md  # guía para quien organiza un evento
 ├── components/                # JSX precompilado a js/components.build.js
-│   ├── Shared.jsx             # Logo, sello, QR, avisos, SubirImagen, EncuadreImagen,
+│   ├── Festival.jsx           # Panel → Configuración del evento (pestañas, borrador, plantillas)
+│   ├── Encuesta.jsx           # Panel → Encuesta (resultados por pregunta)
+│   ├── Shared.jsx             # Emblema/Wordmark del evento, DatosEvento, PreguntaEntrada,
+│   │                          #   sello, QR, avisos, SubirImagen, EncuadreImagen,
 │   │                          #   CampoNumerico, SelectorCatalogo, SelectorMultiple, SiNo,
 │   │                          #   AvisoDatos, EstadoAlmacen, numeroDeEspacio
 │   ├── Admin.jsx              # login + AdminShell + StandsList + StandEditor
@@ -1433,6 +1487,7 @@ la-mejor-taza/
 │   │   ├── Correos.php        # plantillas HTML+texto de cada correo
 │   │   ├── Uploads.php        # imágenes: valida, recodifica y guarda
 │   │   ├── Ajustes.php        # config editable desde el panel, con secretos cifrados
+│   │   ├── Evento.php         # configuración del evento: esquema, plantillas, validación y tema
 │   │   ├── Territorio.php     # GENERADO: los 64 municipios y sus 13 subregiones
 │   │   ├── Catalogos.php      # catálogos cerrados y la ficha del participante
 │   │   └── Router.php

@@ -7,6 +7,95 @@ en el que empieza y el procedimiento de reversión, incluida la parte que el
 
 ---
 
+## v3.0.0 — Pasaporte del Evento: una plataforma configurable para cualquier evento
+
+**Punto de reversión (v2.7.3, La Mejor Taza):** `959f19c`
+
+La plataforma deja de ser «La Mejor Taza» y pasa a ser el **Pasaporte del
+Evento** de la Gobernación de Nariño: lo que antes estaba escrito en el código
+para el Festival del Café se configura desde **Panel → Configuración del
+evento** (`/admin/festival`). Guía para quien organiza:
+[docs/CONFIGURACION-DEL-EVENTO.md](docs/CONFIGURACION-DEL-EVENTO.md).
+
+### Qué se configura
+
+| Pestaña | Qué cambia |
+| --- | --- |
+| Evento | Nombre, lema, descripción, textos de portada, **fechas, horario, lugar, ciudad, organizador, web y contacto** (se ven en la portada y en el tablero principal), pie de página. |
+| Marca y símbolos | Logo (también icono del navegador), símbolo cuando no hay logo, texto bajo el nombre, **los tres emoji del voto y su palabra**, palabra del sello, rótulo del primer lugar. |
+| Colores y letra | Paletas (Institucional, Mercado, Sobrio), 14 colores por función (fondo, secciones, texto, metadatos, líneas, acentos, calificaciones), tipografía de títulos, texto y metadatos, peso y cursiva de los títulos, esquinas. Vista previa en vivo. |
+| Encuesta del voto | Textos, **compra sí/no** (y si se pregunta el importe), comentario sí/no, valoraciones de sistema activables y renombrables, **preguntas propias** (estrellas, sí/no, opción, texto) obligatorias o no. |
+| Inscripción | **Abierta/cerrada** con cierre automático por fecha, mensaje de cerrada, encabezado, cada campo **activable, obligatorio y renombrable**, opciones de los catálogos editables, **preguntas adicionales** (siete tipos) públicas o internas. |
+| Pasaporte | Rótulos de la portada y de la hoja de datos, prefijo del número, textos de invitación y cierre, columnas del recorrido, fondos. |
+| Datos personales | Responsable, texto del aviso de la Ley 1581, enlace y su texto. |
+
+Dos **plantillas** cargan una configuración completa de un toque: *Evento
+genérico · Gobernación de Nariño* (la de fábrica) y *La Mejor Taza · Festival
+del Café* (la anterior, con sus preguntas del café).
+
+### Lo nuevo por dentro
+
+- **`api/lib/Evento.php`** concentra el esquema, los valores de fábrica, las
+  plantillas, la validación (`sanear()`) y el CSS del tema (`cssTema()`). Los
+  ajustes siguen en la tabla `ajustes`, clave `festival`: una instalación
+  anterior conserva lo que tenía (títulos de las estrellas, fondos, política).
+- **El tema se pinta desde el servidor.** `app.php` lee la configuración y
+  escribe el `<title>`, el `theme-color`, el icono y un `<style id="lmt-tema">`
+  con las variables del tema antes de enviar el HTML, y pasa la configuración
+  entera en `LMT_BOOTSTRAP.festival`: la primera pantalla sale con los colores y
+  el nombre del evento, sin parpadeo y sin una petición más. Los colores sólo se
+  aceptan como `#rgb`/`#rrggbb` y las tipografías de un catálogo del servidor:
+  nada de lo que llega del panel se copia tal cual a un `<style>`.
+- **Identidad institucional por defecto** (Manual de Identidad Visual 2024 y
+  Manual de Sitios Web 2025 de la Gobernación): verde `#10A13B`, amarillo
+  `#FFD500`, azul `#003366`; **Hind Madurai, Nunito Sans y Source Sans 3
+  autoalojadas** en `styles/fonts/` (latin y latin-ext, SIL OFL). `App.jsx` ya
+  no fija la paleta «mercado» a mano.
+- Los componentes usan `var(--display-style)` y `var(--display-weight)` en vez
+  de `italic`/`400` escritos a mano; el libro 3D lee las tipografías del tema de
+  las variables CSS y dibuja el emblema, los textos y el sello configurados. La
+  banda de lectura mecánica del pasaporte queda siempre en monoespaciada.
+- **Preguntas propias**: columnas nuevas `votos.respuestas`,
+  `promotores.respuestas_extra` y `stands.respuestas_extra` (JSON `{id: valor}`),
+  validadas contra la configuración con `Evento::validarRespuestas()`. Al
+  público sólo llegan las respuestas de preguntas marcadas como públicas.
+- **`Catalogos::ficha()`** valida contra los campos y opciones configurados. En
+  el editor del panel acepta además claves ya retiradas, para no obligar a
+  inventarse un dato al editar un espacio antiguo.
+- **`Security::jsonBody()`** admite anidamiento sólo en las claves que lo
+  necesitan (`respuestas`, `respuestas_extra`) y con hojas escalares;
+  `jsonBodyConfig()` hace lo propio para la configuración (sólo administración).
+- **`/admin/encuesta`**: resultados de cada pregunta, para todo el evento o un
+  espacio. `votos.csv` y `stands.csv` llevan una columna por pregunta propia y
+  los títulos actuales de las valoraciones.
+- Correos, instalador, cartel del QR y textos de la interfaz usan el nombre, el
+  organizador, las fechas y el color del evento; «festival» pasa a «evento» y
+  «stand» a «espacio» donde lo lee el público.
+- La contraseña de un promotor tampoco puede contener el nombre del evento.
+
+### Para una instalación de La Mejor Taza que se actualice
+
+La configuración de fábrica es ahora la **genérica**. Tras actualizar, entrar en
+*Configuración del evento → Empezar desde una plantilla → La Mejor Taza* y
+guardar: vuelven sus textos, su paleta y sus preguntas del café (las imágenes
+subidas se conservan).
+
+### Base de datos
+
+`php db/migrate.php` (o el instalador con `?reinstall=`) añade las tres columnas
+nuevas. Son aditivas: no se borra ni se renombra nada.
+
+### Cómo volver atrás
+
+```bash
+git revert --no-commit 959f19c..HEAD && git commit -m "Volver a v2.7.3"
+```
+
+Las columnas nuevas pueden quedarse: la versión anterior no las lee. La clave
+`festival` de `ajustes` guarda grupos nuevos que la versión anterior ignora.
+
+---
+
 ## v2.7.3 — Gmail: AUTH LOGIN antes que AUTH PLAIN
 
 **Punto de reversión (v2.7.2):** `06c570b`

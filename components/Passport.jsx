@@ -360,7 +360,7 @@ const PassportBook = ({ passport, pages, visitados, visitadosIds, stands, page, 
           }}>→</button>
         </div>
         <div className="mono" style={{ textAlign: "center", color: "var(--paper-3)", marginTop: 14, lineHeight: 1.6 }}>
-          {visitados.length} / {stands.length} stands sellados
+          {visitados.length} / {stands.length} espacios sellados
         </div>
         {/* Segunda puerta al perfil: quien no lo completó justo tras votar
             vuelve aquí a ver sus sellos, y es donde tiene sentido ofrecérselo

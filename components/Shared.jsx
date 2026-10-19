@@ -1191,6 +1191,12 @@ const SelectorCatalogo = ({
         {catalogo.map(([k, texto]) => (
           <option key={k} value={k}>{texto}</option>
         ))}
+        {/* Una opción que el organizador quitó de la lista después de que
+            alguien la eligiera: se sigue viendo, para no hacer creer que el
+            dato no está. */}
+        {valor && !catalogo.some(([k]) => k === valor) && (
+          <option value={valor}>{valor} (ya no está en la lista)</option>
+        )}
       </select>
       {ayuda && <span className="ayuda">{ayuda}</span>}
     </div>
@@ -1249,11 +1255,14 @@ const SiNo = ({ id, etiqueta, valor, onCambio, requerido = false, nota }) => (
 /** Casillas de selección múltiple contra un catálogo. */
 const SelectorMultiple = ({ id, etiqueta, catalogo, valores, onCambio, requerido = false, ayuda }) => {
   const puestos = Array.isArray(valores) ? valores : [];
+  // Lo elegido que ya no está en la lista se sigue enseñando, marcado.
+  const retiradas = puestos.filter((k) => !catalogo.some(([c]) => c === k));
+  const lista = catalogo.concat(retiradas.map((k) => [k, k + " (ya no está en la lista)"]));
   const alternar = (clave) => {
     // Se reordena según el catálogo, igual que hace el servidor: así lo que se
     // ve y lo que se guarda están en el mismo orden y comparar dos respuestas
     // iguales da igual.
-    const siguiente = catalogo
+    const siguiente = lista
       .map(([k]) => k)
       .filter((k) => (k === clave ? !puestos.includes(k) : puestos.includes(k)));
     onCambio(siguiente);
@@ -1264,7 +1273,7 @@ const SelectorMultiple = ({ id, etiqueta, catalogo, valores, onCambio, requerido
         {etiqueta}{requerido ? " *" : ""}
       </legend>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {catalogo.map(([k, texto]) => (
+        {lista.map(([k, texto]) => (
           <label key={k} style={{
             display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer",
             padding: "9px 12px", borderRadius: "var(--r-sm)", fontSize: 14, lineHeight: 1.45,

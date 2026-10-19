@@ -1,7 +1,7 @@
 // GENERADO POR tools/build-components.mjs — NO EDITAR A MANO.
 // Fuente: components/Shared.jsx, components/Mapa.jsx, components/Admin.jsx, components/QRPrint.jsx, components/VoteFlow.jsx, components/Passport.jsx, components/Dashboard.jsx, components/Recorrido.jsx, components/Promotores.jsx, components/Cuentas.jsx, components/Perfil.jsx, components/Caracterizacion.jsx, components/Economia.jsx, components/Encuesta.jsx, components/Festival.jsx, components/Sistema.jsx, components/Correo.jsx, components/App.jsx
 // Regenerar tras tocar cualquier .jsx:  node tools/build-components.mjs
-// Huella de las fuentes: 7b43d4884168ebf4
+// Huella de las fuentes: 958d6eabbd38cfd2
 /* components/Shared.jsx */
 (function () {
 const LogoTaza = ({
@@ -1547,7 +1547,9 @@ const SelectorCatalogo = ({
 }, "Selecciona una opci\xF3n\u2026"), catalogo.map(([k, texto]) => React.createElement("option", {
   key: k,
   value: k
-}, texto))), ayuda && React.createElement("span", {
+}, texto)), valor && !catalogo.some(([k]) => k === valor) && React.createElement("option", {
+  value: valor
+}, valor, " (ya no est\xE1 en la lista)")), ayuda && React.createElement("span", {
   className: "ayuda"
 }, ayuda)), valor === "otro" && React.createElement("div", {
   className: "field"
@@ -1636,8 +1638,10 @@ const SelectorMultiple = ({
   ayuda
 }) => {
   const puestos = Array.isArray(valores) ? valores : [];
+  const retiradas = puestos.filter(k => !catalogo.some(([c]) => c === k));
+  const lista = catalogo.concat(retiradas.map(k => [k, k + " (ya no está en la lista)"]));
   const alternar = clave => {
-    const siguiente = catalogo.map(([k]) => k).filter(k => k === clave ? !puestos.includes(k) : puestos.includes(k));
+    const siguiente = lista.map(([k]) => k).filter(k => k === clave ? !puestos.includes(k) : puestos.includes(k));
     onCambio(siguiente);
   };
   return React.createElement("fieldset", {
@@ -1661,7 +1665,7 @@ const SelectorMultiple = ({
       flexDirection: "column",
       gap: 6
     }
-  }, catalogo.map(([k, texto]) => React.createElement("label", {
+  }, lista.map(([k, texto]) => React.createElement("label", {
     key: k,
     style: {
       display: "flex",
@@ -5755,7 +5759,7 @@ const PassportBook = ({
       marginTop: 14,
       lineHeight: 1.6
     }
-  }, visitados.length, " / ", stands.length, " stands sellados"), window.LMTPerfil && window.LMTPerfil.tieneTestigo() && React.createElement("div", {
+  }, visitados.length, " / ", stands.length, " espacios sellados"), window.LMTPerfil && window.LMTPerfil.tieneTestigo() && React.createElement("div", {
     style: {
       textAlign: "center",
       marginTop: 16
@@ -9138,6 +9142,8 @@ const ACCESO_ENTRADA = {
 const PromotorLoginPage = ({
   onEntrar
 }) => {
+  const ajEvento = usarAjustesFestival();
+  const inscripcionAbierta = !(ajEvento.estado && ajEvento.estado.inscripcion_abierta === false);
   const url = new URLSearchParams(window.location.search);
   const tokenUrl = (url.get("acceso") || "").trim();
   const [email, setEmail] = React.useState(() => (url.get("correo") || "").trim());
@@ -9274,13 +9280,13 @@ const PromotorLoginPage = ({
       marginTop: 24,
       lineHeight: 1.7
     }
-  }, "\xBFA\xFAn no te inscribes? ", React.createElement("a", {
+  }, inscripcionAbierta && React.createElement(React.Fragment, null, "\xBFA\xFAn no te inscribes? ", React.createElement("a", {
     href: "/inscripcion",
     "data-route": true,
     style: {
       color: "var(--grano)"
     }
-  }, "Solicita tu acceso"), React.createElement("br", null), "Si perdiste tu acceso, pide al organizador que te d\xE9 uno nuevo.")));
+  }, "Solicita tu acceso"), React.createElement("br", null)), "Si perdiste tu acceso, pide al organizador que te d\xE9 uno nuevo.")));
 };
 const PromotorCambioClave = ({
   onListo
