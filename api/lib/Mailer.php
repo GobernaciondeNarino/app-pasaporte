@@ -65,12 +65,17 @@ final class Mailer
         $base = (array) Config::get('mail', []) + [
             'transport' => 'mail',
             'from'      => 'no-reply@localhost',
-            'from_name' => 'La Mejor Taza',
+            // Sin nombre configurado, el del evento: el remitente es lo primero
+            // que se lee en la bandeja y tiene que decir de qué evento viene.
+            'from_name' => class_exists(Evento::class) ? Evento::nombre() : 'Pasaporte del Evento',
             'reply_to'  => '',
             'log_file'  => '',
             'smtp'      => [],
         ];
         $c = Ajustes::grupo('mail', $base);
+        if (trim((string) ($c['from_name'] ?? '')) === '') {
+            $c['from_name'] = class_exists(Evento::class) ? Evento::nombre() : 'Pasaporte del Evento';
+        }
         // La contraseña del SMTP se guarda cifrada; aquí vuelve a ser usable.
         if (!empty($c['smtp']['password']) && Ajustes::esCifrado((string) $c['smtp']['password'])) {
             $c['smtp']['password'] = Ajustes::descifrar((string) $c['smtp']['password']);
@@ -156,7 +161,7 @@ final class Mailer
             'From: ' . ($fromName !== '' ? $fromName . ' ' : '') . '<' . $from . '>',
             'Date: ' . date('r'),
             'Message-ID: <' . bin2hex(random_bytes(16)) . '@' . self::hostname($from) . '>',
-            'X-Mailer: La Mejor Taza',
+            'X-Mailer: Pasaporte del Evento',
             'Auto-Submitted: auto-generated',
             $adjuntos
                 ? 'Content-Type: multipart/related; boundary="' . $boundaryRel . '"; type="multipart/alternative"'

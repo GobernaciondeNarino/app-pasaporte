@@ -16,17 +16,79 @@ const LogoTaza = ({ size = 40, mono = false }) => {
   );
 };
 
-// El subtítulo sale de los ajustes: el año cambia y la muestra puede llamarse
-// de otra forma en la siguiente edición. Ver `pieDeMarca` más abajo.
+/**
+ * Símbolos del sistema para cuando el evento no sube logo. La taza es la de
+ * La Mejor Taza; la libreta con sello es la genérica. Se eligen en
+ * Panel → Configuración del evento → Marca.
+ */
+const SIMBOLOS_MARCA = [
+  ["pasaporte", "Libreta con sello"],
+  ["taza", "Taza de café"],
+  ["estrella", "Estrella del Sur"],
+  ["montana", "Montaña y sol"],
+];
+
+const SimboloSvg = ({ simbolo = "pasaporte", size = 40, mono = false }) => {
+  if (simbolo === "taza") return <LogoTaza size={size} mono={mono}/>;
+  const c = mono ? "currentColor" : "var(--ink)";
+  const accent = mono ? "currentColor" : "var(--galeras)";
+  const estrella = (cx, cy, re, ri) => Array.from({ length: 10 }, (_, i) => {
+    const r = i % 2 === 0 ? re : ri, a = -Math.PI / 2 + i * Math.PI / 5;
+    return (cx + r * Math.cos(a)).toFixed(2) + "," + (cy + r * Math.sin(a)).toFixed(2);
+  }).join(" ");
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ display: "block" }} aria-hidden="true">
+      {simbolo === "estrella" && (<>
+        <circle cx="24" cy="24" r="17" stroke={c} strokeWidth="1.8"/>
+        <polygon points={estrella(24, 24, 9, 4)} fill={accent}/>
+      </>)}
+      {simbolo === "montana" && (<>
+        <path d="M6 36 L18 16 L25 26 L31 19 L42 36 Z" stroke={c} strokeWidth="1.8" strokeLinejoin="round"/>
+        <circle cx="36" cy="11" r="3.2" fill={accent}/>
+      </>)}
+      {simbolo !== "estrella" && simbolo !== "montana" && (<>
+        <rect x="11" y="6" width="26" height="36" rx="3" stroke={c} strokeWidth="1.8"/>
+        <circle cx="24" cy="21" r="7" stroke={accent} strokeWidth="1.8"/>
+        <polygon points={estrella(24, 21, 3.6, 1.6)} fill={accent}/>
+        <path d="M17 34 H31" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+      </>)}
+    </svg>
+  );
+};
+
+/**
+ * El emblema del evento: el logo que subió el organizador o, si no hay, el
+ * símbolo elegido. `claro` lo adapta a fondos oscuros (portada del pasaporte,
+ * columna oscura de la portada).
+ */
+const EmblemaEvento = ({ size = 40, claro = false }) => {
+  const aj = usarAjustesFestival();
+  const marca = aj.marca || {};
+  if (marca.logo) {
+    return <img src={urlImagen(marca.logo)} alt="" height={size}
+      style={{ display: "block", height: size, width: "auto", maxWidth: size * 3, objectFit: "contain" }}/>;
+  }
+  return (
+    <div style={claro ? { color: "var(--paper)" } : undefined}>
+      <SimboloSvg simbolo={marca.simbolo || "pasaporte"} size={size} mono={claro}/>
+    </div>
+  );
+};
+
+// El nombre y el subtítulo salen de la configuración del evento: cambian de una
+// edición a otra y de un evento a otro, y eso no debería costar un despliegue.
 const Wordmark = ({ size = 20, onClick }) => {
   const aj = usarAjustesFestival();
+  const conNombre = !(aj.marca && aj.marca.mostrar_nombre === false);
   return (
     <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, cursor: onClick ? "pointer" : "default" }}>
-      <LogoTaza size={size * 1.4}/>
-      <div style={{ lineHeight: 1 }}>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: size, fontStyle: "italic", letterSpacing: "-0.01em" }}>La Mejor Taza</div>
-        <div className="mono" style={{ fontSize: 9, marginTop: 2 }}>{pieDeMarca(aj)}</div>
-      </div>
+      <EmblemaEvento size={size * 1.4}/>
+      {conNombre && (
+        <div style={{ lineHeight: 1 }}>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: size, fontStyle: "var(--display-style)", letterSpacing: "-0.01em" }}>{nombreEvento(aj)}</div>
+          <div className="mono" style={{ fontSize: 9, marginTop: 2 }}>{pieDeMarca(aj)}</div>
+        </div>
+      )}
     </div>
   );
 };
@@ -59,8 +121,9 @@ const SelloCircular = ({ stand, size = 110, rotation = -8, state = "stamped", fe
           <textPath href={`#circle-${stand.id}`} startOffset="0">{letras} · {stand.municipio.toUpperCase()} · </textPath>
         </text>
         {/* Interior */}
-        <text x="55" y="48" textAnchor="middle" fill={stand.color} fontSize="8" fontFamily="var(--font-mono)" letterSpacing="2">VISITADO</text>
-        <text x="55" y="62" textAnchor="middle" fill={stand.color} fontSize="16" fontFamily="var(--font-display)" fontStyle="italic">{stand.nombre.split(" ")[0]}</text>
+        <text x="55" y="48" textAnchor="middle" fill={stand.color} fontSize="8" fontFamily="var(--font-mono)" letterSpacing="2">{palabraSello()}</text>
+        <text x="55" y="62" textAnchor="middle" fill={stand.color} fontSize="16" fontFamily="var(--font-display)"
+          style={{ fontStyle: "var(--display-style)", fontWeight: "var(--display-weight)" }}>{stand.nombre.split(" ")[0]}</text>
         {/* La fecha del sello es la del voto. Cuando no se conoce —el sello se
             dibuja también fuera del pasaporte, donde no hay voto que mirar— no
             se inventa ninguna: antes iba una escrita a mano en el código, la
@@ -479,6 +542,24 @@ const SubirImagen = ({ actual, onSubir, etiqueta, alto = 120, cuadrada = false, 
 
 // Traducción de los códigos de error del backend a español llano.
 const ERRORES = {
+  // Configuración del evento y formularios configurables.
+  inscripciones_cerradas: "La inscripción de espacios está cerrada.",
+  respuesta_requerida: "Falta responder una pregunta obligatoria.",
+  respuesta_invalida: "Una de las respuestas no es válida. Revísala e inténtalo de nuevo.",
+  color_invalido: "Un color no es válido: usa el selector o un código como #10A13B.",
+  documento_requerido: "Escribe el documento de identidad.",
+  telefono_requerido: "Escribe el teléfono.",
+  stand_nombre_requerido: "Escribe el nombre del espacio.",
+  nit_requerido: "Escribe el NIT o RUT.",
+  sitio_web_requerido: "Escribe el sitio web (debe empezar por https://).",
+  descripcion_requerida: "Escribe la descripción.",
+  mensaje_requerido: "Escribe el mensaje para el organizador.",
+  promedio_taza_requerido: "Completa el promedio de taza.",
+  linea_productiva_requerida: "Elige al menos una línea.",
+  cert_internacional_requerida: "Responde la pregunta de certificaciones.",
+  organico_requerido: "Responde si el producto es orgánico.",
+  especial_requerido: "Responde si el producto es especial.",
+  destino_invalido: "Ese destino de imagen no existe.",
   email_invalido: "El correo no es válido.",
   nombre_invalido: "Escribe tu nombre completo.",
   debe_aceptar_tratamiento_datos: "Debes autorizar el tratamiento de tus datos para continuar.",
@@ -492,7 +573,7 @@ const ERRORES = {
   password_corta: "La contraseña debe tener al menos 10 caracteres.",
   password_larga: "La contraseña es demasiado larga.",
   password_simple: "Combina mayúsculas, minúsculas, números y símbolos.",
-  password_predecible: "Evita tu nombre, tu correo o palabras del festival.",
+  password_predecible: "Evita tu nombre, tu correo o el nombre del evento.",
   password_repetida: "La nueva contraseña debe ser distinta de la actual.",
   password_change_required: "Primero debes cambiar tu contraseña temporal.",
   rate_limited: "Demasiadas solicitudes seguidas. Espera un momento.",
@@ -708,8 +789,8 @@ const PuertaCorreo = ({ titulo, nota, onListo, volverA = "/festival", volverText
     <div className="mobile-page">
       <div className="mobile-inner">
         <a href={volverA} data-route style={{ color: "var(--ink-3)", fontSize: 13 }}>{volverTexto}</a>
-        <div className="mono" style={{ marginTop: 22 }}>Tu festival</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 34, fontWeight: 400, margin: "6px 0 12px", lineHeight: 1.05 }}>
+        <div className="mono" style={{ marginTop: 22 }}>Tu evento</div>
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 34, fontWeight: "var(--display-weight)", margin: "6px 0 12px", lineHeight: 1.05 }}>
           {titulo || "Identifícate con tu correo."}
         </h1>
         <p style={{ color: "var(--ink-2)", fontSize: 14, lineHeight: 1.65, marginBottom: 22 }}>
@@ -741,7 +822,7 @@ const PuertaCorreo = ({ titulo, nota, onListo, volverA = "/festival", volverText
         </form>
 
         <p style={{ color: "var(--ink-3)", fontSize: 12, lineHeight: 1.6, marginTop: 18 }}>
-          ¿Todavía no has votado? Escanea el QR de cualquier stand y tu pasaporte se crea solo.
+          ¿Todavía no has votado? Escanea el QR de cualquier espacio y tu pasaporte se crea solo.
         </p>
         {children}
       </div>
@@ -765,8 +846,8 @@ const InvitacionCorreo = () => {
       display: "flex", alignItems: "center", justifyContent: "center", gap: 18, flexWrap: "wrap",
     }}>
       <div style={{ minWidth: 200, flex: "1 1 260px", maxWidth: 460 }}>
-        <div className="mono" style={{ color: "var(--paper-3)" }}>Tu pasaporte del festival</div>
-        <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 21, lineHeight: 1.15, marginTop: 2 }}>
+        <div className="mono" style={{ color: "var(--paper-3)" }}>Tu pasaporte del evento</div>
+        <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 21, lineHeight: 1.15, marginTop: 2 }}>
           Escribe tu correo y verás tu pasaporte, tu recorrido y tu perfil.
         </div>
       </div>
@@ -1232,11 +1313,61 @@ const usarAjustesFestival = () => {
   return aj;
 };
 
-/** El pie de la marca: lo que va bajo «La Mejor Taza». */
-const PIE_MARCA = "Festival · Nariño 2026";
-const pieDeMarca = (aj) => {
-  const a = aj || (window.LMTFestival && window.LMTFestival.ajustes()) || {};
-  return ((a.marca || {}).pie || "").trim() || PIE_MARCA;
+/** La configuración del evento que tiene el cliente, o un objeto vacío. */
+const cfgEvento = () =>
+  (window.LMTFestival && window.LMTFestival.ajustes())
+  || (window.LMT_BOOTSTRAP && window.LMT_BOOTSTRAP.festival) || {};
+
+/** Un texto configurable, o el de fábrica si está vacío. */
+const textoCfg = (grupo, clave, porDefecto = "", aj) => {
+  const g = ((aj || cfgEvento())[grupo]) || {};
+  const v = g[clave];
+  return typeof v === "string" && v.trim() !== "" ? v : porDefecto;
+};
+
+/** El pie de la marca: lo que va bajo el nombre del evento. */
+const PIE_MARCA = "Gobernación de Nariño · 2026";
+const pieDeMarca = (aj) => textoCfg("marca", "pie", PIE_MARCA, aj);
+const nombreEvento = (aj) => textoCfg("evento", "nombre", "Pasaporte del Evento", aj);
+
+/** La palabra que va dentro del sello («VISITADO»). */
+const palabraSello = () => textoCfg("simbolos", "sello", "VISITADO");
+
+/**
+ * Los tres emoji del voto, en el orden en que se enseñan. El id es la columna
+ * de la base (bueno/regular/malo) y no cambia; lo que el organizador cambia es
+ * el dibujo y la palabra.
+ */
+const SIMBOLOS_VOTO_FABRICA = {
+  malo:    { emoji: "😞", texto: "Mejorable", color: "var(--bad)" },
+  regular: { emoji: "😐", texto: "Regular",   color: "var(--meh)" },
+  bueno:   { emoji: "😍", texto: "Excelente", color: "var(--good)" },
+};
+const simbolosVoto = () => {
+  const v = ((cfgEvento().simbolos || {}).votos) || {};
+  return ["malo", "regular", "bueno"].map((id) => ({
+    id,
+    emoji: (v[id] && v[id].emoji) || SIMBOLOS_VOTO_FABRICA[id].emoji,
+    label: (v[id] && v[id].texto) || SIMBOLOS_VOTO_FABRICA[id].texto,
+    color: SIMBOLOS_VOTO_FABRICA[id].color,
+  }));
+};
+const simboloVoto = (id) => simbolosVoto().find((x) => x.id === id) || { id, emoji: "•", label: id, color: "var(--ink-3)" };
+
+/** Configuración de un campo de la inscripción (activo, requerido, etiqueta…). */
+const campoCfg = (clave) => {
+  const c = (((cfgEvento().inscripcion || {}).campos) || {})[clave];
+  return c || { activo: true, requerido: false };
+};
+/** Las opciones configuradas de un catálogo, o las de fábrica. */
+const opcionesCampo = (clave, porDefecto) => {
+  const ops = campoCfg(clave).opciones;
+  return Array.isArray(ops) && ops.length ? ops : (porDefecto || []);
+};
+/** ¿Se pregunta por la compra al votar? Panel → Configuración → Encuesta. */
+const compraActiva = () => {
+  const c = ((cfgEvento().encuesta || {}).compra) || {};
+  return c.activa !== false;
 };
 
 /**
@@ -1286,7 +1417,7 @@ const AvisoDatos = ({ abierto, onCerrar, datos: borrador }) => {
         <div style={{ padding: "18px 22px 12px", borderBottom: "1px solid var(--line)" }}>
           <div className="mono">Ley 1581 de 2012</div>
           <h2 style={{
-            fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 400,
+            fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontWeight: "var(--display-weight)",
             fontSize: 26, margin: "4px 0 0", lineHeight: 1.15,
           }}>
             Tratamiento de datos personales
@@ -1300,7 +1431,7 @@ const AvisoDatos = ({ abierto, onCerrar, datos: borrador }) => {
           {enlace && (
             <p style={{ margin: "18px 0 0" }}>
               <a href={enlace} target="_blank" rel="noopener noreferrer" style={{ color: "var(--grano)" }}>
-                Política de Tratamiento de Datos Personales de la Gobernación de Nariño ↗
+                {(datos.enlace_texto || "").trim() || "Política de Tratamiento de Datos Personales de la Gobernación de Nariño"} ↗
               </a>
             </p>
           )}
@@ -1331,8 +1462,8 @@ const CasillaDatos = ({ valor, onCambio, id = "acepta-datos" }) => {
       <label htmlFor={id} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>
         <input id={id} type="checkbox" checked={!!valor} onChange={(e) => onCambio(e.target.checked)} style={{ marginTop: 3 }}/>
         <span>
-          Autorizo a la Gobernación de Nariño a tratar mis datos personales con la finalidad de
-          gestionar mi participación en el festival, conforme a la Ley 1581 de 2012. *{" "}
+          Autorizo a {textoCfg("datos", "responsable", "la Gobernación de Nariño")} a tratar mis datos personales con la finalidad de
+          gestionar mi participación en el evento, conforme a la Ley 1581 de 2012. *{" "}
           <button type="button" onClick={(e) => { e.preventDefault(); setVer(true); }}
             style={{
               background: "none", border: 0, padding: 0, font: "inherit",
@@ -1349,13 +1480,217 @@ const CasillaDatos = ({ valor, onCambio, id = "acepta-datos" }) => {
 
 /** Los títulos que el organizador haya puesto, o los de fábrica. */
 const titulosEstrellas = () => {
-  const a = (window.LMTFestival && window.LMTFestival.ajustes()) || {};
+  const a = cfgEvento();
   const e = a.estrellas || {};
   return {
     est_innovacion: e.innovacion || "Innovación",
     est_atencion:   e.atencion   || "Atención",
     est_calidad:    e.calidad    || "Calidad",
   };
+};
+
+/**
+ * Las valoraciones de sistema que están ACTIVAS, en el orden de la encuesta.
+ * Una desactivada no se pregunta ni se enseña en el recorrido ni en el
+ * pasaporte; sus votos antiguos siguen en la base.
+ */
+const estrellasActivas = () => {
+  const ps = ((cfgEvento().encuesta || {}).preguntas);
+  if (!Array.isArray(ps)) return ESTRELLA_CAMPOS.slice();
+  return ps.filter((p) => p.sistema && p.activa !== false).map((p) => p.id)
+    .filter((id) => ESTRELLA_CAMPOS.includes(id));
+};
+
+// ---------------------------------------------------------------------------
+// Preguntas propias
+//
+// Las que el organizador añade en Panel → Configuración del evento, a la
+// encuesta del voto o a la inscripción de espacios. Un único componente las
+// pinta en los dos formularios y otro las lee en las fichas: con una copia en
+// cada sitio, un tipo nuevo acabaría funcionando en uno y no en el otro.
+// ---------------------------------------------------------------------------
+
+const TIPOS_PREGUNTA = {
+  estrellas: "Estrellas (1 a 5)",
+  si_no: "Sí / No",
+  opcion: "Una opción de una lista",
+  multiple: "Varias opciones de una lista",
+  texto: "Texto corto",
+  parrafo: "Texto largo",
+  numero: "Número",
+  fecha: "Fecha",
+};
+
+const PreguntaEntrada = ({ pregunta: p, valor, onCambio, idBase = "pq" }) => {
+  const id = idBase + "-" + p.id;
+  const etiqueta = p.etiqueta + (p.requerida ? " *" : "");
+  if (p.tipo === "estrellas") {
+    return (
+      <div>
+        <EstrellasEntrada id={id} etiqueta={etiqueta} valor={valor || null} onCambio={onCambio}/>
+        {p.ayuda && <span className="ayuda">{p.ayuda}</span>}
+      </div>
+    );
+  }
+  if (p.tipo === "si_no") {
+    return <SiNo id={id} etiqueta={p.etiqueta} requerido={!!p.requerida} nota={p.ayuda}
+      valor={valor === undefined ? null : (valor === 1 ? true : valor === 0 ? false : valor)}
+      onCambio={onCambio}/>;
+  }
+  if (p.tipo === "opcion") {
+    return (
+      <div className="field">
+        <label htmlFor={id}>{etiqueta}</label>
+        <select id={id} value={valor || ""} onChange={(e) => onCambio(e.target.value || null)}>
+          <option value="">Selecciona una opción…</option>
+          {(p.opciones || []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        {p.ayuda && <span className="ayuda">{p.ayuda}</span>}
+      </div>
+    );
+  }
+  if (p.tipo === "multiple") {
+    const cat = (p.opciones || []).map((o) => [o, o]);
+    return <SelectorMultiple id={id} etiqueta={p.etiqueta} requerido={!!p.requerida} ayuda={p.ayuda}
+      catalogo={cat} valores={Array.isArray(valor) ? valor : []} onCambio={onCambio}/>;
+  }
+  const largo = p.tipo === "parrafo";
+  return (
+    <div className="field">
+      <label htmlFor={id}>{etiqueta}</label>
+      {largo
+        ? <textarea id={id} rows={3} maxLength={1000} value={valor || ""} onChange={(e) => onCambio(e.target.value)}
+            style={{ border: "1px solid var(--line-2)", borderRadius: "var(--r-md)", padding: 12 }}/>
+        : <input id={id} value={valor || ""} maxLength={p.tipo === "numero" ? 20 : 200}
+            type={p.tipo === "fecha" ? "date" : "text"}
+            inputMode={p.tipo === "numero" ? "decimal" : undefined}
+            onChange={(e) => onCambio(p.tipo === "numero" ? e.target.value.replace(/[^0-9.,-]/g, "") : e.target.value)}/>}
+      {p.ayuda && <span className="ayuda">{p.ayuda}</span>}
+    </div>
+  );
+};
+
+/** La primera obligatoria que falta por contestar, o null. */
+const preguntaSinResponder = (preguntas, respuestas) =>
+  (preguntas || []).find((p) => {
+    if (!p.requerida || p.activa === false) return false;
+    const v = (respuestas || {})[p.id];
+    return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+  }) || null;
+
+/** Una respuesta, ya legible. */
+const textoRespuesta = (p, v) => {
+  if (v === undefined || v === null || v === "") return "";
+  if (p.tipo === "si_no") return v === 1 || v === true ? "Sí" : "No";
+  if (p.tipo === "estrellas") return "★".repeat(Number(v) || 0) + " " + v + "/5";
+  if (Array.isArray(v)) return v.join(" · ");
+  return String(v);
+};
+
+/** Las respuestas a preguntas propias, en filas etiqueta / valor. */
+const RespuestasLectura = ({ preguntas, respuestas, soloPublicas = false }) => {
+  const filas = (preguntas || [])
+    .filter((p) => !soloPublicas || p.publica)
+    .map((p) => [p, textoRespuesta(p, (respuestas || {})[p.id])])
+    .filter(([, t]) => t !== "");
+  if (!filas.length) return null;
+  return (
+    <dl style={{ margin: 0, display: "grid", gap: 10 }}>
+      {filas.map(([p, t]) => (
+        <div key={p.id}>
+          <dt className="mono" style={{ marginBottom: 2 }}>{p.etiqueta}</dt>
+          <dd style={{ margin: 0, fontSize: 14, color: "var(--ink)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{t}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+};
+
+/**
+ * El lema del tablero, con su última palabra en el color de acento: «¿Cuál es
+ * la mejor taza de *Nariño*?». Antes la frase estaba escrita en el JSX; ahora
+ * la escribe el organizador y el acento cae solo donde siempre caía.
+ */
+const LemaDestacado = ({ texto }) => {
+  const t = String(texto || "").trim();
+  const m = t.match(/^(.*?)(\S+?)([?!.¡¿]*)$/s);
+  if (!m || !m[1].trim()) return <>{t}</>;
+  return <>{m[1]}<span style={{ color: "var(--galeras)" }}>{m[2]}</span>{m[3]}</>;
+};
+
+// ---------------------------------------------------------------------------
+// Datos básicos del evento
+//
+// Fechas, lugar, horario y organizador: lo primero que pregunta quien llega al
+// tablero. Salen de Panel → Configuración del evento → Evento, y un dato vacío
+// simplemente no se enseña.
+// ---------------------------------------------------------------------------
+
+const fechaCorta = (iso) => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  try {
+    return new Date(y, m - 1, d).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  } catch (_) { return iso; }
+};
+
+/** «12 al 14 de noviembre de 2026», o la que haya. */
+const fechasEvento = (ev) => {
+  const a = fechaCorta(ev.fecha_inicio), b = fechaCorta(ev.fecha_fin);
+  if (a && b && ev.fecha_inicio !== ev.fecha_fin) {
+    const [ya, ma] = ev.fecha_inicio.split("-"), [yb, mb] = ev.fecha_fin.split("-");
+    if (ya === yb && ma === mb) return Number(ev.fecha_inicio.split("-")[2]) + " al " + b;
+    return a + " al " + b;
+  }
+  return a || b;
+};
+
+/** Las filas que hay para enseñar. Vacío = no se pinta el bloque. */
+const filasDatosEvento = (aj) => {
+  const ev = (aj || cfgEvento()).evento || {};
+  return [
+    ["Fecha", fechasEvento(ev)],
+    ["Horario", ev.horario],
+    ["Lugar", [ev.lugar, ev.ciudad].filter((x) => (x || "").trim()).join(" · ")],
+    ["Organiza", ev.organizador],
+    ["Contacto", ev.contacto],
+  ].filter(([, v]) => (v || "").trim() !== "");
+};
+
+/**
+ * Bloque «datos del evento». `oscuro` lo adapta a fondos de tinta (la columna
+ * de la portada). Respeta «mostrar los datos» del panel.
+ */
+const DatosEvento = ({ oscuro = false, compacto = false }) => {
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  if (ev.mostrar_datos === false) return null;
+  const filas = filasDatosEvento(aj);
+  if (!filas.length && !ev.sitio_web) return null;
+  const tenue = oscuro ? "var(--paper-3)" : "var(--ink-3)";
+  const tinta = oscuro ? "var(--paper)" : "var(--ink)";
+  return (
+    <div className="datos-evento" style={{
+      display: "grid", gap: compacto ? 10 : 14,
+      gridTemplateColumns: compacto ? "1fr" : "repeat(auto-fit, minmax(min(100%, 170px), 1fr))",
+    }}>
+      {filas.map(([k, v]) => (
+        <div key={k} style={{ minWidth: 0 }}>
+          <div className="mono" style={{ color: tenue, marginBottom: 3 }}>{k}</div>
+          <div style={{ fontSize: 14, color: tinta, lineHeight: 1.45, overflowWrap: "anywhere" }}>{v}</div>
+        </div>
+      ))}
+      {ev.sitio_web && (
+        <div style={{ minWidth: 0 }}>
+          <div className="mono" style={{ color: tenue, marginBottom: 3 }}>Más información</div>
+          <a href={ev.sitio_web} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: 14, color: oscuro ? "var(--paper)" : "var(--grano)", overflowWrap: "anywhere" }}>
+            {ev.sitio_web.replace(/^https?:\/\//, "").replace(/\/$/, "")} ↗
+          </a>
+        </div>
+      )}
+    </div>
+  );
 };
 
 /** Formato de pesos colombianos, sin decimales. */
@@ -1366,7 +1701,11 @@ const pesos = (n) => {
 };
 
 Object.assign(window, {
-  LogoTaza, Wordmark, MontanasSilueta, SelloCircular, Placeholder, QRCode,
+  LogoTaza, Wordmark, EmblemaEvento, SimboloSvg, SIMBOLOS_MARCA,
+  cfgEvento, textoCfg, nombreEvento, palabraSello, simbolosVoto, simboloVoto,
+  campoCfg, opcionesCampo, compraActiva, estrellasActivas,
+  TIPOS_PREGUNTA, PreguntaEntrada, preguntaSinResponder, textoRespuesta, RespuestasLectura,
+  DatosEvento, filasDatosEvento, fechasEvento, LemaDestacado, MontanasSilueta, SelloCircular, Placeholder, QRCode,
   BarraVotos, calcScore, totalVotos, standUrl,
   ERRORES, mensajeError, Aviso,
   SubirImagen, ayudaImagen, urlImagen, BloqueForm, EncuadreImagen, encuadreCaja,

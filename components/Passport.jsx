@@ -6,11 +6,11 @@ const PassportEmpty = () => (
   <div className="mobile-page">
     <div className="mobile-inner" style={{ textAlign: "center", padding: 40 }}>
       <div className="mono" style={{ marginBottom: 8 }}>Aún no tienes pasaporte</div>
-      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 38, fontWeight: 400, margin: "0 0 16px", lineHeight: 1.05 }}>
-        Empieza tu travesía<br/>del café.
+      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 38, fontWeight: "var(--display-weight)", margin: "0 0 16px", lineHeight: 1.05 }}>
+        {textoCfg("pasaporte", "invitacion", "Empieza tu recorrido por el evento.")}
       </h2>
       <p style={{ color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto 24px" }}>
-        Escanea el QR de cualquier stand del festival y emite tu primer voto. Cada visita estampa una página en tu pasaporte.
+        Escanea el QR de cualquier espacio del evento y emite tu primer voto. Cada visita estampa una página en tu pasaporte.
       </p>
       <a href="/festival" data-route className="btn btn-ghost" style={{ justifyContent: "center" }}>← Ver el ranking</a>
     </div>
@@ -94,7 +94,7 @@ const PassportPage = ({ stands }) => {
   if (askingEmail) {
     return (
       <PuertaCorreo
-        titulo="Tu pasaporte del festival."
+        titulo="Tu pasaporte del evento."
         nota="Escribe el correo con el que votas en los espacios. No hace falta contraseña."
         volverA="/festival" volverTexto="← Volver al ranking"
         onListo={(correo) => { setEmail(correo); setAskingEmail(false); }}/>
@@ -110,7 +110,7 @@ const PassportPage = ({ stands }) => {
       <div className="mobile-page">
         <div className="mobile-inner" style={{ textAlign: "center", padding: 40 }}>
           <div className="mono">Pasaporte</div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 32, fontWeight: 400, margin: "8px 0 16px", lineHeight: 1.1 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 32, fontWeight: "var(--display-weight)", margin: "8px 0 16px", lineHeight: 1.1 }}>
             {error || "No fue posible cargar tu pasaporte."}
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
@@ -290,7 +290,7 @@ const PassportBook = ({ passport, pages, visitados, visitadosIds, stands, page, 
     ? `Sello: ${actual.stand.nombre}, ${actual.stand.municipio}`
     : actual.type === "cover" ? "Portada del pasaporte"
     : actual.type === "index" ? `Página de datos de ${passport.nombre}`
-    : actual.type === "travesia" ? `Recorrido: ${visitados.length} stands sellados`
+    : actual.type === "travesia" ? `Recorrido: ${visitados.length} espacios sellados`
     : "Fin del pasaporte";
 
   return (
@@ -497,13 +497,13 @@ const bandaMecanica = (passport) => {
 const datosSello = (passport, stand) => {
   const est = (passport.estrellas || {})[stand.id] || null;
   const titulos = window.titulosEstrellas ? window.titulosEstrellas() : {};
-  const estrellas = est ? ESTRELLA_CAMPOS.map((campo) => ({
+  const estrellas = est ? estrellasActivas().map((campo) => ({
     titulo: titulos[campo] || campo,
     valor: Number(est[ESTRELLA_CLAVES[campo]]) || 0,
   })).filter((e) => e.valor > 0) : [];
 
   const cuando = (passport.sellos || {})[stand.id] || "";
-  const v = VALORACION[(passport.valoraciones || {})[stand.id]] || null;
+  const v = valoracionDe((passport.valoraciones || {})[stand.id]);
   return {
     estrellas,
     veredicto: estrellas.length ? "" : (v ? v.texto : ""),
@@ -616,7 +616,7 @@ const RetratoPortador = ({ retrato, iniciales: ini }) => (
         }}>
           {retrato.emoji
             ? <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">{retrato.emoji}</span>
-            : <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 23, lineHeight: 1 }}>{ini}</span>}
+            : <span style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 23, lineHeight: 1 }}>{ini}</span>}
         </div>
         <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 10 }}>FOTOGRAFÍA</div>
       </React.Fragment>
@@ -638,9 +638,9 @@ const PaginaDatos = ({ passport, totalStands }) => {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.4 }}>
-            REPÚBLICA DE COLOMBIA<br/>DEPARTAMENTO DE NARIÑO
+            {textoCfg("pasaporte", "encabezado_1", "").toUpperCase()}<br/>{textoCfg("pasaporte", "encabezado_2", "").toUpperCase()}
           </div>
-          <LogoTaza size={24}/>
+          <EmblemaEvento size={24}/>
         </div>
         <RayaFina margen="8px 0 9px"/>
 
@@ -691,7 +691,7 @@ const PaginaDatos = ({ passport, totalStands }) => {
         <div style={{ marginTop: "auto", paddingTop: 6, flexShrink: 0, display: "flex", alignItems: "flex-end", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
-              fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 21,
+              fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 21,
               lineHeight: 1.1, color: "var(--grano)",
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>{passport.nombre}</div>
@@ -707,6 +707,9 @@ const PaginaDatos = ({ passport, totalStands }) => {
         <div className="mono" style={{
           fontSize: 11, letterSpacing: "0.02em", lineHeight: 1.5,
           marginTop: 8, color: "var(--ink-2)", textTransform: "none",
+          // Monoespaciada siempre, sea cual sea la letra de metadatos del tema:
+          // las dos líneas de la banda miden lo mismo o se ve torcida.
+          fontFamily: '"JetBrains Mono", ui-monospace, monospace',
           // Sin esto, el flex la encoge en vez de desbordar y la SEGUNDA línea
           // de la banda desaparecía sin que nada lo delatara.
           flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden",
@@ -725,17 +728,16 @@ const PaginaDatos = ({ passport, totalStands }) => {
 // `token` es el nombre crudo de la variable: el render CSS lo envuelve en
 // var(), y el libro 3D lo busca en su paleta —que resuelve los mismos tokens
 // a rgb porque Canvas2D no entiende oklch—.
-const VALORACION = {
-  bueno:   { texto: "Excelente", token: "--good" },
-  regular: { texto: "Regular",   token: "--meh" },
-  malo:    { texto: "Mejorable", token: "--bad" },
-};
+const VALORACION_TOKEN = { bueno: "--good", regular: "--meh", malo: "--bad" };
+// La palabra de cada calificación es la del evento (Panel → Marca y símbolos).
+const valoracionDe = (id) => VALORACION_TOKEN[id]
+  ? { texto: simboloVoto(id).label, token: VALORACION_TOKEN[id] } : null;
 
 // Lo que se enseña en la hoja del recorrido, en un sitio y para las dos vistas.
 const filasTravesia = (passport, visitados) => {
   const val = passport.valoraciones || {};
   return visitados.map((s, i) => {
-    const v = VALORACION[val[s.id]] || null;
+    const v = valoracionDe(val[s.id]);
     return {
       n: String(i + 1).padStart(2, "0"),
       nombre: s.nombre,
@@ -777,7 +779,7 @@ const LogoRedondo = ({ fila, tam = 26 }) => (
     {fila.logo
       ? <img src={fila.logo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
       : <span style={{
-          fontFamily: "var(--font-display)", fontStyle: "italic",
+          fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)",
           fontSize: Math.round(tam * 0.55), color: "var(--paper)", lineHeight: 1,
         }}>{fila.inicial}</span>}
   </div>
@@ -790,11 +792,11 @@ const PaginaTravesia = ({ passport, visitados, totalStands }) => {
   return (
     <div style={{ height: "100%", padding: "22px 22px 0", display: "flex", flexDirection: "column" }}>
       <div className="mono" style={{ fontSize: 12, marginBottom: 6 }}>Recorrido</div>
-      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 30, fontWeight: 400, margin: "0 0 4px", lineHeight: 1 }}>
+      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 30, fontWeight: "var(--display-weight)", margin: "0 0 4px", lineHeight: 1 }}>
         Tu travesía.
       </h2>
       <p style={{ fontSize: 13, color: "var(--ink-3)", lineHeight: 1.5, margin: "0 0 14px" }}>
-        {filas.length === 1 ? "El espacio que sellaste" : `Los ${filas.length} stands que sellaste`}
+        {filas.length === 1 ? "El espacio que sellaste" : `Los ${filas.length} espacios que sellaste`}
         {passport.valoraciones && Object.keys(passport.valoraciones).length ? ", con tu calificación." : "."}
       </p>
 
@@ -948,24 +950,26 @@ const PaginaContenido = ({ pageData, passport, visitados, totalSlots, totalStand
         // encima va un velo OSCURO —no de papel como en las hojas—: el texto
         // de la tapa va en claro y sobre una foto clara desaparecería.
         background: fondo
-          ? `linear-gradient(rgba(44,32,24,0.55), rgba(44,32,24,0.55)), url(${fondo}) center/cover, linear-gradient(135deg, var(--grano) 0%, oklch(0.32 0.08 45) 100%)`
-          : "linear-gradient(135deg, var(--grano) 0%, oklch(0.32 0.08 45) 100%)",
+          ? `linear-gradient(color-mix(in oklch, var(--ink) 55%, transparent), color-mix(in oklch, var(--ink) 55%, transparent)), url(${fondo}) center/cover, linear-gradient(135deg, var(--grano) 0%, var(--ink) 100%)`
+          : "linear-gradient(135deg, var(--grano) 0%, var(--ink) 100%)",
         color: "var(--paper)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ filter: "invert(1) hue-rotate(180deg)" }}><LogoTaza size={36}/></div>
-          <div className="mono" style={{ color: "var(--paper-3)", textAlign: "right" }}>NARIÑO<br/>COLOMBIA</div>
+          <EmblemaEvento size={36} claro/>
+          <div className="mono" style={{ color: "var(--paper-3)", textAlign: "right" }}>
+            {textoCfg("pasaporte", "lugar_1", "")}<br/>{textoCfg("pasaporte", "lugar_2", "")}
+          </div>
         </div>
         <div>
-          <div className="mono" style={{ color: "var(--paper-3)" }}>Pasaporte del Café</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 48, fontWeight: 400, margin: "6px 0 0", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
-            La Mejor<br/>Taza.
+          <div className="mono" style={{ color: "var(--paper-3)" }}>{textoCfg("pasaporte", "etiqueta", "Pasaporte del evento")}</div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 48, fontWeight: "var(--display-weight)", margin: "6px 0 0", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+            {textoCfg("pasaporte", "titulo_portada", nombreEvento())}
           </h1>
         </div>
         <div>
           <div style={{ height: 1, background: "var(--paper-3)", opacity: 0.3, marginBottom: 16 }}/>
           <div className="mono" style={{ color: "var(--paper-3)", marginBottom: 4 }}>Portador</div>
-          <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 26, fontWeight: 400 }}>{passport.nombre}</div>
+          <div style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 26, fontWeight: "var(--display-weight)" }}>{passport.nombre}</div>
           <div style={{ fontSize: 12, color: "var(--paper-3)", marginTop: 6 }}>{passport.correo}</div>
         </div>
       </div>
@@ -994,7 +998,7 @@ const PaginaContenido = ({ pageData, passport, visitados, totalSlots, totalStand
     return (
       <div style={{ height: "100%", padding: 20, ...lineBg, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div className="mono" style={{ fontSize: 12, marginBottom: 6 }}>Sello · {s.municipio}</div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 28, fontWeight: 400, margin: "0 0 4px", lineHeight: 1 }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 28, fontWeight: "var(--display-weight)", margin: "0 0 4px", lineHeight: 1 }}>
           {s.nombre}
         </h2>
         <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{s.region}</div>
@@ -1053,7 +1057,7 @@ const PaginaContenido = ({ pageData, passport, visitados, totalSlots, totalStand
           </div>
         )}
 
-        <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, fontStyle: "italic", fontFamily: "var(--font-display)" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, fontStyle: "var(--display-style)", fontFamily: "var(--font-display)" }}>
           "{s.descripcion}"
         </div>
 
@@ -1072,11 +1076,11 @@ const PaginaContenido = ({ pageData, passport, visitados, totalSlots, totalStand
     return (
       <div style={{ height: "100%", padding: 28, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", ...lineBg }}>
         <div className="mono" style={{ fontSize: 12 }}>Fin del pasaporte</div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 32, fontWeight: 400, margin: "12px 0 8px", lineHeight: 1 }}>
-          Gracias por<br/>caminar el café<br/>con nosotros.
+        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 32, fontWeight: "var(--display-weight)", margin: "12px 0 8px", lineHeight: 1 }}>
+          {textoCfg("pasaporte", "cierre_titulo", "Gracias por recorrer el evento con nosotros.")}
         </h2>
         <div style={{ marginTop: 20, padding: "12px 18px", border: "1px solid var(--line-2)", borderRadius: 999, fontSize: 14 }}>
-          Vuelve el próximo festival
+          {textoCfg("pasaporte", "cierre_boton", "Te esperamos en la próxima edición")}
         </div>
       </div>
     );

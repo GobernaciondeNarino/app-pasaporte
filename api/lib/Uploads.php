@@ -188,7 +188,7 @@ final class Uploads
         $ht = $raiz . '/.htaccess';
         if (is_file($ht)) return;
         $contenido = <<<HT
-# Generado por La Mejor Taza. No editar a mano.
+# Generado por Pasaporte del Evento. No editar a mano.
 # Esta carpeta sólo contiene imágenes subidas por promotores: aquí NUNCA debe
 # ejecutarse código, pase lo que pase con la validación de la subida.
 

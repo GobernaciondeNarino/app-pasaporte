@@ -47,63 +47,77 @@ function register_routes_promotores(\LMT\Router $r):void
      * inscritos probando correos (dato personal, Ley 1581/2012).
      */
     $r->post('/promotores/registro', function () {
+        // El organizador abre y cierra la inscripción desde el panel, o le pone
+        // fecha de cierre. Cerrada, el formulario ni se enseña; esto es para
+        // quien lo tuviera abierto en otra pestaña o llame a la API a mano.
+        if (!\LMT\Evento::inscripcionAbierta()) Response::error(403, 'inscripciones_cerradas');
         if (!RateLimit::hit('promotor_registro', RateLimit::ipHash())) {
             Response::error(429, 'rate_limited');
         }
 
-        $b = Security::jsonBody();
+        $b = Security::jsonBody(['respuestas_extra'], 2);
+        // Qué campos se piden y cuáles son obligatorios lo decide la
+        // configuración del evento. Un campo desactivado no se guarda aunque
+        // llegue: el formulario no lo enseñó.
+        $aj = \LMT\Evento::ajustes();
+        $on  = fn(string $k) => !empty(\LMT\Evento::campo($k, $aj)['activo']);
+        $req = fn(string $k) => $on($k) && !empty(\LMT\Evento::campo($k, $aj)['requerido']);
 
         $email     = Validate::email($b['email'] ?? null);
         $nombre    = Validate::nombre($b['nombre'] ?? null, 120);
         // Opcionales, pero si se escriben tienen que ser números. Antes un
         // «CC 12.345.678» se guardaba como NULL sin decir nada y la cédula
         // desaparecía; ahora el formulario lo rechaza y se ve por qué.
-        $telefono  = promotor_numero_opcional($b['telefono'] ?? null, 'telefono_invalido', [Validate::class, 'telefono']);
-        $documento = promotor_numero_opcional($b['documento'] ?? null, 'documento_invalido', [Validate::class, 'documento']);
+        $telefono  = $on('telefono') ? promotor_numero_opcional($b['telefono'] ?? null, 'telefono_invalido', [Validate::class, 'telefono']) : null;
+        $documento = $on('documento') ? promotor_numero_opcional($b['documento'] ?? null, 'documento_invalido', [Validate::class, 'documento']) : null;
         // El municipio se resuelve contra el catálogo del DANE:lo que no sea
         // uno de los 64 de Nariño no entra. Antes era texto libre y en la base
         // acabaron «Pasto» y «San Juan de Pasto» como municipios distintos.
         $municipio = \LMT\Territorio::municipio($b['municipio'] ?? null);
         $empresa   = Validate::nombre($b['empresa'] ?? null, 120);
-        $mensaje   = Validate::texto($b['mensaje'] ?? null, 500);
+        $mensaje   = $on('mensaje') ? Validate::texto($b['mensaje'] ?? null, 500) : '';
         $acepta    = Validate::bool($b['acepta_datos'] ?? null) === true;
 
         // Datos del stand. Un promotor y su stand son la misma cosa, así que el
         // formulario público pide ya todo lo que el stand necesita y al
         // verificar no hay que volver a escribirlo.
-        $standNombre  = Validate::nombre($b['stand_nombre'] ?? null, 80) ?? $empresa;
+        $standNombre  = ($on('stand_nombre') ? Validate::nombre($b['stand_nombre'] ?? null, 80) : null) ?? $empresa;
         // La región NO se acepta del cliente:se deduce del municipio. Es la
         // única forma de que las dos no puedan contradecirse.
         $standRegion  = $municipio !== null ? \LMT\Territorio::subregion($municipio) :null;
         // La dirección pasa a ser obligatoria:es cómo se llega al espacio, y
         // sin ella el mapa marca un punto que no lleva a ninguna puerta.
-        $standDir     = Validate::texto($b['stand_direccion'] ?? null, 255);
-        $standDesc    = Validate::texto($b['stand_descripcion'] ?? null, 800);
-        // Caracterización del participante. Ver promotor_catalogo().
-        [$tipoOrg, $tipoOrgOtro] = promotor_catalogo(
+        $standDir     = $on('direccion') ? Validate::texto($b['stand_direccion'] ?? null, 255) : '';
+        $standDesc    = $on('descripcion') ? Validate::texto($b['stand_descripcion'] ?? null, 800) : '';
+        // Caracterización del participante, contra el catálogo que tenga hoy
+        // el evento. Ver promotor_catalogo().
+        [$tipoOrg, $tipoOrgOtro] = $on('tipo_organizacion') ? promotor_catalogo(
             $b['tipo_organizacion'] ?? null, $b['tipo_organizacion_otro'] ?? null,
-            \LMT\Catalogos::ORGANIZACION, 'tipo_organizacion_invalido', true
-        );
-        [$actividad, $actividadOtro] = promotor_catalogo(
+            \LMT\Evento::clavesCampo('tipo_organizacion', $aj), 'tipo_organizacion_invalido', $req('tipo_organizacion')
+        ) : [null, null];
+        [$actividad, $actividadOtro] = $on('actividad_cafe') ? promotor_catalogo(
             $b['actividad_cafe'] ?? null, $b['actividad_cafe_otro'] ?? null,
-            \LMT\Catalogos::ACTIVIDAD, 'actividad_cafe_invalida', true
-        );
+            \LMT\Evento::clavesCampo('actividad_cafe', $aj), 'actividad_cafe_invalida', $req('actividad_cafe')
+        ) : [null, null];
         // Población, línea productiva y ficha detallada del producto. Los
         // cuatro «sí/no» de requisitos (marca registrada, cámara de comercio,
         // INVIMA y manipulación de alimentos) son obligatorios aquí porque son
         // requisitos de participación, no información de relleno.
         try {
-            $ficha = \LMT\Catalogos::ficha($b, true);
+            $ficha = \LMT\Catalogos::ficha($b, true, $aj);
+            // Las preguntas propias del evento (Panel → Configuración del
+            // evento → Inscripción), guardadas como JSON {id: valor}.
+            $respuestas = \LMT\Evento::validarRespuestas(\LMT\Evento::preguntasInscripcion($aj), $b['respuestas_extra'] ?? [], true);
         } catch (\RuntimeException $e) {
             Response::error(422, $e->getMessage());
         }
-        $standNit     = promotor_numero_opcional($b['stand_nit'] ?? null, 'nit_invalido', [Validate::class, 'documento']);
-        $standWeb     = Validate::url($b['stand_sitio_web'] ?? null, 255);
-        $logo         = promotor_logo_reclamado($b['logo'] ?? null);
+        $standNit     = $on('nit') ? promotor_numero_opcional($b['stand_nit'] ?? null, 'nit_invalido', [Validate::class, 'documento']) : null;
+        $standWeb     = $on('sitio_web') ? Validate::url($b['stand_sitio_web'] ?? null, 255) : null;
+        $logo         = $on('logo') ? promotor_logo_reclamado($b['logo'] ?? null) : null;
         // Punto elegido en el mapa. Fuera de Nariño no se guarda:sólo puede
         // venir de un error, y un punto en otro continente ensucia el mapa del
-        // festival sin que nadie se dé cuenta.
-        [$standLat, $standLng] = promotor_coordenadas($b['lat'] ?? null, $b['lng'] ?? null);
+        // evento sin que nadie se dé cuenta.
+        [$standLat, $standLng] = $on('ubicacion') ? promotor_coordenadas($b['lat'] ?? null, $b['lng'] ?? null) : [null, null];
 
         // Cómo va a entrar si el correo no llega. Ver PROMOTOR_ACCESOS.
         $accesoMetodo = in_array($b['acceso_metodo'] ?? '', PROMOTOR_ACCESOS, true)
@@ -134,12 +148,19 @@ function register_routes_promotores(\LMT\Router $r):void
         if (!$email)  Response::error(422, 'email_invalido');
         if (!$nombre) Response::error(422, 'nombre_invalido');
         if (!$municipio) Response::error(422, 'municipio_invalido');
-        if ($standDir === '') Response::error(422, 'direccion_requerida');
-        // El logo es obligatorio:es lo que identifica al stand en la tarjeta
-        // de «Mi recorrido» y bajo el sello del pasaporte. Sin él esas dos
-        // pantallas se ven a medias, y pedirlo después —cuando el caficultor ya
-        // se fue— no lo consigue nadie.
-        if (!$logo) Response::error(422, 'logo_requerido');
+        if ($req('documento') && $documento === null) Response::error(422, 'documento_requerido');
+        if ($req('telefono') && $telefono === null) Response::error(422, 'telefono_requerido');
+        if ($req('stand_nombre') && Validate::nombre($b['stand_nombre'] ?? null, 80) === null) Response::error(422, 'stand_nombre_requerido');
+        if ($req('direccion') && $standDir === '') Response::error(422, 'direccion_requerida');
+        if ($req('nit') && $standNit === null) Response::error(422, 'nit_requerido');
+        if ($req('sitio_web') && $standWeb === null) Response::error(422, 'sitio_web_requerido');
+        if ($req('descripcion') && $standDesc === '') Response::error(422, 'descripcion_requerida');
+        // El logo, si el evento lo exige (de fábrica, sí): es lo que identifica
+        // al stand en la tarjeta de «Mi recorrido» y bajo el sello del
+        // pasaporte, y pedirlo después —cuando el promotor ya se fue— no lo
+        // consigue nadie.
+        if ($req('logo') && !$logo) Response::error(422, 'logo_requerido');
+        if ($req('mensaje') && $mensaje === '') Response::error(422, 'mensaje_requerido');
         if (!$acepta) Response::error(422, 'debe_aceptar_tratamiento_datos');
 
         $pdo = Db::pdo();
@@ -164,12 +185,14 @@ function register_routes_promotores(\LMT\Router $r):void
                                          tipo_organizacion, tipo_organizacion_otro,
                                          actividad_cafe, actividad_cafe_otro,
                                          poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
+                                         respuestas_extra,
                                          estado, acceso_metodo, password_hash, must_change_password,
                                          acepta_datos, ip_hash,
                                          created_at, updated_at)
                  VALUES (:e, :n, :doc, :tel, :mun, :emp, :msg, :sn, :sr, :sd, :sdesc, :snit,
                          :sweb, :logo, :slat, :slng, :torg, :torgo, :act, :acto,
                          :poblacion, :poblacion_otro, :linea_productiva, :cert_internacional, :organico, :especial, :promedio_taza, :marca_registrada, :camara_comercio, :camara_comercio_numero, :invima, :invima_detalle, :manipulacion_alimentos, :presentacion, :presentacion_otro,
+                         :resp,
                          \'pendiente\', :am, :ph, :mcp, 1, :ip,
                          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
             );
@@ -197,6 +220,7 @@ function register_routes_promotores(\LMT\Router $r):void
                 // La ficha viaja tal cual la validó Catalogos::ficha():las
                 // claves del array son ya los nombres de las columnas.
                 ...array_combine(array_map(fn($k) => ':' . $k, array_keys($ficha)), $ficha),
+                ':resp'  => $respuestas ? json_encode($respuestas, JSON_UNESCAPED_UNICODE) : null,
                 ':am'    => $accesoMetodo,
                 // La credencial elegida se guarda hasheada YA, aunque la cuenta
                 // siga pendiente:el login la rechaza igual mientras no esté
@@ -257,6 +281,9 @@ function register_routes_promotores(\LMT\Router $r):void
      * riesgo (ver db/limpiar-inscripciones.php).
      */
     $r->post('/promotores/logo-inscripcion', function () {
+        // Sin inscripción abierta no hay a qué asociar el logo: aceptar
+        // ficheros de un anónimo para nada sólo llenaría el disco.
+        if (!\LMT\Evento::inscripcionAbierta()) Response::error(403, 'inscripciones_cerradas');
         if (!RateLimit::hit('promotor_logo_publico', RateLimit::ipHash())) {
             Response::error(429, 'rate_limited');
         }
@@ -995,7 +1022,7 @@ function promotor_asegurar_stand(\PDO $pdo, array $row):array
                 tipo_organizacion, tipo_organizacion_otro,
                 actividad_cafe, actividad_cafe_otro,
                 poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
-                empresa_tentativa
+                respuestas_extra, empresa_tentativa
          FROM promotores WHERE id = :id'
     );
     $sel->execute([':id' => $promotorId]);
@@ -1030,6 +1057,8 @@ function promotor_asegurar_stand(\PDO $pdo, array $row):array
         ':torgo'  => $p['tipo_organizacion_otro'] ?:null,
         ':act'    => $p['actividad_cafe'] ?:null,
         ':acto'   => $p['actividad_cafe_otro'] ?:null,
+        // Las respuestas a las preguntas propias del evento viajan igual.
+        ':resp'   => $p['respuestas_extra'] ?:null,
     ];
 
     // La ficha se copia columna a columna, sin nombrarlas una por una:la lista
@@ -1064,7 +1093,8 @@ function promotor_asegurar_stand(\PDO $pdo, array $row):array
                                invima_detalle=:invima_detalle,
                                manipulacion_alimentos=:manipulacion_alimentos,
                                presentacion=:presentacion,
-                               presentacion_otro=:presentacion_otro
+                               presentacion_otro=:presentacion_otro,
+                               respuestas_extra=COALESCE(:resp, respuestas_extra)
              WHERE id=:id'
         )->execute($datos + [':id' => $p['stand_id']]);
         return ['id' => (string) $p['stand_id'], 'nombre' => $datos[':nombre'], 'municipio' => $datos[':mun']];
@@ -1077,11 +1107,11 @@ function promotor_asegurar_stand(\PDO $pdo, array $row):array
                              telefono, lat, lng, tipo_organizacion, tipo_organizacion_otro,
                              actividad_cafe, actividad_cafe_otro,
                              poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
-                             coords_x, coords_y, color)
+                             respuestas_extra, coords_x, coords_y, color)
          VALUES (:id, :nombre, :mun, :reg, :dir, :correo, :desc, :prop, :propdoc, :nit, :web,
                  :logo, :tel, :lat, :lng, :torg, :torgo, :act, :acto,
                  :poblacion, :poblacion_otro, :linea_productiva, :cert_internacional, :organico, :especial, :promedio_taza, :marca_registrada, :camara_comercio, :camara_comercio_numero, :invima, :invima_detalle, :manipulacion_alimentos, :presentacion, :presentacion_otro,
-                 0.5, 0.5, :color)'
+                 :resp, 0.5, 0.5, :color)'
     )->execute($datos + [':id' => $id, ':color' => promotor_color_stand($id)]);
 
     return ['id' => $id, 'nombre' => $datos[':nombre'], 'municipio' => $datos[':mun']];
@@ -1381,10 +1411,10 @@ function promotor_numero_opcional($valor, string $error, callable $validador): ?
  * se convierte su excepción en el 422 que espera el navegador. Lo usan la
  * inscripción y el editor de espacios del panel, con `$obligatorio` distinto.
  */
-function promotor_catalogo($clave, $detalle, array $catalogo, string $error, bool $obligatorio):array
+function promotor_catalogo($clave, $detalle, array $catalogo, string $error, bool $obligatorio, bool $laxo = false):array
 {
     try {
-        return \LMT\Catalogos::par($clave, $detalle, $catalogo, $error, $obligatorio);
+        return \LMT\Catalogos::par($clave, $detalle, $catalogo, $error, $obligatorio, $laxo);
     } catch (\RuntimeException $e) {
         Response::error(422, $e->getMessage());
     }
@@ -1462,7 +1492,8 @@ function promotor_perfil_completo(int $promotorId, bool $paraAdmin = false): ?ar
                 stand_nit, stand_sitio_web, logo_path, stand_lat, stand_lng,
                 tipo_organizacion, tipo_organizacion_otro,
                 actividad_cafe, actividad_cafe_otro,
-                poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro
+                poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
+                respuestas_extra
          FROM promotores WHERE id = :id'
     );
     $stmt->execute([':id' => $promotorId]);
@@ -1550,6 +1581,7 @@ function promotor_perfil_completo(int $promotorId, bool $paraAdmin = false): ?ar
             'camara_comercio'        => stand_si_no($p['camara_comercio'] ?? null),
             'invima'                 => stand_si_no($p['invima'] ?? null),
             'manipulacion_alimentos' => stand_si_no($p['manipulacion_alimentos'] ?? null),
+            'respuestas_extra'       => \LMT\Evento::respuestasDe($p['respuestas_extra'] ?? null),
         ];
     }
     return $salida;

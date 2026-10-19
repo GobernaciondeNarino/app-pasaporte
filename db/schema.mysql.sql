@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS stands (
   manipulacion_alimentos TINYINT(1)   DEFAULT NULL,
   presentacion           VARCHAR(255) DEFAULT NULL,
   presentacion_otro      VARCHAR(120) DEFAULT NULL,
+  -- Respuestas a las preguntas propias de la inscripción (Panel →
+  -- Configuración del evento → Inscripción), como JSON {id: valor}.
+  respuestas_extra       TEXT DEFAULT NULL,
   -- Ubicación geográfica del stand, elegida en el mapa de la inscripción.
   lat           DECIMAL(9,6) DEFAULT NULL,
   lng           DECIMAL(9,6) DEFAULT NULL,
@@ -108,6 +111,8 @@ CREATE TABLE IF NOT EXISTS votos (
   compra     TINYINT(1) DEFAULT NULL,
   -- Cuánto gastó, si dijo que sí. Se guarda en pesos enteros.
   compra_valor BIGINT UNSIGNED DEFAULT NULL,
+  -- Respuestas a las preguntas propias de la encuesta, como JSON {id: valor}.
+  respuestas TEXT DEFAULT NULL,
   texto      VARCHAR(500) DEFAULT NULL,
   ip_hash    CHAR(64) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -182,6 +187,9 @@ CREATE TABLE IF NOT EXISTS promotores (
   manipulacion_alimentos TINYINT(1)   DEFAULT NULL,
   presentacion           VARCHAR(255) DEFAULT NULL,
   presentacion_otro      VARCHAR(120) DEFAULT NULL,
+  -- Respuestas a las preguntas propias de la inscripción (Panel →
+  -- Configuración del evento → Inscripción), como JSON {id: valor}.
+  respuestas_extra       TEXT DEFAULT NULL,
   logo_path            VARCHAR(255) DEFAULT NULL,
   stand_lat            DECIMAL(9,6) DEFAULT NULL,
   stand_lng            DECIMAL(9,6) DEFAULT NULL,

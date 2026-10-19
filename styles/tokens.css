@@ -1,29 +1,41 @@
-/* La Mejor Taza — Design tokens */
+/* Pasaporte del Evento — Design tokens */
 :root {
+  /* Tema base: identidad institucional de la Gobernación de Nariño (Manual de
+     Identidad Visual 2024 y Manual de Sitios Web 2025): verde #10A13B,
+     amarillo #FFD500 y azul #003366 sobre blanco. Cada evento lo cambia desde
+     Panel → Configuración del evento → Apariencia; lo que se elija allí llega
+     en <style id="lmt-tema"> y pisa estos valores. Ver api/lib/Evento.php. */
+
   /* Paleta base */
-  --paper: oklch(0.97 0.015 75);
-  --paper-2: oklch(0.93 0.025 75);
-  --paper-3: oklch(0.88 0.03 75);
-  --ink: oklch(0.22 0.02 60);
-  --ink-2: oklch(0.4 0.02 60);
-  --ink-3: oklch(0.58 0.02 60);
-  --line: oklch(0.85 0.01 75);
-  --line-2: oklch(0.78 0.015 75);
+  --paper: #ffffff;        /* fondo */
+  --paper-2: #f3f6f4;      /* secciones */
+  --paper-3: #e3eae5;      /* secciones resaltadas */
+  --ink: #003366;          /* texto principal y botones */
+  --ink-2: #4a4a4a;        /* texto secundario */
+  --ink-3: #6b6b6b;        /* metadatos */
+  --line: #dde3e8;
+  --line-2: #c3cdd5;
 
   /* Acentos */
-  --grano: oklch(0.42 0.09 50);
-  --galeras: oklch(0.55 0.13 30);
-  --cafeto: oklch(0.5 0.08 145);
+  --grano: #0b7a2c;        /* enlaces y acento principal */
+  --galeras: #10a13b;      /* palabras destacadas */
+  --cafeto: #1f6f9f;       /* acento secundario */
 
   /* Estados voto */
-  --good: oklch(0.6 0.14 145);
-  --meh: oklch(0.72 0.12 85);
-  --bad: oklch(0.58 0.18 25);
+  --good: #10a13b;
+  --meh: #e8b800;
+  --bad: #c62828;
 
   /* Tipografía */
-  --font-display: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --font-display: "Hind Madurai", "Segoe UI", Arial, sans-serif;
+  --font-sans: "Nunito Sans", "Segoe UI", Arial, sans-serif;
+  --font-mono: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  /* Los títulos: cursiva y peso. Con una serif editorial (Instrument Serif)
+     la cursiva fina luce; con Hind Madurai, que no tiene cursiva, el manual
+     pide negrita. Los componentes usan estas dos variables en vez de escribir
+     «italic» y «400» a mano. */
+  --display-style: normal;
+  --display-weight: 700;
 
   /* Radius */
   --r-sm: 4px;
@@ -31,8 +43,8 @@
   --r-lg: 14px;
 
   /* Sombras suaves */
-  --shadow-1: 0 1px 0 oklch(0.85 0.01 75 / 0.6), 0 2px 8px oklch(0.22 0.02 60 / 0.04);
-  --shadow-2: 0 2px 0 oklch(0.85 0.01 75 / 0.4), 0 8px 24px oklch(0.22 0.02 60 / 0.08);
+  --shadow-1: 0 1px 0 color-mix(in oklch, var(--line) 60%, transparent), 0 2px 8px color-mix(in oklch, var(--ink) 4%, transparent);
+  --shadow-2: 0 2px 0 color-mix(in oklch, var(--line) 40%, transparent), 0 8px 24px color-mix(in oklch, var(--ink) 8%, transparent);
 }
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
@@ -43,8 +55,8 @@ input, textarea, select { font-family: inherit; color: inherit; }
 /* Textura sutil de papel */
 .paper-texture {
   background-image:
-    radial-gradient(oklch(0.22 0.02 60 / 0.025) 1px, transparent 1px),
-    radial-gradient(oklch(0.22 0.02 60 / 0.02) 1px, transparent 1px);
+    radial-gradient(color-mix(in oklch, var(--ink) 2.5%, transparent) 1px, transparent 1px),
+    radial-gradient(color-mix(in oklch, var(--ink) 2%, transparent) 1px, transparent 1px);
   background-size: 3px 3px, 7px 7px;
   background-position: 0 0, 1px 2px;
 }
@@ -120,7 +132,7 @@ input, textarea, select { font-family: inherit; color: inherit; }
   display: flex; align-items: center; gap: 12px;
   color: var(--line-2);
   font-family: var(--font-display);
-  font-style: italic;
+  font-style: var(--display-style);
 }
 .divider-stamp::before, .divider-stamp::after {
   content: ''; flex: 1; height: 1px; background: var(--line);
@@ -308,8 +320,8 @@ input, textarea, select { font-family: inherit; color: inherit; }
 @media (max-width: 560px) { .tabla-scroll > * { min-width: 520px; } }
 
 /* Títulos que escalan con el ancho en lugar de desbordar. */
-.titulo-xl { font-family: var(--font-display); font-style: italic; font-weight: 400; letter-spacing: -0.01em; line-height: 1.02; font-size: clamp(30px, 6.5vw, 44px); margin: 4px 0 0; }
-.titulo-l  { font-family: var(--font-display); font-style: italic; font-weight: 400; line-height: 1.05; font-size: clamp(26px, 5.5vw, 34px); margin: 0; }
+.titulo-xl { font-family: var(--font-display); font-style: var(--display-style); font-weight: var(--display-weight); letter-spacing: -0.01em; line-height: 1.02; font-size: clamp(30px, 6.5vw, 44px); margin: 4px 0 0; }
+.titulo-l  { font-family: var(--font-display); font-style: var(--display-style); font-weight: var(--display-weight); line-height: 1.05; font-size: clamp(26px, 5.5vw, 34px); margin: 0; }
 
 /* Botonera que se apila cuando no cabe. */
 .acciones { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

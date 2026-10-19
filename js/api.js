@@ -129,6 +129,10 @@
       camara_comercio: s.camara_comercio ?? null,
       invima: s.invima ?? null,
       manipulacion_alimentos: s.manipulacion_alimentos ?? null,
+      // Respuestas a las preguntas propias de la inscripción (Panel →
+      // Configuración del evento). El servidor sólo manda al público las que
+      // el organizador marcó como públicas.
+      respuestas_extra: (s.respuestas_extra && typeof s.respuestas_extra === "object") ? s.respuestas_extra : {},
       lat: typeof s.lat === "number" ? s.lat : null,
       lng: typeof s.lng === "number" ? s.lng : null,
       coords: s.coords || { x: 0.5, y: 0.5 },
@@ -273,6 +277,8 @@
   }
   async function economia()                 { return request("/admin/economia"); }
   async function festivalAjustes()          { return request("/festival/ajustes"); }
+  async function festivalCatalogo()         { return request("/admin/festival/catalogo"); }
+  async function resultadosEncuesta(stand)  { return request("/admin/encuesta" + (stand ? "?stand=" + encodeURIComponent(stand) : "")); }
   async function guardarFestivalAjustes(b)  { await ensureCsrf(); return request("/admin/festival/ajustes", { method: "PUT", body: b }); }
   async function subirFondoPasaporte(destino, file) {
     await ensureCsrf();
@@ -475,6 +481,8 @@
     borrarFotoVisitante,
     economia,
     festivalAjustes,
+    festivalCatalogo,
+    resultadosEncuesta,
     guardarFestivalAjustes,
     subirFondoPasaporte,
     quitarFondoPasaporte,
@@ -560,25 +568,50 @@
   };
 
   /**
-   * Ajustes de presentación del festival (títulos de las estrellas, columnas
-   * del recorrido, fondos del pasaporte).
+   * Configuración del evento: nombre, textos, colores, preguntas del voto,
+   * campos de la inscripción, fondos del pasaporte.
    *
-   * Se leen UNA vez al arrancar y quedan en memoria: los pinta media interfaz
-   * y pedirlos en cada componente sería una ráfaga de peticiones para algo que
-   * no cambia durante la visita. Hasta que llegan, se usan los de fábrica, así
-   * que nada se queda en blanco esperando.
+   * Llega dos veces y es a propósito. La primera, dentro del propio HTML
+   * (app.php la pone en LMT_BOOTSTRAP.festival): así la primera pantalla ya
+   * sale con el nombre y los colores del evento, sin esperar a nadie. La
+   * segunda, de /festival/ajustes al arrancar, por si la página llevaba un rato
+   * abierta. Después queda en memoria: la pinta media interfaz y pedirla en
+   * cada componente sería una ráfaga de peticiones para algo que no cambia
+   * durante la visita.
    */
-  let festival = null;
+  let festival = (window.LMT_BOOTSTRAP && window.LMT_BOOTSTRAP.festival) || null;
+
+  /** Reescribe el <style id="lmt-tema"> con el CSS que calculó el servidor. */
+  function aplicarTema(css) {
+    if (typeof css !== "string") return;
+    let el = document.getElementById("lmt-tema");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "lmt-tema";
+      document.head.appendChild(el);
+    }
+    // Sólo variables sobre :root, ya validadas en el servidor.
+    el.textContent = css;
+  }
+
   window.LMTFestival = {
     ajustes() { return festival; },
+    aplicarTema,
     async cargar() {
       try {
         festival = await request("/festival/ajustes");
+        if (festival && festival.tema_css !== undefined) aplicarTema(festival.tema_css);
       } catch (_) {
-        festival = null;   // se quedan los valores por defecto del componente
+        // Se queda lo que vino en el HTML, o los valores de fábrica.
       }
       window.dispatchEvent(new CustomEvent("lmt:festival", { detail: festival }));
       return festival;
+    },
+    /** Los ajustes recién guardados desde el panel, sin otra petición. */
+    poner(aj) {
+      festival = aj || festival;
+      if (festival && festival.tema_css !== undefined) aplicarTema(festival.tema_css);
+      window.dispatchEvent(new CustomEvent("lmt:festival", { detail: festival }));
     },
   };
 

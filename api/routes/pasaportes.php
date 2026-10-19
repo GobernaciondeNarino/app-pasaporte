@@ -197,5 +197,9 @@ function pasaporte_numero(string $correo): string
     $h = strtoupper(substr(hash('sha256', 'pasaporte|' . strtolower($correo)), 0, 8));
     // Sin caracteres que se confundan al leerlos en voz alta o en una foto.
     $h = strtr($h, ['0' => 'H', 'O' => 'K', '1' => 'J', 'I' => 'L']);
-    return 'NAR-' . substr($h, 0, 4) . '-' . substr($h, 4, 4);
+    // El prefijo es del evento (Panel → Configuración del evento → Pasaporte).
+    // Sólo letras y como mucho cuatro: lo garantiza Evento::sanear().
+    $pre = (string) (\LMT\Evento::ajustes()['pasaporte']['prefijo'] ?? 'NAR');
+    if (!preg_match('/\A[A-Z]{1,4}\z/', $pre)) $pre = 'NAR';
+    return $pre . '-' . substr($h, 0, 4) . '-' . substr($h, 4, 4);
 }

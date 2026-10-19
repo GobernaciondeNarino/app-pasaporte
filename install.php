@@ -307,7 +307,7 @@ return [
     'mail' => [
         'transport' => 'mail',
         'from'      => {$mailFrom},
-        'from_name' => 'La Mejor Taza — Festival',
+        'from_name' => '',   // vacío = el nombre del evento (Panel → Configuración del evento)
         'reply_to'  => '',
         'log_file'  => '',   // vacío = fuera del document root (recomendado)
         // Si el buzón es de Gmail (Google Workspace, como hosting@narino.gov.co),
@@ -367,7 +367,7 @@ function head(string $title, int $current = 0): void { ?>
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title><?= h($title) ?> · La Mejor Taza</title>
+<title><?= h($title) ?> · Pasaporte del Evento</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles/tokens.css"/>
 <style>
@@ -420,7 +420,7 @@ function head(string $title, int $current = 0): void { ?>
 <body>
 <div class="card">
   <header>
-    <h1>La Mejor Taza</h1>
+    <h1>Pasaporte del Evento</h1>
     <span class="mono">Asistente de instalación</span>
   </header>
   <?php if ($current > 0): ?>
@@ -459,7 +459,7 @@ if (is_installed() && !reinstall_token_ok() && !$justFinished && !$incomplete) {
     head('Ya instalado', 0);
     ?>
     <div class="alert alert-ok">
-      <strong>¡La Mejor Taza ya está instalada!</strong><br>
+      <strong>¡El Pasaporte del Evento ya está instalado!</strong><br>
       Si necesitas reinstalar, borra <code>api/config.php</code> y vuelve a ejecutar este asistente.
     </div>
     <p>Por seguridad, también puedes borrar el archivo <code>install.php</code> después de la instalación.</p>
@@ -774,7 +774,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 5) {
 function instalar_runtime(): void {
     static $listo = false;
     if ($listo) return;
-    foreach (['Config', 'Response', 'Db', 'Validate', 'Ajustes', 'Mailer', 'Correos'] as $c) {
+    foreach (['Config', 'Response', 'Db', 'Validate', 'Ajustes', 'Catalogos', 'Evento', 'Mailer', 'Correos'] as $c) {
         require_once LMT_ROOT . '/api/lib/' . $c . '.php';
     }
     \LMT\Config::load(LMT_CONFIG_PATH);
@@ -827,7 +827,7 @@ if ($step === 1) {
       </div>
     <?php endif; ?>
     <h2>Vamos a instalar el sistema.</h2>
-    <p>Este asistente te guiará en pocos pasos: comprobaremos el entorno, conectaremos la base de datos, crearemos el administrador y dejaremos el sitio listo para servir tu festival.</p>
+    <p>Este asistente te guiará en pocos pasos: comprobaremos el entorno, conectaremos la base de datos, crearemos el administrador y dejaremos el sitio listo para tu evento. El nombre, los colores y los formularios se configuran después desde Panel → Configuración del evento.</p>
 
     <?php
     // Imprescindibles: sin esto no arranca nada.
@@ -1050,7 +1050,7 @@ if ($step === 5) {
         $f = [
             'transport' => 'smtp',
             'from'      => (string) ($m['from'] ?? ''),
-            'from_name' => (string) ($m['from_name'] ?? 'La Mejor Taza — Festival'),
+            'from_name' => (string) ($m['from_name'] ?? ''),
             'smtp' => [
                 'host'     => (string) ($m['smtp']['host'] ?? ''),
                 'port'     => 587,
@@ -1066,7 +1066,7 @@ if ($step === 5) {
     ?>
     <h2>Configura el correo saliente.</h2>
     <p>De aquí salen las contraseñas de los promotores y el código QR de su espacio. Es la pieza que
-       más falla y la única que falla <em>en silencio</em>: conviene comprobarla ahora, no el día del festival.</p>
+       más falla y la única que falla <em>en silencio</em>: conviene comprobarla ahora, no el día del evento.</p>
 
     <?php if (!empty($flash)): ?>
       <div class="alert alert-error" style="white-space:pre-wrap;"><?= h(implode("\n", $flash)) ?></div>
@@ -1202,7 +1202,7 @@ if ($step === 6) {
         ];
     } catch (\Throwable $e) { /* la pantalla final no depende de esto */ }
     ?>
-    <h2>¡Listo! El festival está servido.</h2>
+    <h2>¡Listo! La plataforma está instalada.</h2>
     <div class="alert alert-ok">
       Cuenta de administrador creada para <strong><?= h($done['email']) ?></strong>, con perfil de
       <strong>propietario</strong>: es la única que puede crear y quitar otras cuentas.

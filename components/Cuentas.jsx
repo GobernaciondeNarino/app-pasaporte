@@ -7,8 +7,8 @@
 //                    cualquier otra ruta mientras la bandera siga puesta).
 
 const ROL_ETIQUETA = {
-  propietario: { texto: "Propietario", color: "var(--galeras)", ayuda: "Administra el festival y las cuentas de acceso." },
-  organizador: { texto: "Organizador", color: "var(--cafeto)", ayuda: "Administra el festival: espacios, votos, pasaportes y promotores." },
+  propietario: { texto: "Propietario", color: "var(--galeras)", ayuda: "Administra el evento y las cuentas de acceso." },
+  organizador: { texto: "Organizador", color: "var(--cafeto)", ayuda: "Administra el evento: espacios, votos, pasaportes y promotores." },
 };
 
 const RolPill = ({ rol }) => {
@@ -66,7 +66,7 @@ const AdminCambioClave = ({ user }) => {
         border: "1px solid var(--line)", borderRadius: "var(--r-md)",
       }}>
         <div className="mono">Primer acceso</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 400, fontSize: 32, margin: "6px 0 12px", lineHeight: 1.1 }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontWeight: "var(--display-weight)", fontSize: 32, margin: "6px 0 12px", lineHeight: 1.1 }}>
           Cambia tu contraseña
         </h1>
         <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, margin: "0 0 22px" }}>
@@ -86,7 +86,7 @@ const AdminCambioClave = ({ user }) => {
               onChange={(e) => setNueva(e.target.value)} maxLength={128} required/>
             <span className="ayuda">
               Mínimo 10 caracteres, con mayúsculas, minúsculas y números. Evita tu nombre,
-              tu correo y palabras como «café» o «festival».
+              tu correo y el nombre del evento.
             </span>
           </div>
           <div className="field">

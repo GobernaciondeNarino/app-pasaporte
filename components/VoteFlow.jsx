@@ -1,15 +1,13 @@
 // Vista móvil REAL de votación (la que se abre al escanear el QR del stand).
 // URL: /s/{standId}. Sin marco de teléfono — ocupa la pantalla.
 
-const EMOJIS = [
-  { id: "malo", label: "Malo", emoji: "😞", color: "var(--bad)" },
-  { id: "regular", label: "Regular", emoji: "😐", color: "var(--meh)" },
-  { id: "bueno", label: "Excelente", emoji: "😍", color: "var(--good)" },
-];
+// Los tres emoji, sus palabras y todo lo que se pregunta salen de la
+// configuración del evento (Panel → Configuración del evento → Encuesta y
+// Marca y símbolos). Ver simbolosVoto() en Shared.jsx.
 
 const MobileHeader = ({ stand }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 16, borderBottom: "1px solid var(--line)", marginBottom: 16 }}>
-    <div style={{ width: 44, height: 44, borderRadius: "50%", background: stand.color, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--paper)", fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 18 }}>
+    <div style={{ width: 44, height: 44, borderRadius: "50%", background: stand.color, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--paper)", fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 18 }}>
       {(stand.nombre || "?")[0]}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
@@ -24,9 +22,22 @@ const MobileHeader = ({ stand }) => (
 // (una sola vez). Comentario y compra quedan plegados como opcionales.
 const VoteForm = ({ stand, onComplete, savedEmail }) => {
   const sec = window.LMTSecurity;
+  // La encuesta del evento. Se relee cuando llegan los ajustes: si el panel
+  // la cambia, el próximo voto ya pregunta lo nuevo.
+  const aj = usarAjustesFestival();
+  const enc = aj.encuesta || {};
+  const compra = enc.compra || {};
+  const conCompra = compra.activa !== false;
+  const comentario = enc.comentario || {};
+  const conComentario = comentario.activo !== false;
+  const activas = estrellasActivas();
+  const propias = (enc.preguntas || []).filter((p) => !p.sistema && p.activa !== false);
+  const EMOJIS = simbolosVoto();
+
   const [data, setData] = React.useState({
     correo: savedEmail || "", emoji: null, compra: null, compra_valor: "", texto: "",
     estrellas: { est_innovacion: null, est_atencion: null, est_calidad: null },
+    respuestas: {},
   });
   const [needEmail, setNeedEmail] = React.useState(false);   // reveló el campo de correo
   const [showOpt, setShowOpt] = React.useState(false);       // desplegó el comentario
@@ -56,13 +67,21 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
   // estado asíncrono de React tras un toque.
   const submitVote = async (emojiId, correo) => {
     setSubmitError(""); setYaVoto(false);
+    // Las preguntas obligatorias se comprueban antes de mandar nada: tocar el
+    // emoji es enviar, así que el aviso tiene que decir cuál falta.
+    const falta = preguntaSinResponder(propias, data.respuestas);
+    if (falta) { setSubmitError("Responde «" + falta.etiqueta + "» antes de calificar."); return; }
     setSubmitting(true);
     try {
       const payload = {
         stand: stand.id, emoji: emojiId, correo,
         estrellas: data.estrellas,
-        compra: data.compra, compra_valor: data.compra_valor,
-        texto: data.texto,
+        // Con la compra desactivada no se manda nada: el servidor la
+        // descartaría igual, pero así lo que viaja es lo que se preguntó.
+        compra: conCompra ? data.compra : null,
+        compra_valor: conCompra && compra.pide_valor !== false ? data.compra_valor : "",
+        texto: conComentario ? data.texto : "",
+        respuestas: data.respuestas,
       };
       if (window.LMTApi && window.LMTApi.enabled) {
         // El voto devuelve el testigo del perfil: es el único momento en que
@@ -135,34 +154,53 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
         </div>
       )}
 
-      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 30, fontWeight: 400, margin: "4px 0 6px", lineHeight: 1.1, letterSpacing: "-0.01em" }}>
-        ¿Cómo estuvo<br/>el café?
+      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 30, fontWeight: "var(--display-weight)", margin: "4px 0 6px", lineHeight: 1.1, letterSpacing: "-0.01em" }}>
+        {textoCfg("encuesta", "titulo", "¿Cómo te fue en este espacio?", aj)}
       </h2>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 18 }}>
-        Puntúa lo que quieras y toca un emoji para enviar.
+        {textoCfg("encuesta", "instrucciones", "Responde lo que quieras y toca un emoji para enviar.", aj)}
       </p>
 
-      {/* Las tres valoraciones. Van ANTES de los emoji porque tocar un emoji
-          envía el voto: lo que esté debajo no llegaría a rellenarse nunca.
-          Siguen siendo opcionales — el voto de un toque no se rompe. */}
-      <div style={{
-        padding: "14px 16px", marginBottom: 16,
-        border: "1px solid var(--line-2)", borderRadius: "var(--r-lg)",
-        display: "flex", flexDirection: "column", gap: 2,
-      }}>
-        {ESTRELLA_CAMPOS.map((campo) => (
-          <EstrellasEntrada key={campo} id={"vf-" + campo} etiqueta={titulos[campo]}
-            valor={data.estrellas[campo]}
-            onCambio={(v) => setData((d) => ({ ...d, estrellas: { ...d.estrellas, [campo]: v } }))}/>
-        ))}
-      </div>
+      {/* Las valoraciones. Van ANTES de los emoji porque tocar un emoji envía
+          el voto: lo que esté debajo no llegaría a rellenarse nunca. Siguen
+          siendo opcionales — el voto de un toque no se rompe. Las que el
+          organizador desactivó no se preguntan. */}
+      {activas.length > 0 && (
+        <div style={{
+          padding: "14px 16px", marginBottom: 16,
+          border: "1px solid var(--line-2)", borderRadius: "var(--r-lg)",
+          display: "flex", flexDirection: "column", gap: 2,
+        }}>
+          {activas.map((campo) => (
+            <EstrellasEntrada key={campo} id={"vf-" + campo} etiqueta={titulos[campo]}
+              valor={data.estrellas[campo]}
+              onCambio={(v) => setData((d) => ({ ...d, estrellas: { ...d.estrellas, [campo]: v } }))}/>
+          ))}
+        </div>
+      )}
+
+      {/* Las preguntas propias del evento, también antes de los emoji. */}
+      {propias.length > 0 && (
+        <div style={{
+          padding: "14px 16px", marginBottom: 16,
+          border: "1px solid var(--line-2)", borderRadius: "var(--r-lg)",
+          display: "flex", flexDirection: "column", gap: 16,
+        }}>
+          {propias.map((p) => (
+            <PreguntaEntrada key={p.id} pregunta={p} idBase="vf"
+              valor={data.respuestas[p.id]}
+              onCambio={(v) => setData((d) => ({ ...d, respuestas: { ...d.respuestas, [p.id]: v } }))}/>
+          ))}
+        </div>
+      )}
 
       {/* La compra, a la vista. Estaba plegada bajo «agregar comentario» y casi
-          nadie la abría: sin ella no hay informe de actividad económica. */}
-      <div style={{ marginBottom: 18 }}>
-        <div className="mono" style={{ marginBottom: 8 }}>¿Compraste algo?</div>
+          nadie la abría: sin ella no hay informe de actividad económica. El
+          organizador la apaga si su evento no vende nada. */}
+      {conCompra && <div style={{ marginBottom: 18 }}>
+        <div className="mono" style={{ marginBottom: 8 }}>{compra.pregunta || "¿Compraste algo?"}</div>
         <div style={{ display: "flex", gap: 10 }}>
-          {[{ v: true, l: "Sí, compré" }, { v: false, l: "No esta vez" }].map((o) => (
+          {[{ v: true, l: compra.si || "Sí, compré" }, { v: false, l: compra.no || "No esta vez" }].map((o) => (
             <button key={String(o.v)} type="button"
               aria-pressed={data.compra === o.v}
               onClick={() => setData((d) => ({
@@ -180,21 +218,21 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
               }}>{o.l}</button>
           ))}
         </div>
-        {data.compra === true && (
+        {data.compra === true && compra.pide_valor !== false && (
           <div className="field" style={{ marginTop: 12, animation: "fade-up 0.25s" }}>
-            <label htmlFor="vf-valor">¿Cuánto gastaste? (opcional)</label>
+            <label htmlFor="vf-valor">{compra.pregunta_valor || "¿Cuánto gastaste? (opcional)"}</label>
             <input id="vf-valor" inputMode="numeric" maxLength={20}
               value={data.compra_valor} placeholder="25.000"
               onChange={(e) => update("compra_valor", e.target.value)}/>
-            <span className="ayuda">En pesos. Sirve para el informe de ventas del festival.</span>
+            <span className="ayuda">En pesos. Sirve para el informe de ventas del evento.</span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* La pregunta que de verdad envía el voto. Sin ella los tres emoji
           aparecían sueltos al final de un formulario largo y no quedaba claro
           qué se estaba puntuando ni que tocarlos ya era enviar. */}
-      <div className="mono" style={{ marginBottom: 10 }}>¿Cómo te pareció nuestro espacio?</div>
+      <div className="mono" style={{ marginBottom: 10 }}>{textoCfg("encuesta", "pregunta_emoji", "¿Cómo calificas tu visita?", aj)}</div>
       <div style={{ display: "flex", gap: 10 }}>
         {EMOJIS.map(e => {
           const selected = data.emoji === e.id;
@@ -232,7 +270,7 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
               onKeyDown={e => { if (e.key === "Enter") confirmFirstTime(); }}/>
           </div>
           <p style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 6, lineHeight: 1.5 }}>
-            Con tu correo creamos tu pasaporte del café. Queda guardado en este
+            Con tu correo creamos tu pasaporte del evento. Queda guardado en este
             dispositivo: la próxima vez votas con un solo toque, sin registrarte de nuevo.
           </p>
           <button className="btn btn-primary" onClick={confirmFirstTime} disabled={!correoOk}
@@ -243,19 +281,19 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
       )}
 
       {/* Opcional plegado: comentario + compra */}
-      {!submitting && (
+      {!submitting && conComentario && (
         <div style={{ marginTop: 18 }}>
           {!showOpt ? (
             <button onClick={() => setShowOpt(true)} className="mono"
               style={{ background: "none", border: "none", color: "var(--ink-2)", cursor: "pointer", padding: "6px 0", textDecoration: "underline" }}>
-              + Agregar comentario (opcional)
+              + {comentario.etiqueta || "Comentario (opcional)"}
             </button>
           ) : (
             <div style={{ animation: "fade-up 0.3s" }}>
               <div className="field">
-                <label>Comentario (opcional, máx. 500)</label>
+                <label>{comentario.etiqueta || "Comentario (opcional)"} · máx. 500</label>
                 <textarea rows={3} value={data.texto} maxLength={500} onChange={e => update("texto", e.target.value)}
-                  placeholder="¿Qué destacarías del espacio?"
+                  placeholder={comentario.placeholder || "¿Qué destacarías del espacio?"}
                   style={{ border: "1px solid var(--line-2)", borderRadius: "var(--r-md)", padding: 12 }}/>
                 <div className="mono" style={{ alignSelf: "flex-end", color: "var(--ink-3)" }}>{data.texto.length}/500</div>
               </div>
@@ -286,9 +324,11 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
         </div>
       )}
 
-      <p className="mono" style={{ textAlign: "center", marginTop: 20, lineHeight: 1.6, color: "var(--ink-3)" }}>
-        Al votar aceptas el tratamiento<br/>de datos del festival.
-      </p>
+      {textoCfg("encuesta", "aviso_datos", "", aj) && (
+        <p className="mono" style={{ textAlign: "center", marginTop: 20, lineHeight: 1.6, color: "var(--ink-3)", maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
+          {textoCfg("encuesta", "aviso_datos", "", aj)}
+        </p>
+      )}
     </div>
   );
 };
@@ -307,7 +347,7 @@ const VoteConfirm = ({ stand, onGoPassport, onGoDashboard }) => {
   return (
     <div>
       <div className="mono" style={{ textAlign: "center", marginTop: 8 }}>✓ Voto registrado</div>
-      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 36, fontWeight: 400, margin: "12px 0 6px", textAlign: "center", lineHeight: 1.05 }}>
+      <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 36, fontWeight: "var(--display-weight)", margin: "12px 0 6px", textAlign: "center", lineHeight: 1.05 }}>
         Tu pasaporte<br/>ha sido sellado.
       </h2>
       <p style={{ fontSize: 13, color: "var(--ink-2)", textAlign: "center", marginTop: 8 }}>
@@ -349,7 +389,7 @@ const VoteConfirm = ({ stand, onGoPassport, onGoDashboard }) => {
           {volverAlRecorrido ? "Ver mi pasaporte" : "Ver mi recorrido"}
         </a>
         <button className="btn btn-ghost" onClick={onGoDashboard} style={{ justifyContent: "center", padding: 14 }}>
-          Ver ranking del festival
+          Ver ranking del evento
         </button>
       </div>
 
@@ -362,7 +402,7 @@ const VoteConfirm = ({ stand, onGoPassport, onGoDashboard }) => {
         }}>
           <div className="mono" style={{ marginBottom: 6 }}>Opcional</div>
           <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-2)", margin: "0 0 12px" }}>
-            ¿Nos cuentas de dónde nos visitas? Nos ayuda a saber quién viene al festival y a
+            ¿Nos cuentas de dónde nos visitas? Nos ayuda a saber quién viene al evento y a
             preparar mejor la próxima edición. Son dos minutos y ningún dato es obligatorio.
           </p>
           <a href="/perfil" data-route className="btn btn-ghost" style={{ justifyContent: "center", width: "100%" }}>

@@ -71,7 +71,7 @@ const SistemaPage = () => {
         <div className="mono">Sistema · Puesta a cero</div>
         <h1 className="titulo-xl">Empezar de cero</h1>
         <p style={{ color: "var(--ink-2)", fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 640 }}>
-          Borra los datos de ejemplo y de las pruebas para dejar el festival listo antes de abrir
+          Borra los datos de ejemplo y de las pruebas para dejar el evento listo antes de abrir
           al público. <strong>Las cuentas de administración nunca se tocan</strong>: si se borraran,
           nadie podría volver a entrar a arreglarlo.
         </p>
@@ -98,7 +98,7 @@ const SistemaPage = () => {
             ["Visitantes", "visitantes"], ["Correos", "correos"], ["Administradores", "admins"],
           ].map(([label, k]) => (
             <div key={k}>
-              <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 28, lineHeight: 1 }}>{cuenta(k)}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 28, lineHeight: 1 }}>{cuenta(k)}</div>
               <div className="mono" style={{ marginTop: 4, color: k === "admins" ? "var(--good)" : "var(--ink-3)" }}>
                 {label}{k === "admins" ? " · intactos" : ""}
               </div>

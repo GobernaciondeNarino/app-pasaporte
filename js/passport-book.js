@@ -103,16 +103,129 @@
   // Dibujo de las páginas en Canvas2D
   // ---------------------------------------------------------------------
 
-  var FUENTES_PEDIDAS = [
-    'italic 400 64px "Instrument Serif"',
-    '400 30px "Geist"',
-    '500 22px "JetBrains Mono"',
-  ];
+  // Las tipografías son las del tema del evento (Panel → Configuración del
+  // evento → Apariencia). Canvas2D no entiende var(--font-display), así que se
+  // leen ya resueltas de las variables CSS cada vez que se pinta: si el
+  // organizador cambia el tema, el libro se repinta con las nuevas.
+  function tipografia(tipo) {
+    var v = tipo === "display" ? "--font-display" : tipo === "mono" ? "--font-mono" : "--font-sans";
+    var pila = cssVar(v);
+    if (pila) return pila;
+    if (tipo === "display") return '"Hind Madurai", Georgia, serif';
+    if (tipo === "mono") return '"Source Sans 3", system-ui, sans-serif';
+    return '"Nunito Sans", system-ui, sans-serif';
+  }
+
+  function FUENTES_PEDIDAS() {
+    return [
+      estiloTitulo() + " 64px " + tipografia("display"),
+      "400 30px " + tipografia("sans"),
+      "500 22px " + tipografia("mono"),
+      '400 22px "JetBrains Mono"',
+    ];
+  }
+
+  function estiloTitulo() {
+    var st = cssVar("--display-style") === "italic" ? "italic " : "";
+    var w = parseInt(cssVar("--display-weight"), 10);
+    return st + (w >= 100 && w <= 900 ? w : 400);
+  }
 
   function familia(tipo, px) {
-    if (tipo === "display") return 'italic 400 ' + px + 'px "Instrument Serif", Georgia, serif';
-    if (tipo === "mono")    return '500 ' + px + 'px "JetBrains Mono", ui-monospace, monospace';
-    return '400 ' + px + 'px "Geist", system-ui, sans-serif';
+    if (tipo === "display") return estiloTitulo() + " " + px + "px " + tipografia("display");
+    if (tipo === "mono")    return "500 " + px + "px " + tipografia("mono");
+    // La banda de lectura mecánica tiene que ser monoespaciada pase lo que
+    // pase con el tema: sus dos líneas miden lo mismo o se ve torcida.
+    if (tipo === "codigo")  return '400 ' + px + 'px "JetBrains Mono", ui-monospace, monospace';
+    return "400 " + px + "px " + tipografia("sans");
+  }
+
+  /** La configuración del evento, tal y como la tiene el cliente. */
+  function cfg() {
+    try { return (window.LMTFestival && window.LMTFestival.ajustes()) || (window.LMT_BOOTSTRAP && window.LMT_BOOTSTRAP.festival) || {}; }
+    catch (_) { return {}; }
+  }
+  function textoCfg(grupo, clave, porDefecto) {
+    var g = cfg()[grupo] || {};
+    var v = g[clave];
+    return (typeof v === "string" && v.trim() !== "") ? v : porDefecto;
+  }
+
+  /**
+   * Parte un texto en líneas que quepan en `ancho`, como mucho `max`. Si no
+   * caben, reduce el cuerpo de letra: un nombre de evento largo tiene que
+   * entrar en la portada sin salirse del libro.
+   */
+  function lineasQueCaben(ctx, texto, tipo, px, ancho, max) {
+    var palabras = String(texto || "").split(/\s+/).filter(Boolean);
+    for (var tam = px; tam >= px * 0.45; tam *= 0.9) {
+      ctx.font = familia(tipo, tam);
+      var lineas = [], actual = "";
+      for (var i = 0; i < palabras.length; i++) {
+        var prueba = actual ? actual + " " + palabras[i] : palabras[i];
+        if (ctx.measureText(prueba).width <= ancho || !actual) actual = prueba;
+        else { lineas.push(actual); actual = palabras[i]; }
+      }
+      if (actual) lineas.push(actual);
+      var anchas = lineas.some(function (l) { return ctx.measureText(l).width > ancho; });
+      if (lineas.length <= max && !anchas) return { lineas: lineas, px: tam };
+    }
+    ctx.font = familia(tipo, px * 0.45);
+    return { lineas: palabras.length ? [palabras.join(" ")] : [], px: px * 0.45 };
+  }
+
+  /**
+   * El emblema del evento: el logo que subió el organizador o, si no hay, el
+   * símbolo elegido (libreta, taza, estrella o montaña), redibujado con
+   * primitivas porque pasar un SVG por un <img> es frágil en Safari y roza la
+   * CSP.
+   */
+  function emblema(ctx, x, y, tam, color, acento) {
+    var marca = cfg().marca || {};
+    if (marca.logo) {
+      var base = (window.LMT_BASE_URL || "").replace(/\/$/, "");
+      var url = /^(https?:)?\/\//.test(marca.logo) ? marca.logo : base + "/" + String(marca.logo).replace(/^\//, "");
+      var img = imagenCacheada(url);
+      if (img && img.width) {
+        var esc = Math.min(tam / img.width, tam / img.height);
+        ctx.drawImage(img, x + (tam - img.width * esc) / 2, y + (tam - img.height * esc) / 2, img.width * esc, img.height * esc);
+        return;
+      }
+    }
+    var simbolo = marca.simbolo || "pasaporte";
+    if (simbolo === "taza") return logoTaza(ctx, x, y, tam, color, acento);
+    var s = tam / 48;
+    ctx.save();
+    ctx.translate(x, y); ctx.scale(s, s);
+    ctx.strokeStyle = color; ctx.fillStyle = acento; ctx.lineWidth = 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if (simbolo === "estrella") {
+      ctx.beginPath(); ctx.arc(24, 24, 17, 0, Math.PI * 2); ctx.stroke();
+      estrellaCanvas(ctx, 24, 24, 9, 4); ctx.fill();
+    } else if (simbolo === "montana") {
+      ctx.beginPath();
+      ctx.moveTo(6, 36); ctx.lineTo(18, 16); ctx.lineTo(25, 26); ctx.lineTo(31, 19); ctx.lineTo(42, 36); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(36, 11, 3.2, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // Libreta con sello.
+      rectRedondo(ctx, 11, 6, 26, 36, 3); ctx.stroke();
+      ctx.strokeStyle = acento;
+      ctx.beginPath(); ctx.arc(24, 21, 7, 0, Math.PI * 2); ctx.stroke();
+      estrellaCanvas(ctx, 24, 21, 3.6, 1.6); ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.moveTo(17, 34); ctx.lineTo(31, 34); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function estrellaCanvas(ctx, cx, cy, rExt, rInt) {
+    ctx.beginPath();
+    for (var i = 0; i < 10; i++) {
+      var r = i % 2 === 0 ? rExt : rInt;
+      var a = -Math.PI / 2 + i * Math.PI / 5;
+      if (i === 0) ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      else ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+    }
+    ctx.closePath();
   }
 
   // Canvas2D no aplica letterSpacing de forma fiable en Safari: se avanza glifo
@@ -360,7 +473,7 @@
     ctx.restore();
 
     ctx.font = familia("mono", r * 0.13);
-    textoCentradoEspaciado(ctx, "VISITADO", 0, -r * 0.14, r * 0.035);
+    textoCentradoEspaciado(ctx, textoCfg("simbolos", "sello", "VISITADO"), 0, -r * 0.14, r * 0.035);
     ctx.font = familia("display", r * 0.30);
     ctx.fillText(String(stand.nombre || "").split(" ")[0], 0, r * 0.14);
     ctx.font = familia("mono", r * 0.115);
@@ -454,7 +567,7 @@
     if (tipo === "portada") {
       var g = ctx.createLinearGradient(0, 0, W, H);
       g.addColorStop(0, pal["--grano"]);
-      g.addColorStop(1, "#2c2018");
+      g.addColorStop(1, pal["--ink"]);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       // Imagen de portada, si el organizador subió una. Encima queda un velo
       // OSCURO —no de papel como en las hojas— porque el texto de la tapa va
@@ -466,28 +579,30 @@
         ctx.drawImage(portadaImg, (W - pw) / 2, (H - ph) / 2, pw, ph);
         ctx.save();
         ctx.globalAlpha = 0.55;
-        ctx.fillStyle = "#2c2018";
+        ctx.fillStyle = pal["--ink"];
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
       }
       grano(ctx, W, H);
 
-      logoTaza(ctx, W * 0.09, H * 0.07, 46 * k, pal["--paper"], pal["--paper-3"]);
+      emblema(ctx, W * 0.09, H * 0.07, 46 * k, pal["--paper"], pal["--paper-3"]);
 
       ctx.fillStyle = pal["--paper-3"];
       ctx.font = familia("mono", 13 * k);
       ctx.textAlign = "right";
-      textoCentradoEspaciado(ctx, "NARIÑO", W * 0.83, H * 0.085, 1.6 * k);
-      textoCentradoEspaciado(ctx, "COLOMBIA", W * 0.83, H * 0.115, 1.6 * k);
+      textoCentradoEspaciado(ctx, textoCfg("pasaporte", "lugar_1", "").toUpperCase(), W * 0.83, H * 0.085, 1.6 * k);
+      textoCentradoEspaciado(ctx, textoCfg("pasaporte", "lugar_2", "").toUpperCase(), W * 0.83, H * 0.115, 1.6 * k);
       ctx.textAlign = "left";
 
       ctx.fillStyle = pal["--paper-3"];
       ctx.font = familia("mono", 13 * k);
-      textoEspaciado(ctx, "PASAPORTE DEL CAFÉ", W * 0.09, H * 0.50, 1.6 * k);
+      textoEspaciado(ctx, textoCfg("pasaporte", "etiqueta", "Pasaporte del evento").toUpperCase(), W * 0.09, H * 0.50, 1.6 * k);
       ctx.fillStyle = pal["--paper"];
-      ctx.font = familia("display", 62 * k);
-      ctx.fillText("La Mejor", W * 0.085, H * 0.585);
-      ctx.fillText("Taza.", W * 0.085, H * 0.645);
+      // El título de la tapa: el que se haya configurado o, si no, el nombre
+      // del evento. Hasta tres líneas, encogiendo la letra si hace falta.
+      var tituloTapa = textoCfg("pasaporte", "titulo_portada", textoCfg("evento", "nombre", "Pasaporte del Evento"));
+      var tapa = lineasQueCaben(ctx, tituloTapa, "display", 62 * k, W * 0.84, 3);
+      tapa.lineas.forEach(function (l, i) { ctx.fillText(l, W * 0.085, H * 0.585 + i * tapa.px * 0.98); });
 
       ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1 * k;
       ctx.beginPath(); ctx.moveTo(W * 0.09, H * 0.80); ctx.lineTo(W * 0.91, H * 0.80); ctx.stroke();
@@ -564,9 +679,9 @@
 
       // Cabecera: el país y el departamento, y la taza a la derecha.
       ctx.fillStyle = pal["--ink-2"]; ctx.font = familia("mono", 11 * u);
-      textoEspaciado(ctx, "REPÚBLICA DE COLOMBIA", mx, y + 11 * 0.78 * u, 1.2 * u);
-      textoEspaciado(ctx, "DEPARTAMENTO DE NARIÑO", mx, y + (11 * 0.78 + 16.5) * u, 1.2 * u);
-      logoTaza(ctx, mDer - 24 * u, y, 24 * u, pal["--grano"], pal["--grano"]);
+      textoEspaciado(ctx, textoCfg("pasaporte", "encabezado_1", "").toUpperCase(), mx, y + 11 * 0.78 * u, 1.2 * u);
+      textoEspaciado(ctx, textoCfg("pasaporte", "encabezado_2", "").toUpperCase(), mx, y + (11 * 0.78 + 16.5) * u, 1.2 * u);
+      emblema(ctx, mDer - 24 * u, y, 24 * u, pal["--grano"], pal["--grano"]);
       y += 33 * u;
 
       y += 8 * u; raya(y); y += 9 * u;
@@ -643,7 +758,7 @@
       // Banda mecánica y firma, ancladas abajo: lo que sobre queda en medio,
       // que es lo que hace que la hoja no se descuadre con un nombre largo.
       var yMrz = H - pad - 10 * u - 33 * u;
-      ctx.fillStyle = pal["--ink-2"]; ctx.font = familia("mono", 11 * u);
+      ctx.fillStyle = pal["--ink-2"]; ctx.font = familia("codigo", 11 * u);
       lineaEn(String(pagina.mrz1 || ""), mx, yMrz, 11 * u);
       lineaEn(String(pagina.mrz2 || ""), mx, yMrz + 16.5 * u, 11 * u);
 
@@ -757,7 +872,7 @@
       ctx.fillStyle = pal["--ink"]; ctx.font = familia("display", 30 * u);
       lineaEn("Tu travesía.", padT - 2 * u, padT + 22 * u, 30 * u);
       ctx.fillStyle = pal["--ink-3"]; ctx.font = familia("sans", 13 * u);
-      parrafo(ctx, filas.length === 1 ? "El stand que sellaste." : "Los " + filas.length + " stands que sellaste.",
+      parrafo(ctx, filas.length === 1 ? "El espacio que sellaste." : "Los " + filas.length + " espacios que sellaste.",
               padT, padT + 68 * u, W - padT * 2, 19 * u, 2);
 
       var yPie = H - 46 * u;                       // donde empieza el resumen
@@ -819,13 +934,12 @@
       ctx.textAlign = "center";
       ctx.fillStyle = pal["--ink-3"]; ctx.font = familia("mono", 12 * u);
       textoCentradoEspaciado(ctx, "FIN DEL PASAPORTE", W * 0.5, H * 0.35, 1.6 * u);
-      ctx.fillStyle = pal["--ink"]; ctx.font = familia("display", 32 * u);
-      ctx.fillText("Gracias por", W * 0.5, H * 0.43);
-      ctx.fillText("caminar el café", W * 0.5, H * 0.50);
-      ctx.fillText("con nosotros.", W * 0.5, H * 0.57);
+      ctx.fillStyle = pal["--ink"];
+      var cierre = lineasQueCaben(ctx, textoCfg("pasaporte", "cierre_titulo", "Gracias por recorrer el evento con nosotros."), "display", 32 * u, W * 0.8, 3);
+      cierre.lineas.forEach(function (l, i) { ctx.fillText(l, W * 0.5, H * 0.43 + i * cierre.px * 1.1); });
 
       ctx.font = familia("sans", 14 * u);
-      var txt = "Vuelve el próximo festival";
+      var txt = textoCfg("pasaporte", "cierre_boton", "Te esperamos en la próxima edición");
       var wTxt = ctx.measureText(txt).width;
       ctx.strokeStyle = pal["--line-2"]; ctx.lineWidth = 1 * u;
       rectRedondo(ctx, W * 0.5 - wTxt / 2 - 18 * u, H * 0.63, wTxt + 36 * u, 40 * u, 20 * u);
@@ -840,11 +954,11 @@
       ctx.fillStyle = pal["--grano"]; ctx.fillRect(0, 0, W, H);
       grano(ctx, W, H);
       ctx.globalAlpha = 0.25;
-      logoTaza(ctx, W * 0.5 - 30 * k, H * 0.45, 60 * k, pal["--paper"], pal["--paper"]);
+      emblema(ctx, W * 0.5 - 30 * k, H * 0.45, 60 * k, pal["--paper"], pal["--paper"]);
       ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = familia("mono", 12 * k);
       ctx.textAlign = "center";
-      textoCentradoEspaciado(ctx, "GOBERNACIÓN DE NARIÑO · 2026", W * 0.5, H * 0.62, 1.6 * k);
+      textoCentradoEspaciado(ctx, textoCfg("pasaporte", "cierre_firma", "").toUpperCase(), W * 0.5, H * 0.62, 1.6 * k);
       ctx.textAlign = "left";
     }
 
@@ -977,7 +1091,7 @@
 
     function cargarFuentes() {
       if (!document.fonts || !document.fonts.load) { fuentesListas = true; return; }
-      Promise.all(FUENTES_PEDIDAS.map(function (f) {
+      Promise.all(FUENTES_PEDIDAS().map(function (f) {
         return document.fonts.load(f).catch(function () {});
       })).then(function () {
         if (destruido) return;

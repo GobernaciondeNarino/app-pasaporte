@@ -38,6 +38,7 @@ const ARCHIVOS = [
   'components/Perfil.jsx',
   'components/Caracterizacion.jsx',
   'components/Economia.jsx',
+  'components/Encuesta.jsx',
   'components/Festival.jsx',
   'components/Sistema.jsx',
   'components/Correo.jsx',

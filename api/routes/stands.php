@@ -25,7 +25,7 @@ function register_routes_stands(\LMT\Router $r): void
 
     $r->post('/stands', function () {
         Security::requireAdmin();
-        $b = Security::jsonBody();
+        $b = Security::jsonBody(['respuestas_extra'], 2);
         $stand = stand_payload($b, true);
         $stmt = Db::pdo()->prepare(
             'INSERT INTO stands (id, nombre, municipio, region, direccion, correo, descripcion,
@@ -33,12 +33,12 @@ function register_routes_stands(\LMT\Router $r): void
                                  telefono, lat, lng, numero, tipo_organizacion, tipo_organizacion_otro,
                                  actividad_cafe, actividad_cafe_otro,
                                  poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
-                                 coords_x, coords_y, color)
+                                 respuestas_extra, coords_x, coords_y, color)
              VALUES (:id, :nombre, :municipio, :region, :direccion, :correo, :descripcion,
                      :prop, :propdoc, :nit, :web, :logo, :tel, :lat, :lng, :numero,
                      :torg, :torgo, :act, :acto,
                      :poblacion, :poblacion_otro, :linea_productiva, :cert_internacional, :organico, :especial, :promedio_taza, :marca_registrada, :camara_comercio, :camara_comercio_numero, :invima, :invima_detalle, :manipulacion_alimentos, :presentacion, :presentacion_otro,
-                     :cx, :cy, :color)'
+                     :resp, :cx, :cy, :color)'
         );
         $stmt->execute([
             ':id'          => $stand['id'],
@@ -76,6 +76,7 @@ function register_routes_stands(\LMT\Router $r): void
             ':manipulacion_alimentos' => $stand['manipulacion_alimentos'],
             ':presentacion' => $stand['presentacion'],
             ':presentacion_otro' => $stand['presentacion_otro'],
+            ':resp'        => $stand['respuestas_extra'],
             ':cx'          => $stand['coords_x'],
             ':cy'          => $stand['coords_y'],
             ':color'       => $stand['color'],
@@ -87,7 +88,7 @@ function register_routes_stands(\LMT\Router $r): void
         Security::requireAdmin();
         $id = Validate::standId($p['id'] ?? null);
         if (!$id) Response::error(400, 'bad_id');
-        $b = Security::jsonBody();
+        $b = Security::jsonBody(['respuestas_extra'], 2);
         $stand = stand_payload($b, false);
         // El logo se conserva si la petición no trae uno nuevo: el editor
         // manda el formulario entero y, sin el COALESCE, guardar cualquier
@@ -115,6 +116,7 @@ function register_routes_stands(\LMT\Router $r): void
                                 manipulacion_alimentos=:manipulacion_alimentos,
                                 presentacion=:presentacion,
                                 presentacion_otro=:presentacion_otro,
+                                respuestas_extra=:resp,
                                 coords_x=:cx, coords_y=:cy, color=:color
              WHERE id=:id'
         );
@@ -153,6 +155,7 @@ function register_routes_stands(\LMT\Router $r): void
             ':manipulacion_alimentos' => $stand['manipulacion_alimentos'],
             ':presentacion' => $stand['presentacion'],
             ':presentacion_otro' => $stand['presentacion_otro'],
+            ':resp'        => $stand['respuestas_extra'],
             ':cx'          => $stand['coords_x'],
             ':cy'          => $stand['coords_y'],
             ':color'       => $stand['color'],
@@ -319,6 +322,9 @@ function stand_row_to_api(array $r): array
             'x' => isset($r['coords_x']) ? (float)$r['coords_x'] : 0.5,
             'y' => isset($r['coords_y']) ? (float)$r['coords_y'] : 0.5,
         ],
+        // Respuestas a las preguntas propias de la inscripción. Al público sólo
+        // las que el organizador marcó como públicas; el resto es del panel.
+        'respuestas_extra' => stand_respuestas_visibles($r['respuestas_extra'] ?? null, $esAdmin),
         'color'       => $r['color'] ?? 'oklch(0.45 0.1 40)',
         'votos'       => [
             'bueno'   => (int)($r['votos_bueno']   ?? 0),
@@ -349,6 +355,20 @@ function stand_si_no($v): ?bool
     return ($v === null || $v === '') ? null : (bool) (int) $v;
 }
 
+/** Las respuestas propias que puede ver quien pregunta. Siempre un objeto JSON. */
+function stand_respuestas_visibles($json, bool $esAdmin): object
+{
+    $resp = \LMT\Evento::respuestasDe($json);
+    if (!$esAdmin) {
+        $publicas = array_column(array_filter(
+            \LMT\Evento::preguntasInscripcion(null, true),
+            fn($p) => !empty($p['publica'])
+        ), 'id');
+        $resp = array_intersect_key($resp, array_flip($publicas));
+    }
+    return (object) $resp;
+}
+
 /** Media a un decimal, o null si nadie ha puntuado todavía. */
 function stand_promedio($valor): ?float
 {
@@ -373,7 +393,7 @@ function stand_select(string $tabla = 'stands'): string
                    tipo_organizacion, tipo_organizacion_otro,
                    actividad_cafe, actividad_cafe_otro,
                    poblacion, poblacion_otro, linea_productiva, cert_internacional, organico, especial, promedio_taza, marca_registrada, camara_comercio, camara_comercio_numero, invima, invima_detalle, manipulacion_alimentos, presentacion, presentacion_otro,
-                   coords_x, coords_y, color, votos_bueno, votos_regular, votos_malo'
+                   respuestas_extra, coords_x, coords_y, color, votos_bueno, votos_regular, votos_malo'
          . stand_select_estrellas($tabla)
          . ' FROM ' . $tabla;
 }
@@ -409,7 +429,10 @@ function stand_payload(array $b, bool $needsId): array
     // La dirección es obligatoria: el mapa marca un punto, la dirección dice a
     // qué puerta se llega. Sin ella el visitante ve una chincheta en un cerro.
     $direccion = mb_substr(trim((string)($b['direccion'] ?? '')), 0, 255, 'UTF-8');
-    if ($direccion === '') Response::error(422, 'direccion_requerida');
+    // Obligatoria si el evento la exige en la inscripción (de fábrica, sí):
+    // el alta interna pide lo mismo que la pública.
+    $campoDir = \LMT\Evento::campo('direccion');
+    if ($direccion === '' && !empty($campoDir['activo']) && !empty($campoDir['requerido'])) Response::error(422, 'direccion_requerida');
     $descripcion = Validate::comment((string)($b['descripcion'] ?? ''), 800);
     $correo    = Validate::email($b['correo'] ?? null) ?? '';
 
@@ -435,11 +458,11 @@ function stand_payload(array $b, bool $needsId): array
     // se siguen pudiendo editar sin obligar a inventarse el dato.
     [$tipo_organizacion, $tipo_organizacion_otro] = promotor_catalogo(
         $b['tipo_organizacion'] ?? null, $b['tipo_organizacion_otro'] ?? null,
-        \LMT\Catalogos::ORGANIZACION, 'tipo_organizacion_invalido', false
+        \LMT\Evento::clavesCampo('tipo_organizacion'), 'tipo_organizacion_invalido', false, true
     );
     [$actividad_cafe, $actividad_cafe_otro] = promotor_catalogo(
         $b['actividad_cafe'] ?? null, $b['actividad_cafe_otro'] ?? null,
-        \LMT\Catalogos::ACTIVIDAD, 'actividad_cafe_invalida', false
+        \LMT\Evento::clavesCampo('actividad_cafe'), 'actividad_cafe_invalida', false, true
     );
 
     // Población, línea productiva y ficha detallada. Aquí NADA es obligatorio,
@@ -447,6 +470,14 @@ function stand_payload(array $b, bool $needsId): array
     // estos datos y hay que poder seguir editando su nombre sin inventárselos.
     try {
         $ficha = \LMT\Catalogos::ficha($b, false);
+        // Las preguntas propias de la inscripción, también editables desde
+        // aquí. Ninguna se exige: el panel no se inventa respuestas. Se
+        // validan contra TODAS las preguntas configuradas —también las
+        // desactivadas— para no borrar lo que se contestó cuando estaban.
+        $respuestas = \LMT\Evento::validarRespuestas(
+            array_map(fn($p) => ['activa' => true] + $p, \LMT\Evento::preguntasInscripcion(null, false)),
+            $b['respuestas_extra'] ?? [], false
+        );
     } catch (\RuntimeException $e) {
         Response::error(422, $e->getMessage());
     }
@@ -473,7 +504,8 @@ function stand_payload(array $b, bool $needsId): array
         'propietario', 'propietario_documento', 'nit', 'sitio_web', 'logo_path',
         'telefono', 'lat', 'lng', 'numero',
         'tipo_organizacion', 'tipo_organizacion_otro', 'actividad_cafe', 'actividad_cafe_otro'
-    ) + ['coords_x' => $cx, 'coords_y' => $cy] + $ficha;
+    ) + ['coords_x' => $cx, 'coords_y' => $cy,
+          'respuestas_extra' => $respuestas ? json_encode($respuestas, JSON_UNESCAPED_UNICODE) : null] + $ficha;
 }
 
 /** Ruta de imagen que se puede devolver al cliente, o null. */

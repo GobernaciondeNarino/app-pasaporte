@@ -102,7 +102,7 @@ const AdminCaracterizacion = () => {
         ].map((m) => (
           <div key={m.k} style={{ padding: 20, border: "1px solid var(--line)", borderRadius: "var(--r-md)", background: "var(--paper)" }}>
             <div className="mono">{m.k}</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 40, fontStyle: "italic", lineHeight: 1, marginTop: 8 }}>{m.v}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: 40, fontStyle: "var(--display-style)", lineHeight: 1, marginTop: 8 }}>{m.v}</div>
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>{m.sub}</div>
           </div>
         ))}
@@ -111,7 +111,7 @@ const AdminCaracterizacion = () => {
       {total === 0 ? (
         <div style={{ padding: 50, border: "1px dashed var(--line-2)", borderRadius: "var(--r-md)", textAlign: "center", color: "var(--ink-3)" }}>
           <div className="mono">Sin perfiles</div>
-          <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 26, color: "var(--ink)", margin: "8px 0 4px" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 26, color: "var(--ink)", margin: "8px 0 4px" }}>
             Todavía nadie ha completado su perfil.
           </div>
           <div style={{ fontSize: 13 }}>Se les propone al terminar de votar, y es opcional.</div>
@@ -147,7 +147,7 @@ const AdminCaracterizacion = () => {
 
       {expectativas.length > 0 && (
         <div style={{ marginTop: 28 }}>
-          <div className="mono" style={{ marginBottom: 12 }}>Qué esperan del festival · {expectativas.length} respuestas</div>
+          <div className="mono" style={{ marginBottom: 12 }}>Qué esperan del evento · {expectativas.length} respuestas</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {expectativas.map((e, i) => (
               <div key={i} style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "14px 16px", background: "var(--paper)" }}>

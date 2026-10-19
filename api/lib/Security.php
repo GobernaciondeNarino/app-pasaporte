@@ -99,12 +99,18 @@ final class Security
     }
 
     /** Devuelve el cuerpo JSON decodificado o array vacío. */
-    public static function jsonBody(): array
+    /**
+     * `$anidados` nombra las claves que SÍ pueden traer estructura (un mapa
+     * de respuestas con listas dentro, la configuración del evento). En ellas
+     * se admite anidar hasta `$niveles` y sólo con hojas escalares; el resto
+     * de claves sigue la regla de siempre: escalares o una lista de escalares.
+     */
+    public static function jsonBody(array $anidados = [], int $niveles = 2, int $maxBytes = 65536): array
     {
         $raw = file_get_contents('php://input') ?: '';
         if ($raw === '') return [];
-        if (strlen($raw) > 65536) Response::error(413, 'payload_too_large');
-        $data = json_decode($raw, true, 8);
+        if (strlen($raw) > $maxBytes) Response::error(413, 'payload_too_large');
+        $data = json_decode($raw, true, max(8, $niveles + 3));
         if (!is_array($data) || json_last_error() !== JSON_ERROR_NONE) {
             Response::error(400, 'bad_json');
         }
@@ -115,6 +121,8 @@ final class Security
         foreach ($data as $clave => $valor) {
             if ($valor !== null && !is_scalar($valor) && !is_array($valor)) {
                 unset($data[$clave]);
+            } elseif (is_array($valor) && in_array($clave, $anidados, true)) {
+                if (!self::soloEscalares($valor, $niveles)) unset($data[$clave]);
             } elseif (is_array($valor)) {
                 // Sólo se admiten arrays de un nivel con valores escalares
                 // (p. ej. coords). Cualquier otra cosa se descarta.
@@ -124,6 +132,28 @@ final class Security
             }
         }
         return $data;
+    }
+
+    /**
+     * Cuerpo de la configuración del evento: un documento con estructura
+     * (encuesta → preguntas → opciones…). Sólo lo usa una ruta de
+     * administración, y aun así se exige que todas las hojas sean escalares.
+     */
+    public static function jsonBodyConfig(): array
+    {
+        $claves = ['evento', 'marca', 'simbolos', 'tema', 'encuesta', 'inscripcion',
+                   'estrellas', 'recorrido', 'pasaporte', 'datos'];
+        return array_intersect_key(self::jsonBody($claves, 6, 262144), array_flip($claves));
+    }
+
+    /** ¿Todas las hojas son escalares (o null) sin pasar de `$niveles`? */
+    private static function soloEscalares(array $v, int $niveles): bool
+    {
+        foreach ($v as $sub) {
+            if ($sub === null || is_scalar($sub)) continue;
+            if (!is_array($sub) || $niveles <= 1 || !self::soloEscalares($sub, $niveles - 1)) return false;
+        }
+        return true;
     }
 
     /**

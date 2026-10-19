@@ -258,8 +258,16 @@ final class Validate
             if (strlen($propio) >= 4 && str_contains($bajo, $propio)) return 'password_predecible';
         }
 
-        foreach (['lamejortaza', 'mejortaza', 'contrasena', 'password', 'narino', 'pasto',
-                  '123456', 'qwerty', 'festival', 'cafe', 'admin', 'promotor'] as $comun) {
+        $comunes = ['lamejortaza', 'mejortaza', 'contrasena', 'password', 'narino', 'pasto',
+                    '123456', 'qwerty', 'festival', 'cafe', 'admin', 'promotor', 'evento', 'pasaporte'];
+        // Y las palabras del nombre del evento que se esté celebrando: son lo
+        // primero que se le ocurre a quien inventa una clave para él.
+        if (class_exists(Evento::class)) {
+            foreach (preg_split('/[^a-z0-9]+/', self::plegarAscii(Evento::nombre())) ?: [] as $t) {
+                if (strlen($t) >= 5) $comunes[] = $t;
+            }
+        }
+        foreach ($comunes as $comun) {
             if (str_contains($bajo, $comun)) return 'password_predecible';
         }
         return null;

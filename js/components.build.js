@@ -1,7 +1,7 @@
 // GENERADO POR tools/build-components.mjs — NO EDITAR A MANO.
-// Fuente: components/Shared.jsx, components/Mapa.jsx, components/Admin.jsx, components/QRPrint.jsx, components/VoteFlow.jsx, components/Passport.jsx, components/Dashboard.jsx, components/Recorrido.jsx, components/Promotores.jsx, components/Cuentas.jsx, components/Perfil.jsx, components/Caracterizacion.jsx, components/Economia.jsx, components/Festival.jsx, components/Sistema.jsx, components/Correo.jsx, components/App.jsx
+// Fuente: components/Shared.jsx, components/Mapa.jsx, components/Admin.jsx, components/QRPrint.jsx, components/VoteFlow.jsx, components/Passport.jsx, components/Dashboard.jsx, components/Recorrido.jsx, components/Promotores.jsx, components/Cuentas.jsx, components/Perfil.jsx, components/Caracterizacion.jsx, components/Economia.jsx, components/Encuesta.jsx, components/Festival.jsx, components/Sistema.jsx, components/Correo.jsx, components/App.jsx
 // Regenerar tras tocar cualquier .jsx:  node tools/build-components.mjs
-// Huella de las fuentes: 1b2b0f5b1f725c4d
+// Huella de las fuentes: 7b43d4884168ebf4
 /* components/Shared.jsx */
 (function () {
 const LogoTaza = ({
@@ -48,11 +48,113 @@ const LogoTaza = ({
     strokeLinecap: "round"
   }));
 };
+const SIMBOLOS_MARCA = [["pasaporte", "Libreta con sello"], ["taza", "Taza de café"], ["estrella", "Estrella del Sur"], ["montana", "Montaña y sol"]];
+const SimboloSvg = ({
+  simbolo = "pasaporte",
+  size = 40,
+  mono = false
+}) => {
+  if (simbolo === "taza") return React.createElement(LogoTaza, {
+    size: size,
+    mono: mono
+  });
+  const c = mono ? "currentColor" : "var(--ink)";
+  const accent = mono ? "currentColor" : "var(--galeras)";
+  const estrella = (cx, cy, re, ri) => Array.from({
+    length: 10
+  }, (_, i) => {
+    const r = i % 2 === 0 ? re : ri,
+      a = -Math.PI / 2 + i * Math.PI / 5;
+    return (cx + r * Math.cos(a)).toFixed(2) + "," + (cy + r * Math.sin(a)).toFixed(2);
+  }).join(" ");
+  return React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 48 48",
+    fill: "none",
+    style: {
+      display: "block"
+    },
+    "aria-hidden": "true"
+  }, simbolo === "estrella" && React.createElement(React.Fragment, null, React.createElement("circle", {
+    cx: "24",
+    cy: "24",
+    r: "17",
+    stroke: c,
+    strokeWidth: "1.8"
+  }), React.createElement("polygon", {
+    points: estrella(24, 24, 9, 4),
+    fill: accent
+  })), simbolo === "montana" && React.createElement(React.Fragment, null, React.createElement("path", {
+    d: "M6 36 L18 16 L25 26 L31 19 L42 36 Z",
+    stroke: c,
+    strokeWidth: "1.8",
+    strokeLinejoin: "round"
+  }), React.createElement("circle", {
+    cx: "36",
+    cy: "11",
+    r: "3.2",
+    fill: accent
+  })), simbolo !== "estrella" && simbolo !== "montana" && React.createElement(React.Fragment, null, React.createElement("rect", {
+    x: "11",
+    y: "6",
+    width: "26",
+    height: "36",
+    rx: "3",
+    stroke: c,
+    strokeWidth: "1.8"
+  }), React.createElement("circle", {
+    cx: "24",
+    cy: "21",
+    r: "7",
+    stroke: accent,
+    strokeWidth: "1.8"
+  }), React.createElement("polygon", {
+    points: estrella(24, 21, 3.6, 1.6),
+    fill: accent
+  }), React.createElement("path", {
+    d: "M17 34 H31",
+    stroke: c,
+    strokeWidth: "1.8",
+    strokeLinecap: "round"
+  })));
+};
+const EmblemaEvento = ({
+  size = 40,
+  claro = false
+}) => {
+  const aj = usarAjustesFestival();
+  const marca = aj.marca || {};
+  if (marca.logo) {
+    return React.createElement("img", {
+      src: urlImagen(marca.logo),
+      alt: "",
+      height: size,
+      style: {
+        display: "block",
+        height: size,
+        width: "auto",
+        maxWidth: size * 3,
+        objectFit: "contain"
+      }
+    });
+  }
+  return React.createElement("div", {
+    style: claro ? {
+      color: "var(--paper)"
+    } : undefined
+  }, React.createElement(SimboloSvg, {
+    simbolo: marca.simbolo || "pasaporte",
+    size: size,
+    mono: claro
+  }));
+};
 const Wordmark = ({
   size = 20,
   onClick
 }) => {
   const aj = usarAjustesFestival();
+  const conNombre = !(aj.marca && aj.marca.mostrar_nombre === false);
   return React.createElement("div", {
     onClick: onClick,
     style: {
@@ -61,20 +163,21 @@ const Wordmark = ({
       gap: 10,
       cursor: onClick ? "pointer" : "default"
     }
-  }, React.createElement(LogoTaza, {
+  }, React.createElement(EmblemaEvento, {
     size: size * 1.4
-  }), React.createElement("div", {
+  }), conNombre && React.createElement("div", {
     style: {
       lineHeight: 1
     }
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
+      fontWeight: "var(--display-weight)",
       fontSize: size,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       letterSpacing: "-0.01em"
     }
-  }, "La Mejor Taza"), React.createElement("div", {
+  }, nombreEvento(aj)), React.createElement("div", {
     className: "mono",
     style: {
       fontSize: 9,
@@ -152,14 +255,17 @@ const SelloCircular = ({
     fontSize: "8",
     fontFamily: "var(--font-mono)",
     letterSpacing: "2"
-  }, "VISITADO"), React.createElement("text", {
+  }, palabraSello()), React.createElement("text", {
     x: "55",
     y: "62",
     textAnchor: "middle",
     fill: stand.color,
     fontSize: "16",
     fontFamily: "var(--font-display)",
-    fontStyle: "italic"
+    style: {
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)"
+    }
   }, stand.nombre.split(" ")[0]), fecha && React.createElement("text", {
     x: "55",
     y: "74",
@@ -691,6 +797,23 @@ const SubirImagen = ({
   }, nota), React.createElement(Aviso, null, error));
 };
 const ERRORES = {
+  inscripciones_cerradas: "La inscripción de espacios está cerrada.",
+  respuesta_requerida: "Falta responder una pregunta obligatoria.",
+  respuesta_invalida: "Una de las respuestas no es válida. Revísala e inténtalo de nuevo.",
+  color_invalido: "Un color no es válido: usa el selector o un código como #10A13B.",
+  documento_requerido: "Escribe el documento de identidad.",
+  telefono_requerido: "Escribe el teléfono.",
+  stand_nombre_requerido: "Escribe el nombre del espacio.",
+  nit_requerido: "Escribe el NIT o RUT.",
+  sitio_web_requerido: "Escribe el sitio web (debe empezar por https://).",
+  descripcion_requerida: "Escribe la descripción.",
+  mensaje_requerido: "Escribe el mensaje para el organizador.",
+  promedio_taza_requerido: "Completa el promedio de taza.",
+  linea_productiva_requerida: "Elige al menos una línea.",
+  cert_internacional_requerida: "Responde la pregunta de certificaciones.",
+  organico_requerido: "Responde si el producto es orgánico.",
+  especial_requerido: "Responde si el producto es especial.",
+  destino_invalido: "Ese destino de imagen no existe.",
   email_invalido: "El correo no es válido.",
   nombre_invalido: "Escribe tu nombre completo.",
   debe_aceptar_tratamiento_datos: "Debes autorizar el tratamiento de tus datos para continuar.",
@@ -704,7 +827,7 @@ const ERRORES = {
   password_corta: "La contraseña debe tener al menos 10 caracteres.",
   password_larga: "La contraseña es demasiado larga.",
   password_simple: "Combina mayúsculas, minúsculas, números y símbolos.",
-  password_predecible: "Evita tu nombre, tu correo o palabras del festival.",
+  password_predecible: "Evita tu nombre, tu correo o el nombre del evento.",
   password_repetida: "La nueva contraseña debe ser distinta de la actual.",
   password_change_required: "Primero debes cambiar tu contraseña temporal.",
   rate_limited: "Demasiadas solicitudes seguidas. Espera un momento.",
@@ -947,12 +1070,12 @@ const PuertaCorreo = ({
     style: {
       marginTop: 22
     }
-  }, "Tu festival"), React.createElement("h1", {
+  }, "Tu evento"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 34,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 12px",
       lineHeight: 1.05
     }
@@ -1014,7 +1137,7 @@ const PuertaCorreo = ({
       lineHeight: 1.6,
       marginTop: 18
     }
-  }, "\xBFTodav\xEDa no has votado? Escanea el QR de cualquier stand y tu pasaporte se crea solo."), children));
+  }, "\xBFTodav\xEDa no has votado? Escanea el QR de cualquier espacio y tu pasaporte se crea solo."), children));
 };
 const InvitacionCorreo = () => {
   const [correoYa, setCorreoYa] = React.useState(() => window.LMTPerfil && window.LMTPerfil.correoConocido() || "");
@@ -1042,10 +1165,11 @@ const InvitacionCorreo = () => {
     style: {
       color: "var(--paper-3)"
     }
-  }, "Tu pasaporte del festival"), React.createElement("div", {
+  }, "Tu pasaporte del evento"), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 21,
       lineHeight: 1.15,
       marginTop: 2
@@ -1575,10 +1699,62 @@ const usarAjustesFestival = () => {
   }, []);
   return aj;
 };
-const PIE_MARCA = "Festival · Nariño 2026";
-const pieDeMarca = aj => {
-  const a = aj || window.LMTFestival && window.LMTFestival.ajustes() || {};
-  return ((a.marca || {}).pie || "").trim() || PIE_MARCA;
+const cfgEvento = () => window.LMTFestival && window.LMTFestival.ajustes() || window.LMT_BOOTSTRAP && window.LMT_BOOTSTRAP.festival || {};
+const textoCfg = (grupo, clave, porDefecto = "", aj) => {
+  const g = (aj || cfgEvento())[grupo] || {};
+  const v = g[clave];
+  return typeof v === "string" && v.trim() !== "" ? v : porDefecto;
+};
+const PIE_MARCA = "Gobernación de Nariño · 2026";
+const pieDeMarca = aj => textoCfg("marca", "pie", PIE_MARCA, aj);
+const nombreEvento = aj => textoCfg("evento", "nombre", "Pasaporte del Evento", aj);
+const palabraSello = () => textoCfg("simbolos", "sello", "VISITADO");
+const SIMBOLOS_VOTO_FABRICA = {
+  malo: {
+    emoji: "😞",
+    texto: "Mejorable",
+    color: "var(--bad)"
+  },
+  regular: {
+    emoji: "😐",
+    texto: "Regular",
+    color: "var(--meh)"
+  },
+  bueno: {
+    emoji: "😍",
+    texto: "Excelente",
+    color: "var(--good)"
+  }
+};
+const simbolosVoto = () => {
+  const v = (cfgEvento().simbolos || {}).votos || {};
+  return ["malo", "regular", "bueno"].map(id => ({
+    id,
+    emoji: v[id] && v[id].emoji || SIMBOLOS_VOTO_FABRICA[id].emoji,
+    label: v[id] && v[id].texto || SIMBOLOS_VOTO_FABRICA[id].texto,
+    color: SIMBOLOS_VOTO_FABRICA[id].color
+  }));
+};
+const simboloVoto = id => simbolosVoto().find(x => x.id === id) || {
+  id,
+  emoji: "•",
+  label: id,
+  color: "var(--ink-3)"
+};
+const campoCfg = clave => {
+  const c = ((cfgEvento().inscripcion || {}).campos || {})[clave];
+  return c || {
+    activo: true,
+    requerido: false
+  };
+};
+const opcionesCampo = (clave, porDefecto) => {
+  const ops = campoCfg(clave).opciones;
+  return Array.isArray(ops) && ops.length ? ops : porDefecto || [];
+};
+const compraActiva = () => {
+  const c = (cfgEvento().encuesta || {}).compra || {};
+  return c.activa !== false;
 };
 const AvisoDatos = ({
   abierto,
@@ -1637,8 +1813,8 @@ const AvisoDatos = ({
   }, "Ley 1581 de 2012"), React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
-      fontWeight: 400,
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
       fontSize: 26,
       margin: "4px 0 0",
       lineHeight: 1.15
@@ -1667,7 +1843,7 @@ const AvisoDatos = ({
     style: {
       color: "var(--grano)"
     }
-  }, "Pol\xEDtica de Tratamiento de Datos Personales de la Gobernaci\xF3n de Nari\xF1o \u2197"))), React.createElement("div", {
+  }, (datos.enlace_texto || "").trim() || "Política de Tratamiento de Datos Personales de la Gobernación de Nariño", " \u2197"))), React.createElement("div", {
     style: {
       padding: "12px 22px 18px",
       borderTop: "1px solid var(--line)"
@@ -1707,7 +1883,7 @@ const CasillaDatos = ({
     style: {
       marginTop: 3
     }
-  }), React.createElement("span", null, "Autorizo a la Gobernaci\xF3n de Nari\xF1o a tratar mis datos personales con la finalidad de gestionar mi participaci\xF3n en el festival, conforme a la Ley 1581 de 2012. *", " ", React.createElement("button", {
+  }), React.createElement("span", null, "Autorizo a ", textoCfg("datos", "responsable", "la Gobernación de Nariño"), " a tratar mis datos personales con la finalidad de gestionar mi participaci\xF3n en el evento, conforme a la Ley 1581 de 2012. *", " ", React.createElement("button", {
     type: "button",
     onClick: e => {
       e.preventDefault();
@@ -1728,13 +1904,252 @@ const CasillaDatos = ({
   }));
 };
 const titulosEstrellas = () => {
-  const a = window.LMTFestival && window.LMTFestival.ajustes() || {};
+  const a = cfgEvento();
   const e = a.estrellas || {};
   return {
     est_innovacion: e.innovacion || "Innovación",
     est_atencion: e.atencion || "Atención",
     est_calidad: e.calidad || "Calidad"
   };
+};
+const estrellasActivas = () => {
+  const ps = (cfgEvento().encuesta || {}).preguntas;
+  if (!Array.isArray(ps)) return ESTRELLA_CAMPOS.slice();
+  return ps.filter(p => p.sistema && p.activa !== false).map(p => p.id).filter(id => ESTRELLA_CAMPOS.includes(id));
+};
+const TIPOS_PREGUNTA = {
+  estrellas: "Estrellas (1 a 5)",
+  si_no: "Sí / No",
+  opcion: "Una opción de una lista",
+  multiple: "Varias opciones de una lista",
+  texto: "Texto corto",
+  parrafo: "Texto largo",
+  numero: "Número",
+  fecha: "Fecha"
+};
+const PreguntaEntrada = ({
+  pregunta: p,
+  valor,
+  onCambio,
+  idBase = "pq"
+}) => {
+  const id = idBase + "-" + p.id;
+  const etiqueta = p.etiqueta + (p.requerida ? " *" : "");
+  if (p.tipo === "estrellas") {
+    return React.createElement("div", null, React.createElement(EstrellasEntrada, {
+      id: id,
+      etiqueta: etiqueta,
+      valor: valor || null,
+      onCambio: onCambio
+    }), p.ayuda && React.createElement("span", {
+      className: "ayuda"
+    }, p.ayuda));
+  }
+  if (p.tipo === "si_no") {
+    return React.createElement(SiNo, {
+      id: id,
+      etiqueta: p.etiqueta,
+      requerido: !!p.requerida,
+      nota: p.ayuda,
+      valor: valor === undefined ? null : valor === 1 ? true : valor === 0 ? false : valor,
+      onCambio: onCambio
+    });
+  }
+  if (p.tipo === "opcion") {
+    return React.createElement("div", {
+      className: "field"
+    }, React.createElement("label", {
+      htmlFor: id
+    }, etiqueta), React.createElement("select", {
+      id: id,
+      value: valor || "",
+      onChange: e => onCambio(e.target.value || null)
+    }, React.createElement("option", {
+      value: ""
+    }, "Selecciona una opci\xF3n\u2026"), (p.opciones || []).map(o => React.createElement("option", {
+      key: o,
+      value: o
+    }, o))), p.ayuda && React.createElement("span", {
+      className: "ayuda"
+    }, p.ayuda));
+  }
+  if (p.tipo === "multiple") {
+    const cat = (p.opciones || []).map(o => [o, o]);
+    return React.createElement(SelectorMultiple, {
+      id: id,
+      etiqueta: p.etiqueta,
+      requerido: !!p.requerida,
+      ayuda: p.ayuda,
+      catalogo: cat,
+      valores: Array.isArray(valor) ? valor : [],
+      onCambio: onCambio
+    });
+  }
+  const largo = p.tipo === "parrafo";
+  return React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", {
+    htmlFor: id
+  }, etiqueta), largo ? React.createElement("textarea", {
+    id: id,
+    rows: 3,
+    maxLength: 1000,
+    value: valor || "",
+    onChange: e => onCambio(e.target.value),
+    style: {
+      border: "1px solid var(--line-2)",
+      borderRadius: "var(--r-md)",
+      padding: 12
+    }
+  }) : React.createElement("input", {
+    id: id,
+    value: valor || "",
+    maxLength: p.tipo === "numero" ? 20 : 200,
+    type: p.tipo === "fecha" ? "date" : "text",
+    inputMode: p.tipo === "numero" ? "decimal" : undefined,
+    onChange: e => onCambio(p.tipo === "numero" ? e.target.value.replace(/[^0-9.,-]/g, "") : e.target.value)
+  }), p.ayuda && React.createElement("span", {
+    className: "ayuda"
+  }, p.ayuda));
+};
+const preguntaSinResponder = (preguntas, respuestas) => (preguntas || []).find(p => {
+  if (!p.requerida || p.activa === false) return false;
+  const v = (respuestas || {})[p.id];
+  return v === undefined || v === null || v === "" || Array.isArray(v) && v.length === 0;
+}) || null;
+const textoRespuesta = (p, v) => {
+  if (v === undefined || v === null || v === "") return "";
+  if (p.tipo === "si_no") return v === 1 || v === true ? "Sí" : "No";
+  if (p.tipo === "estrellas") return "★".repeat(Number(v) || 0) + " " + v + "/5";
+  if (Array.isArray(v)) return v.join(" · ");
+  return String(v);
+};
+const RespuestasLectura = ({
+  preguntas,
+  respuestas,
+  soloPublicas = false
+}) => {
+  const filas = (preguntas || []).filter(p => !soloPublicas || p.publica).map(p => [p, textoRespuesta(p, (respuestas || {})[p.id])]).filter(([, t]) => t !== "");
+  if (!filas.length) return null;
+  return React.createElement("dl", {
+    style: {
+      margin: 0,
+      display: "grid",
+      gap: 10
+    }
+  }, filas.map(([p, t]) => React.createElement("div", {
+    key: p.id
+  }, React.createElement("dt", {
+    className: "mono",
+    style: {
+      marginBottom: 2
+    }
+  }, p.etiqueta), React.createElement("dd", {
+    style: {
+      margin: 0,
+      fontSize: 14,
+      color: "var(--ink)",
+      lineHeight: 1.5,
+      whiteSpace: "pre-line"
+    }
+  }, t))));
+};
+const LemaDestacado = ({
+  texto
+}) => {
+  const t = String(texto || "").trim();
+  const m = t.match(/^(.*?)(\S+?)([?!.¡¿]*)$/s);
+  if (!m || !m[1].trim()) return React.createElement(React.Fragment, null, t);
+  return React.createElement(React.Fragment, null, m[1], React.createElement("span", {
+    style: {
+      color: "var(--galeras)"
+    }
+  }, m[2]), m[3]);
+};
+const fechaCorta = iso => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  try {
+    return new Date(y, m - 1, d).toLocaleDateString("es-CO", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  } catch (_) {
+    return iso;
+  }
+};
+const fechasEvento = ev => {
+  const a = fechaCorta(ev.fecha_inicio),
+    b = fechaCorta(ev.fecha_fin);
+  if (a && b && ev.fecha_inicio !== ev.fecha_fin) {
+    const [ya, ma] = ev.fecha_inicio.split("-"),
+      [yb, mb] = ev.fecha_fin.split("-");
+    if (ya === yb && ma === mb) return Number(ev.fecha_inicio.split("-")[2]) + " al " + b;
+    return a + " al " + b;
+  }
+  return a || b;
+};
+const filasDatosEvento = aj => {
+  const ev = (aj || cfgEvento()).evento || {};
+  return [["Fecha", fechasEvento(ev)], ["Horario", ev.horario], ["Lugar", [ev.lugar, ev.ciudad].filter(x => (x || "").trim()).join(" · ")], ["Organiza", ev.organizador], ["Contacto", ev.contacto]].filter(([, v]) => (v || "").trim() !== "");
+};
+const DatosEvento = ({
+  oscuro = false,
+  compacto = false
+}) => {
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  if (ev.mostrar_datos === false) return null;
+  const filas = filasDatosEvento(aj);
+  if (!filas.length && !ev.sitio_web) return null;
+  const tenue = oscuro ? "var(--paper-3)" : "var(--ink-3)";
+  const tinta = oscuro ? "var(--paper)" : "var(--ink)";
+  return React.createElement("div", {
+    className: "datos-evento",
+    style: {
+      display: "grid",
+      gap: compacto ? 10 : 14,
+      gridTemplateColumns: compacto ? "1fr" : "repeat(auto-fit, minmax(min(100%, 170px), 1fr))"
+    }
+  }, filas.map(([k, v]) => React.createElement("div", {
+    key: k,
+    style: {
+      minWidth: 0
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      color: tenue,
+      marginBottom: 3
+    }
+  }, k), React.createElement("div", {
+    style: {
+      fontSize: 14,
+      color: tinta,
+      lineHeight: 1.45,
+      overflowWrap: "anywhere"
+    }
+  }, v))), ev.sitio_web && React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      color: tenue,
+      marginBottom: 3
+    }
+  }, "M\xE1s informaci\xF3n"), React.createElement("a", {
+    href: ev.sitio_web,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    style: {
+      fontSize: 14,
+      color: oscuro ? "var(--paper)" : "var(--grano)",
+      overflowWrap: "anywhere"
+    }
+  }, ev.sitio_web.replace(/^https?:\/\//, "").replace(/\/$/, ""), " \u2197")));
 };
 const pesos = n => {
   const v = Number(n) || 0;
@@ -1751,6 +2166,28 @@ const pesos = n => {
 Object.assign(window, {
   LogoTaza,
   Wordmark,
+  EmblemaEvento,
+  SimboloSvg,
+  SIMBOLOS_MARCA,
+  cfgEvento,
+  textoCfg,
+  nombreEvento,
+  palabraSello,
+  simbolosVoto,
+  simboloVoto,
+  campoCfg,
+  opcionesCampo,
+  compraActiva,
+  estrellasActivas,
+  TIPOS_PREGUNTA,
+  PreguntaEntrada,
+  preguntaSinResponder,
+  textoRespuesta,
+  RespuestasLectura,
+  DatosEvento,
+  filasDatosEvento,
+  fechasEvento,
+  LemaDestacado,
   MontanasSilueta,
   SelloCircular,
   Placeholder,
@@ -2277,9 +2714,10 @@ Object.assign(window, {
 (function () {
 const AdminShell = ({
   active,
-  user,
+  user: userProp,
   children
 }) => {
+  const user = userProp || window.LMTApi && window.LMTApi.user && window.LMTApi.user() || null;
   const items = [{
     id: "stands",
     label: "Espacios",
@@ -2301,6 +2739,11 @@ const AdminShell = ({
     sub: "En vivo",
     path: "/admin/live"
   }, {
+    id: "encuesta",
+    label: "Encuesta",
+    sub: "Resultados del voto",
+    path: "/admin/encuesta"
+  }, {
     id: "economia",
     label: "Actividad económica",
     sub: "Compras del evento",
@@ -2312,8 +2755,8 @@ const AdminShell = ({
     path: "/admin/caracterizacion"
   }, {
     id: "festival",
-    label: "Personalización",
-    sub: "Títulos y fondos",
+    label: "Configuración del evento",
+    sub: "Marca, colores, formularios",
     path: "/admin/festival"
   }, {
     id: "correo",
@@ -2360,7 +2803,7 @@ const AdminShell = ({
     style: {
       marginBottom: 8
     }
-  }, "Admin \xB7 Festival 2026"), items.map(it => React.createElement("a", {
+  }, "Admin \xB7 ", pieDeMarca()), items.map(it => React.createElement("a", {
     key: it.id,
     href: it.path,
     "data-route": true,
@@ -2422,6 +2865,8 @@ const LoginAdmin = ({
   onLogin,
   onVisitor
 }) => {
+  const aj = usarAjustesFestival();
+  const inscripcionAbierta = !(aj.estado && aj.estado.inscripcion_abierta === false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
@@ -2466,41 +2911,45 @@ const LoginAdmin = ({
       alignItems: "center",
       gap: 12
     }
-  }, React.createElement("div", {
-    style: {
-      filter: "invert(1)"
-    }
-  }, React.createElement(LogoTaza, {
-    size: 36
-  })), React.createElement("div", {
+  }, React.createElement(EmblemaEvento, {
+    size: 36,
+    claro: true
+  }), React.createElement("div", {
     className: "mono",
     style: {
       color: "var(--paper-3)"
     }
-  }, "La Mejor Taza \xB7 Festival 2026")), React.createElement("div", null, React.createElement("h1", {
+  }, nombreEvento(aj), " \xB7 ", pieDeMarca(aj))), React.createElement("div", null, React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 64,
       lineHeight: 0.95,
       margin: 0,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       letterSpacing: "-0.02em",
       maxWidth: "16ch"
     }
-  }, "El pasaporte", React.createElement("br", null), "del caf\xE9", React.createElement("br", null), React.createElement("span", {
-    style: {
-      color: "var(--galeras)"
-    }
-  }, "nari\xF1ense"), "."), React.createElement("p", {
+  }, React.createElement(LemaDestacado, {
+    texto: textoCfg("evento", "portada_titulo", "Tu pasaporte del evento.", aj)
+  })), React.createElement("p", {
     style: {
       fontSize: 15,
       color: "var(--paper-3)",
       maxWidth: 420,
       marginTop: 24,
-      lineHeight: 1.6
+      lineHeight: 1.6,
+      whiteSpace: "pre-line"
     }
-  }, "Recorre los stands, prueba los caf\xE9s y vota. Tu pasaporte se va sellando con cada visita, y entre todos decidimos cu\xE1l es la mejor taza de Nari\xF1o.")), React.createElement("div", {
+  }, textoCfg("evento", "portada_texto", "", aj)), React.createElement("div", {
+    style: {
+      marginTop: 22,
+      maxWidth: 460
+    }
+  }, React.createElement(DatosEvento, {
+    oscuro: true,
+    compacto: true
+  }))), React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2512,14 +2961,14 @@ const LoginAdmin = ({
     style: {
       color: "var(--paper-3)"
     }
-  }, "\xBFTienes un espacio en el festival?"), React.createElement("div", {
+  }, "\xBFTienes un espacio en el evento?"), React.createElement("div", {
     style: {
       display: "flex",
       gap: 16,
       alignItems: "center",
       flexWrap: "wrap"
     }
-  }, React.createElement("a", {
+  }, inscripcionAbierta && React.createElement("a", {
     href: "/inscripcion",
     "data-route": true,
     style: {
@@ -2538,16 +2987,16 @@ const LoginAdmin = ({
     className: "split-form"
   }, React.createElement("div", {
     className: "mono"
-  }, "Festival 2026 \xB7 Nari\xF1o"), React.createElement("h2", {
+  }, pieDeMarca(aj)), React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "8px 0 14px",
       lineHeight: 1.05
     }
-  }, "Bienvenido al", React.createElement("br", null), "festival."), React.createElement("p", {
+  }, "Te damos la bienvenida."), React.createElement("p", {
     style: {
       fontSize: 14,
       color: "var(--ink-2)",
@@ -2569,7 +3018,7 @@ const LoginAdmin = ({
       padding: 15,
       fontSize: 15
     }
-  }, "Entrar al festival \u2192"), React.createElement("div", {
+  }, "Entrar al evento \u2192"), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -2776,7 +3225,7 @@ const StandsList = ({
     className: "mono"
   }, "Registro \xB7 ", stands.length, " espacios"), React.createElement("h1", {
     className: "titulo-xl"
-  }, "Espacios del festival")), React.createElement("a", {
+  }, "Espacios del evento")), React.createElement("a", {
     href: "/admin/stands/new",
     "data-route": true,
     className: "btn btn-primary"
@@ -2814,8 +3263,9 @@ const StandsList = ({
   }, m.k), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
+      fontWeight: "var(--display-weight)",
       fontSize: 40,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       lineHeight: 1,
       marginTop: 8
     }
@@ -2838,7 +3288,8 @@ const StandsList = ({
   }, "Sin espacios"), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 28,
       color: "var(--ink)",
       margin: "8px 0 16px"
@@ -2913,8 +3364,9 @@ const StandsList = ({
   }, React.createElement("span", {
     style: {
       fontFamily: "var(--font-display)",
+      fontWeight: "var(--display-weight)",
       fontSize: 20,
-      fontStyle: "italic"
+      fontStyle: "var(--display-style)"
     }
   }, calcScore(s.votos).toFixed(0)), React.createElement("span", {
     className: "mono",
@@ -3005,8 +3457,15 @@ const StandEditor = ({
       x: 0.5,
       y: 0.5
     },
-    color: "oklch(0.45 0.1 40)"
+    color: "oklch(0.45 0.1 40)",
+    respuestas_extra: {}
   });
+  const aj = usarAjustesFestival();
+  const C = k => campoCfg(k);
+  const tiene = v => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+  const ver = (k, v) => C(k).activo !== false || tiene(v);
+  const et = (k, def) => C(k).etiqueta || def;
+  const preguntasExtra = ((aj.inscripcion || {}).preguntas || []).filter(p => p.activa !== false || tiene((form.respuestas_extra || {})[p.id]));
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -3064,6 +3523,7 @@ const StandEditor = ({
         invima: form.invima ?? null,
         manipulacion_alimentos: form.manipulacion_alimentos ?? null,
         logo: form.logo || null,
+        respuestas_extra: form.respuestas_extra || {},
         coords: form.coords,
         color: form.color
       };
@@ -3113,9 +3573,9 @@ const StandEditor = ({
   }, isNew ? "Nuevo registro" : "Editar espacio", " \xB7 ", form.id), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "4px 0 28px"
     }
   }, isNew ? "Registrar espacio" : form.nombre || "Sin nombre"), React.createElement("div", {
@@ -3134,10 +3594,9 @@ const StandEditor = ({
     maxLength: 32
   })), React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Nombre del producto"), React.createElement("input", {
+  }, React.createElement("label", null, et("stand_nombre", "Nombre del espacio"), " *"), React.createElement("input", {
     value: form.nombre,
     onChange: e => update("nombre", e.target.value),
-    placeholder: "Ej: Finca El Tambo",
     maxLength: 80,
     required: true
   })), React.createElement(NumeroDelEspacio, {
@@ -3163,13 +3622,12 @@ const StandEditor = ({
     valor: form.region,
     municipio: form.municipio,
     onCambio: v => update("region", v)
-  })), React.createElement("div", {
+  })), ver("direccion", form.direccion) && React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Direcci\xF3n *"), React.createElement("input", {
+  }, React.createElement("label", null, et("direccion", "Dirección"), C("direccion").activo !== false && C("direccion").requerido ? " *" : ""), React.createElement("input", {
     value: form.direccion,
     onChange: e => update("direccion", e.target.value),
-    maxLength: 255,
-    required: true
+    maxLength: 255
   })), React.createElement("div", {
     className: "grid-2",
     style: {
@@ -3184,14 +3642,14 @@ const StandEditor = ({
     maxLength: 254
   })), React.createElement(CampoNumerico, {
     id: "st-tel",
-    etiqueta: "Tel\xE9fono",
+    etiqueta: et("telefono", "Teléfono"),
     telefono: true,
     maxLength: 15,
     valor: form.telefono,
     onCambio: v => update("telefono", v)
-  })), React.createElement("div", {
+  })), ver("descripcion", form.descripcion) && React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Descripci\xF3n del producto"), React.createElement("textarea", {
+  }, React.createElement("label", null, et("descripcion", "Descripción del espacio")), React.createElement("textarea", {
     value: form.descripcion,
     onChange: e => update("descripcion", e.target.value),
     rows: 3,
@@ -3203,38 +3661,38 @@ const StandEditor = ({
     }
   }, React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Propietario"), React.createElement("input", {
+  }, React.createElement("label", null, et("nombre", "Responsable")), React.createElement("input", {
     value: form.propietario,
     onChange: e => update("propietario", e.target.value),
     maxLength: 120,
     placeholder: "Nombre completo"
-  })), React.createElement(CampoNumerico, {
+  })), ver("documento", form.propietario_documento) && React.createElement(CampoNumerico, {
     id: "st-doc",
-    etiqueta: "Documento del propietario",
+    etiqueta: et("documento", "Documento del responsable"),
     valor: form.propietario_documento,
     onCambio: v => update("propietario_documento", v)
-  })), React.createElement("div", {
+  })), (ver("nit", form.nit) || ver("sitio_web", form.sitio_web)) && React.createElement("div", {
     className: "grid-2",
     style: {
       gap: 20
     }
-  }, React.createElement(CampoNumerico, {
+  }, ver("nit", form.nit) && React.createElement(CampoNumerico, {
     id: "st-nit",
-    etiqueta: "NIT o RUT",
+    etiqueta: et("nit", "NIT o RUT"),
     valor: form.nit,
     onCambio: v => update("nit", v)
-  }), React.createElement("div", {
+  }), ver("sitio_web", form.sitio_web) && React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Sitio web o red social"), React.createElement("input", {
+  }, React.createElement("label", null, et("sitio_web", "Sitio web o red social")), React.createElement("input", {
     type: "url",
     value: form.sitio_web,
     onChange: e => update("sitio_web", e.target.value),
     maxLength: 255,
     placeholder: "https://\u2026"
-  }))), React.createElement(SelectorCatalogo, {
+  }))), ver("tipo_organizacion", form.tipo_organizacion) && React.createElement(SelectorCatalogo, {
     id: "st-org",
-    etiqueta: "\xBFQu\xE9 tipo de organizaci\xF3n es?",
-    catalogo: ORGANIZACIONES,
+    etiqueta: et("tipo_organizacion", "¿Qué tipo de organización es?"),
+    catalogo: opcionesCampo("tipo_organizacion", ORGANIZACIONES),
     valor: form.tipo_organizacion,
     otro: form.tipo_organizacion_otro,
     onCambio: v => setForm(f => ({
@@ -3244,10 +3702,10 @@ const StandEditor = ({
     })),
     onOtro: v => update("tipo_organizacion_otro", v),
     etiquetaOtro: "\xBFCu\xE1l es el tipo de organizaci\xF3n?"
-  }), React.createElement(SelectorCatalogo, {
+  }), ver("actividad_cafe", form.actividad_cafe) && React.createElement(SelectorCatalogo, {
     id: "st-act",
-    etiqueta: "Actividad o v\xEDnculo con la cadena de valor del caf\xE9",
-    catalogo: ACTIVIDADES_CAFE,
+    etiqueta: et("actividad_cafe", "Actividad principal"),
+    catalogo: opcionesCampo("actividad_cafe", ACTIVIDADES_CAFE),
     valor: form.actividad_cafe,
     otro: form.actividad_cafe_otro,
     onCambio: v => setForm(f => ({
@@ -3257,10 +3715,10 @@ const StandEditor = ({
     })),
     onOtro: v => update("actividad_cafe_otro", v),
     etiquetaOtro: "\xBFCu\xE1l es la actividad?"
-  }), React.createElement(SelectorCatalogo, {
+  }), ver("poblacion", form.poblacion) && React.createElement(SelectorCatalogo, {
     id: "st-pob",
-    etiqueta: "\xBFA cu\xE1l grupo o tipo de poblaci\xF3n pertenece?",
-    catalogo: POBLACIONES,
+    etiqueta: et("poblacion", "¿A cuál grupo o tipo de población pertenece?"),
+    catalogo: opcionesCampo("poblacion", POBLACIONES),
     valor: form.poblacion,
     otro: form.poblacion_otro,
     onCambio: v => setForm(f => ({
@@ -3270,59 +3728,49 @@ const StandEditor = ({
     })),
     onOtro: v => update("poblacion_otro", v),
     etiquetaOtro: "\xBFCu\xE1l?"
-  }), React.createElement(SelectorMultiple, {
+  }), ver("linea_productiva", form.linea_productiva) && React.createElement(SelectorMultiple, {
     id: "st-linea",
-    etiqueta: "L\xEDnea productiva en la cual participa",
-    catalogo: LINEAS_PRODUCTIVAS,
+    etiqueta: et("linea_productiva", "Línea en la cual participa"),
+    catalogo: opcionesCampo("linea_productiva", LINEAS_PRODUCTIVAS),
     valores: form.linea_productiva,
     onCambio: v => update("linea_productiva", v)
-  }), React.createElement("div", null, React.createElement("div", {
+  }), ["cert_internacional", "organico", "especial", "promedio_taza", "marca_registrada", "camara_comercio", "invima", "manipulacion_alimentos", "presentacion"].some(k => ver(k, form[k])) && React.createElement("div", null, React.createElement("div", {
     className: "mono",
     style: {
       marginBottom: 12
     }
-  }, "Informaci\xF3n detallada"), React.createElement("div", {
+  }, (((aj.inscripcion || {}).secciones || {}).detalle || {}).titulo || "Información detallada"), React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
       gap: 16
     }
-  }, React.createElement(SiNo, {
-    id: "st-certint",
-    valor: form.cert_internacional ?? null,
-    onCambio: v => update("cert_internacional", v),
-    etiqueta: "\xBFSu caf\xE9 cuenta con certificaciones internacionales?"
-  }), React.createElement(SiNo, {
-    id: "st-organico",
-    valor: form.organico ?? null,
-    onCambio: v => update("organico", v),
-    etiqueta: "\xBFSu caf\xE9 es org\xE1nico?"
-  }), React.createElement(SiNo, {
-    id: "st-especial",
-    valor: form.especial ?? null,
-    onCambio: v => update("especial", v),
-    etiqueta: "\xBFSu caf\xE9 es especial?"
-  }), React.createElement("div", {
+  }, ["cert_internacional", "organico", "especial"].filter(k => ver(k, form[k])).map(k => React.createElement(SiNo, {
+    key: k,
+    id: "st-" + k,
+    valor: form[k] ?? null,
+    onCambio: v => update(k, v),
+    etiqueta: et(k, k)
+  })), ver("promedio_taza", form.promedio_taza) && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "st-taza"
-  }, "Promedio de taza"), React.createElement("input", {
+  }, et("promedio_taza", "Promedio de taza")), React.createElement("input", {
     id: "st-taza",
     value: form.promedio_taza || "",
     maxLength: 40,
-    onChange: e => update("promedio_taza", e.target.value),
-    placeholder: "Ej: 84,5 puntos SCA"
-  })), React.createElement(SiNo, {
+    onChange: e => update("promedio_taza", e.target.value)
+  })), ver("marca_registrada", form.marca_registrada) && React.createElement(SiNo, {
     id: "st-marca",
     valor: form.marca_registrada ?? null,
     onCambio: v => update("marca_registrada", v),
-    etiqueta: "\xBFMarca registrada ante la Superintendencia de Industria y Comercio?"
-  }), React.createElement(SiNo, {
+    etiqueta: et("marca_registrada", "¿Marca registrada ante la SIC?")
+  }), ver("camara_comercio", form.camara_comercio) && React.createElement(SiNo, {
     id: "st-camara",
     valor: form.camara_comercio ?? null,
     onCambio: v => update("camara_comercio", v),
-    etiqueta: "\xBFCertificado de Existencia y Representaci\xF3n Legal (C\xE1mara de Comercio)?",
-    nota: "Con fecha de expedici\xF3n no mayor a noventa (90) d\xEDas. Para peque\xF1os productores individuales vale la certificaci\xF3n de la UMATA, la Secretar\xEDa de Agricultura Municipal o el Comit\xE9 de Cafeteros."
+    etiqueta: et("camara_comercio", "¿Certificado de Cámara de Comercio?"),
+    nota: C("camara_comercio").ayuda || ""
   }), form.camara_comercio === true && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
@@ -3332,11 +3780,11 @@ const StandEditor = ({
     value: form.camara_comercio_numero || "",
     maxLength: 60,
     onChange: e => update("camara_comercio_numero", e.target.value)
-  })), React.createElement(SiNo, {
+  })), ver("invima", form.invima) && React.createElement(SiNo, {
     id: "st-invima",
     valor: form.invima ?? null,
     onCambio: v => update("invima", v),
-    etiqueta: "\xBFAcreditaci\xF3n sanitaria (INVIMA)?"
+    etiqueta: et("invima", "¿Acreditación sanitaria (INVIMA)?")
   }), form.invima === true && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
@@ -3347,15 +3795,15 @@ const StandEditor = ({
     maxLength: 800,
     value: form.invima_detalle || "",
     onChange: e => update("invima_detalle", e.target.value)
-  })), React.createElement(SiNo, {
+  })), ver("manipulacion_alimentos", form.manipulacion_alimentos) && React.createElement(SiNo, {
     id: "st-manip",
     valor: form.manipulacion_alimentos ?? null,
     onCambio: v => update("manipulacion_alimentos", v),
-    etiqueta: "\xBFCertificado de manipulaci\xF3n de alimentos vigente?"
-  }), React.createElement(SelectorMultiple, {
+    etiqueta: et("manipulacion_alimentos", "¿Certificado de manipulación de alimentos vigente?")
+  }), ver("presentacion", form.presentacion) && React.createElement(SelectorMultiple, {
     id: "st-pres",
-    etiqueta: "Presentaci\xF3n del producto",
-    catalogo: PRESENTACIONES,
+    etiqueta: et("presentacion", "Presentación del producto"),
+    catalogo: opcionesCampo("presentacion", PRESENTACIONES),
     valores: form.presentacion,
     onCambio: v => update("presentacion", v)
   }), (form.presentacion || []).includes("otros") && React.createElement("div", {
@@ -3367,9 +3815,35 @@ const StandEditor = ({
     value: form.presentacion_otro || "",
     maxLength: 120,
     onChange: e => update("presentacion_otro", e.target.value)
+  })))), preguntasExtra.length > 0 && React.createElement("div", null, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 12
+    }
+  }, (((aj.inscripcion || {}).secciones || {}).extra || {}).titulo || "Preguntas adicionales"), React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 16
+    }
+  }, preguntasExtra.map(p => React.createElement(PreguntaEntrada, {
+    key: p.id,
+    pregunta: {
+      ...p,
+      requerida: false
+    },
+    idBase: "st",
+    valor: (form.respuestas_extra || {})[p.id],
+    onCambio: v => setForm(f => ({
+      ...f,
+      respuestas_extra: {
+        ...(f.respuestas_extra || {}),
+        [p.id]: v
+      }
+    }))
   })))), React.createElement(SubirImagen, {
     actual: urlImagen(form.logo),
-    etiqueta: "Logo del producto",
+    etiqueta: et("logo", "Logo del espacio"),
     cuadrada: true,
     encuadrable: true,
     ruta: form.logo,
@@ -3527,7 +4001,8 @@ const StandEditor = ({
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 22,
       marginBottom: 4
     }
@@ -3631,7 +4106,7 @@ const QRPoster = ({
     style: {
       color: "var(--ink-3)"
     }
-  }, "Festival 2026"))), React.createElement("div", {
+  }, pieDeMarca()))), React.createElement("div", {
     style: {
       marginTop: 20,
       marginBottom: 16
@@ -3641,9 +4116,9 @@ const QRPoster = ({
   }, "Escanea para calificar"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 44,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       lineHeight: 1,
       margin: "6px 0 0",
       letterSpacing: "-0.01em"
@@ -3714,7 +4189,9 @@ const QRPoster = ({
       gap: 6,
       fontSize: 20
     }
-  }, React.createElement("span", null, "\uD83D\uDE1E"), React.createElement("span", null, "\uD83D\uDE10"), React.createElement("span", null, "\uD83D\uDE0D"))), React.createElement("div", {
+  }, simbolosVoto().map(x => React.createElement("span", {
+    key: x.id
+  }, x.emoji)))), React.createElement("div", {
     style: {
       height: 1,
       background: "var(--line)"
@@ -3726,7 +4203,7 @@ const QRPoster = ({
       display: "flex",
       justifyContent: "space-between"
     }
-  }, React.createElement("span", null, "Pega en el frente del espacio"), React.createElement("span", null, "\xB7 14\u201420 abr \xB7 Pasto"))));
+  }, React.createElement("span", null, "Pega en el frente del espacio"), React.createElement("span", null, [fechasEvento(cfgEvento().evento || {}), (cfgEvento().evento || {}).ciudad].filter(Boolean).join(" · ")))));
 };
 const QRHojas = ({
   stands
@@ -3784,9 +4261,9 @@ const QRPrintView = ({
     }, "C\xF3digos QR"), React.createElement("h1", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 36,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "4px 0 18px"
       }
     }, "A\xFAn no hay espacios."), React.createElement("a", {
@@ -3804,9 +4281,9 @@ const QRPrintView = ({
   }, "C\xF3digos QR \xB7 Imprimir y pegar"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "4px 0 22px"
     }
   }, "Carteles A5"), React.createElement("div", {
@@ -3982,9 +4459,9 @@ const ActivityLive = ({
   }, "En vivo"))), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "4px 0 22px"
     }
   }, "Votos en tiempo real"), React.createElement("div", {
@@ -4104,7 +4581,8 @@ const ActivityLive = ({
   }, s.municipio, " \xB7 ", totalVotos(s.votos), " votos")), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 22
     }
   }, calcScore(s.votos).toFixed(0)))))), React.createElement("div", {
@@ -4155,22 +4633,6 @@ Object.assign(window, {
 
 /* components/VoteFlow.jsx */
 (function () {
-const EMOJIS = [{
-  id: "malo",
-  label: "Malo",
-  emoji: "😞",
-  color: "var(--bad)"
-}, {
-  id: "regular",
-  label: "Regular",
-  emoji: "😐",
-  color: "var(--meh)"
-}, {
-  id: "bueno",
-  label: "Excelente",
-  emoji: "😍",
-  color: "var(--good)"
-}];
 const MobileHeader = ({
   stand
 }) => React.createElement("div", {
@@ -4193,7 +4655,8 @@ const MobileHeader = ({
     justifyContent: "center",
     color: "var(--paper)",
     fontFamily: "var(--font-display)",
-    fontStyle: "italic",
+    fontWeight: "var(--display-weight)",
+    fontStyle: "var(--display-style)",
     fontSize: 18
   }
 }, (stand.nombre || "?")[0]), React.createElement("div", {
@@ -4221,6 +4684,15 @@ const VoteForm = ({
   savedEmail
 }) => {
   const sec = window.LMTSecurity;
+  const aj = usarAjustesFestival();
+  const enc = aj.encuesta || {};
+  const compra = enc.compra || {};
+  const conCompra = compra.activa !== false;
+  const comentario = enc.comentario || {};
+  const conComentario = comentario.activo !== false;
+  const activas = estrellasActivas();
+  const propias = (enc.preguntas || []).filter(p => !p.sistema && p.activa !== false);
+  const EMOJIS = simbolosVoto();
   const [data, setData] = React.useState({
     correo: savedEmail || "",
     emoji: null,
@@ -4231,7 +4703,8 @@ const VoteForm = ({
       est_innovacion: null,
       est_atencion: null,
       est_calidad: null
-    }
+    },
+    respuestas: {}
   });
   const [needEmail, setNeedEmail] = React.useState(false);
   const [showOpt, setShowOpt] = React.useState(false);
@@ -4257,6 +4730,11 @@ const VoteForm = ({
   const submitVote = async (emojiId, correo) => {
     setSubmitError("");
     setYaVoto(false);
+    const falta = preguntaSinResponder(propias, data.respuestas);
+    if (falta) {
+      setSubmitError("Responde «" + falta.etiqueta + "» antes de calificar.");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -4264,9 +4742,10 @@ const VoteForm = ({
         emoji: emojiId,
         correo,
         estrellas: data.estrellas,
-        compra: data.compra,
-        compra_valor: data.compra_valor,
-        texto: data.texto
+        compra: conCompra ? data.compra : null,
+        compra_valor: conCompra && compra.pide_valor !== false ? data.compra_valor : "",
+        texto: conComentario ? data.texto : "",
+        respuestas: data.respuestas
       };
       if (window.LMTApi && window.LMTApi.enabled) {
         const res = await window.LMTApi.submitVote(payload);
@@ -4354,20 +4833,20 @@ const VoteForm = ({
   }, "cambiar")), React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 30,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "4px 0 6px",
       lineHeight: 1.1,
       letterSpacing: "-0.01em"
     }
-  }, "\xBFC\xF3mo estuvo", React.createElement("br", null), "el caf\xE9?"), React.createElement("p", {
+  }, textoCfg("encuesta", "titulo", "¿Cómo te fue en este espacio?", aj)), React.createElement("p", {
     style: {
       fontSize: 13,
       color: "var(--ink-2)",
       marginBottom: 18
     }
-  }, "Punt\xFAa lo que quieras y toca un emoji para enviar."), React.createElement("div", {
+  }, textoCfg("encuesta", "instrucciones", "Responde lo que quieras y toca un emoji para enviar.", aj)), activas.length > 0 && React.createElement("div", {
     style: {
       padding: "14px 16px",
       marginBottom: 16,
@@ -4377,7 +4856,7 @@ const VoteForm = ({
       flexDirection: "column",
       gap: 2
     }
-  }, ESTRELLA_CAMPOS.map(campo => React.createElement(EstrellasEntrada, {
+  }, activas.map(campo => React.createElement(EstrellasEntrada, {
     key: campo,
     id: "vf-" + campo,
     etiqueta: titulos[campo],
@@ -4389,7 +4868,29 @@ const VoteForm = ({
         [campo]: v
       }
     }))
-  }))), React.createElement("div", {
+  }))), propias.length > 0 && React.createElement("div", {
+    style: {
+      padding: "14px 16px",
+      marginBottom: 16,
+      border: "1px solid var(--line-2)",
+      borderRadius: "var(--r-lg)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 16
+    }
+  }, propias.map(p => React.createElement(PreguntaEntrada, {
+    key: p.id,
+    pregunta: p,
+    idBase: "vf",
+    valor: data.respuestas[p.id],
+    onCambio: v => setData(d => ({
+      ...d,
+      respuestas: {
+        ...d.respuestas,
+        [p.id]: v
+      }
+    }))
+  }))), conCompra && React.createElement("div", {
     style: {
       marginBottom: 18
     }
@@ -4398,17 +4899,17 @@ const VoteForm = ({
     style: {
       marginBottom: 8
     }
-  }, "\xBFCompraste algo?"), React.createElement("div", {
+  }, compra.pregunta || "¿Compraste algo?"), React.createElement("div", {
     style: {
       display: "flex",
       gap: 10
     }
   }, [{
     v: true,
-    l: "Sí, compré"
+    l: compra.si || "Sí, compré"
   }, {
     v: false,
-    l: "No esta vez"
+    l: compra.no || "No esta vez"
   }].map(o => React.createElement("button", {
     key: String(o.v),
     type: "button",
@@ -4428,7 +4929,7 @@ const VoteForm = ({
       fontWeight: 500,
       background: data.compra === o.v ? "var(--paper-2)" : "var(--paper)"
     }
-  }, o.l))), data.compra === true && React.createElement("div", {
+  }, o.l))), data.compra === true && compra.pide_valor !== false && React.createElement("div", {
     className: "field",
     style: {
       marginTop: 12,
@@ -4436,7 +4937,7 @@ const VoteForm = ({
     }
   }, React.createElement("label", {
     htmlFor: "vf-valor"
-  }, "\xBFCu\xE1nto gastaste? (opcional)"), React.createElement("input", {
+  }, compra.pregunta_valor || "¿Cuánto gastaste? (opcional)"), React.createElement("input", {
     id: "vf-valor",
     inputMode: "numeric",
     maxLength: 20,
@@ -4445,12 +4946,12 @@ const VoteForm = ({
     onChange: e => update("compra_valor", e.target.value)
   }), React.createElement("span", {
     className: "ayuda"
-  }, "En pesos. Sirve para el informe de ventas del festival."))), React.createElement("div", {
+  }, "En pesos. Sirve para el informe de ventas del evento."))), React.createElement("div", {
     className: "mono",
     style: {
       marginBottom: 10
     }
-  }, "\xBFC\xF3mo te pareci\xF3 nuestro espacio?"), React.createElement("div", {
+  }, textoCfg("encuesta", "pregunta_emoji", "¿Cómo calificas tu visita?", aj)), React.createElement("div", {
     style: {
       display: "flex",
       gap: 10
@@ -4524,7 +5025,7 @@ const VoteForm = ({
       marginTop: 6,
       lineHeight: 1.5
     }
-  }, "Con tu correo creamos tu pasaporte del caf\xE9. Queda guardado en este dispositivo: la pr\xF3xima vez votas con un solo toque, sin registrarte de nuevo."), React.createElement("button", {
+  }, "Con tu correo creamos tu pasaporte del evento. Queda guardado en este dispositivo: la pr\xF3xima vez votas con un solo toque, sin registrarte de nuevo."), React.createElement("button", {
     className: "btn btn-primary",
     onClick: confirmFirstTime,
     disabled: !correoOk,
@@ -4535,7 +5036,7 @@ const VoteForm = ({
       marginTop: 14,
       opacity: correoOk ? 1 : 0.4
     }
-  }, "Registrarme y votar \u2192")), !submitting && React.createElement("div", {
+  }, "Registrarme y votar \u2192")), !submitting && conComentario && React.createElement("div", {
     style: {
       marginTop: 18
     }
@@ -4550,18 +5051,18 @@ const VoteForm = ({
       padding: "6px 0",
       textDecoration: "underline"
     }
-  }, "+ Agregar comentario (opcional)") : React.createElement("div", {
+  }, "+ ", comentario.etiqueta || "Comentario (opcional)") : React.createElement("div", {
     style: {
       animation: "fade-up 0.3s"
     }
   }, React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "Comentario (opcional, m\xE1x. 500)"), React.createElement("textarea", {
+  }, React.createElement("label", null, comentario.etiqueta || "Comentario (opcional)", " \xB7 m\xE1x. 500"), React.createElement("textarea", {
     rows: 3,
     value: data.texto,
     maxLength: 500,
     onChange: e => update("texto", e.target.value),
-    placeholder: "\xBFQu\xE9 destacar\xEDas del espacio?",
+    placeholder: comentario.placeholder || "¿Qué destacarías del espacio?",
     style: {
       border: "1px solid var(--line-2)",
       borderRadius: "var(--r-md)",
@@ -4612,15 +5113,18 @@ const VoteForm = ({
       justifyContent: "center",
       padding: 14
     }
-  }, "Ver mi pasaporte")), React.createElement("p", {
+  }, "Ver mi pasaporte")), textoCfg("encuesta", "aviso_datos", "", aj) && React.createElement("p", {
     className: "mono",
     style: {
       textAlign: "center",
       marginTop: 20,
       lineHeight: 1.6,
-      color: "var(--ink-3)"
+      color: "var(--ink-3)",
+      maxWidth: 320,
+      marginLeft: "auto",
+      marginRight: "auto"
     }
-  }, "Al votar aceptas el tratamiento", React.createElement("br", null), "de datos del festival."));
+  }, textoCfg("encuesta", "aviso_datos", "", aj)));
 };
 const VoteConfirm = ({
   stand,
@@ -4642,9 +5146,9 @@ const VoteConfirm = ({
   }, "\u2713 Voto registrado"), React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 36,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "12px 0 6px",
       textAlign: "center",
       lineHeight: 1.05
@@ -4724,7 +5228,7 @@ const VoteConfirm = ({
       justifyContent: "center",
       padding: 14
     }
-  }, "Ver ranking del festival")), window.LMTPerfil && window.LMTPerfil.tieneTestigo() && React.createElement("div", {
+  }, "Ver ranking del evento")), window.LMTPerfil && window.LMTPerfil.tieneTestigo() && React.createElement("div", {
     style: {
       marginTop: 22,
       padding: "14px 16px",
@@ -4744,7 +5248,7 @@ const VoteConfirm = ({
       color: "var(--ink-2)",
       margin: "0 0 12px"
     }
-  }, "\xBFNos cuentas de d\xF3nde nos visitas? Nos ayuda a saber qui\xE9n viene al festival y a preparar mejor la pr\xF3xima edici\xF3n. Son dos minutos y ning\xFAn dato es obligatorio."), React.createElement("a", {
+  }, "\xBFNos cuentas de d\xF3nde nos visitas? Nos ayuda a saber qui\xE9n viene al evento y a preparar mejor la pr\xF3xima edici\xF3n. Son dos minutos y ning\xFAn dato es obligatorio."), React.createElement("a", {
     href: "/perfil",
     "data-route": true,
     className: "btn btn-ghost",
@@ -4798,20 +5302,20 @@ const PassportEmpty = () => React.createElement("div", {
 }, "A\xFAn no tienes pasaporte"), React.createElement("h2", {
   style: {
     fontFamily: "var(--font-display)",
-    fontStyle: "italic",
+    fontStyle: "var(--display-style)",
     fontSize: 38,
-    fontWeight: 400,
+    fontWeight: "var(--display-weight)",
     margin: "0 0 16px",
     lineHeight: 1.05
   }
-}, "Empieza tu traves\xEDa", React.createElement("br", null), "del caf\xE9."), React.createElement("p", {
+}, textoCfg("pasaporte", "invitacion", "Empieza tu recorrido por el evento.")), React.createElement("p", {
   style: {
     color: "var(--ink-2)",
     lineHeight: 1.6,
     maxWidth: 360,
     margin: "0 auto 24px"
   }
-}, "Escanea el QR de cualquier stand del festival y emite tu primer voto. Cada visita estampa una p\xE1gina en tu pasaporte."), React.createElement("a", {
+}, "Escanea el QR de cualquier espacio del evento y emite tu primer voto. Cada visita estampa una p\xE1gina en tu pasaporte."), React.createElement("a", {
   href: "/festival",
   "data-route": true,
   className: "btn btn-ghost",
@@ -4888,7 +5392,7 @@ const PassportPage = ({
   }, [email, data]);
   if (askingEmail) {
     return React.createElement(PuertaCorreo, {
-      titulo: "Tu pasaporte del festival.",
+      titulo: "Tu pasaporte del evento.",
       nota: "Escribe el correo con el que votas en los espacios. No hace falta contrase\xF1a.",
       volverA: "/festival",
       volverTexto: "\u2190 Volver al ranking",
@@ -4921,9 +5425,9 @@ const PassportPage = ({
     }, "Pasaporte"), React.createElement("h2", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 32,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "8px 0 16px",
         lineHeight: 1.1
       }
@@ -5102,7 +5606,7 @@ const PassportBook = ({
   };
   const total = book3d && libroRef.current ? libroRef.current.totalPaginas() : pages.length;
   const actual = pages[Math.min(page, pages.length - 1)] || pages[0];
-  const resumen = actual.type === "stamp" ? `Sello: ${actual.stand.nombre}, ${actual.stand.municipio}` : actual.type === "cover" ? "Portada del pasaporte" : actual.type === "index" ? `Página de datos de ${passport.nombre}` : actual.type === "travesia" ? `Recorrido: ${visitados.length} stands sellados` : "Fin del pasaporte";
+  const resumen = actual.type === "stamp" ? `Sello: ${actual.stand.nombre}, ${actual.stand.municipio}` : actual.type === "cover" ? "Portada del pasaporte" : actual.type === "index" ? `Página de datos de ${passport.nombre}` : actual.type === "travesia" ? `Recorrido: ${visitados.length} espacios sellados` : "Fin del pasaporte";
   return React.createElement("div", {
     className: "pasaporte-vista",
     style: {
@@ -5343,12 +5847,12 @@ const bandaMecanica = passport => {
 const datosSello = (passport, stand) => {
   const est = (passport.estrellas || {})[stand.id] || null;
   const titulos = window.titulosEstrellas ? window.titulosEstrellas() : {};
-  const estrellas = est ? ESTRELLA_CAMPOS.map(campo => ({
+  const estrellas = est ? estrellasActivas().map(campo => ({
     titulo: titulos[campo] || campo,
     valor: Number(est[ESTRELLA_CLAVES[campo]]) || 0
   })).filter(e => e.valor > 0) : [];
   const cuando = (passport.sellos || {})[stand.id] || "";
-  const v = VALORACION[(passport.valoraciones || {})[stand.id]] || null;
+  const v = valoracionDe((passport.valoraciones || {})[stand.id]);
   return {
     estrellas,
     veredicto: estrellas.length ? "" : v ? v.texto : "",
@@ -5489,7 +5993,8 @@ const RetratoPortador = ({
 }, retrato.emoji) : React.createElement("span", {
   style: {
     fontFamily: "var(--font-display)",
-    fontStyle: "italic",
+    fontWeight: "var(--display-weight)",
+    fontStyle: "var(--display-style)",
     fontSize: 23,
     lineHeight: 1
   }
@@ -5537,7 +6042,7 @@ const PaginaDatos = ({
       color: "var(--ink-2)",
       lineHeight: 1.4
     }
-  }, "REP\xDABLICA DE COLOMBIA", React.createElement("br", null), "DEPARTAMENTO DE NARI\xD1O"), React.createElement(LogoTaza, {
+  }, textoCfg("pasaporte", "encabezado_1", "").toUpperCase(), React.createElement("br", null), textoCfg("pasaporte", "encabezado_2", "").toUpperCase()), React.createElement(EmblemaEvento, {
     size: 24
   })), React.createElement(RayaFina, {
     margen: "8px 0 9px"
@@ -5660,7 +6165,8 @@ const PaginaDatos = ({
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 21,
       lineHeight: 1.1,
       color: "var(--grano)",
@@ -5702,30 +6208,26 @@ const PaginaDatos = ({
       marginTop: 8,
       color: "var(--ink-2)",
       textTransform: "none",
+      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
       flexShrink: 0,
       whiteSpace: "nowrap",
       overflow: "hidden"
     }
   }, d.mrz1, React.createElement("br", null), d.mrz2)));
 };
-const VALORACION = {
-  bueno: {
-    texto: "Excelente",
-    token: "--good"
-  },
-  regular: {
-    texto: "Regular",
-    token: "--meh"
-  },
-  malo: {
-    texto: "Mejorable",
-    token: "--bad"
-  }
+const VALORACION_TOKEN = {
+  bueno: "--good",
+  regular: "--meh",
+  malo: "--bad"
 };
+const valoracionDe = id => VALORACION_TOKEN[id] ? {
+  texto: simboloVoto(id).label,
+  token: VALORACION_TOKEN[id]
+} : null;
 const filasTravesia = (passport, visitados) => {
   const val = passport.valoraciones || {};
   return visitados.map((s, i) => {
-    const v = VALORACION[val[s.id]] || null;
+    const v = valoracionDe(val[s.id]);
     return {
       n: String(i + 1).padStart(2, "0"),
       nombre: s.nombre,
@@ -5774,7 +6276,8 @@ const LogoRedondo = ({
 }) : React.createElement("span", {
   style: {
     fontFamily: "var(--font-display)",
-    fontStyle: "italic",
+    fontWeight: "var(--display-weight)",
+    fontStyle: "var(--display-style)",
     fontSize: Math.round(tam * 0.55),
     color: "var(--paper)",
     lineHeight: 1
@@ -5803,9 +6306,9 @@ const PaginaTravesia = ({
   }, "Recorrido"), React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 30,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "0 0 4px",
       lineHeight: 1
     }
@@ -5816,7 +6319,7 @@ const PaginaTravesia = ({
       lineHeight: 1.5,
       margin: "0 0 14px"
     }
-  }, filas.length === 1 ? "El espacio que sellaste" : `Los ${filas.length} stands que sellaste`, passport.valoraciones && Object.keys(passport.valoraciones).length ? ", con tu calificación." : "."), React.createElement("div", {
+  }, filas.length === 1 ? "El espacio que sellaste" : `Los ${filas.length} espacios que sellaste`, passport.valoraciones && Object.keys(passport.valoraciones).length ? ", con tu calificación." : "."), React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -5992,7 +6495,7 @@ const PaginaContenido = ({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: fondo ? `linear-gradient(rgba(44,32,24,0.55), rgba(44,32,24,0.55)), url(${fondo}) center/cover, linear-gradient(135deg, var(--grano) 0%, oklch(0.32 0.08 45) 100%)` : "linear-gradient(135deg, var(--grano) 0%, oklch(0.32 0.08 45) 100%)",
+        background: fondo ? `linear-gradient(color-mix(in oklch, var(--ink) 55%, transparent), color-mix(in oklch, var(--ink) 55%, transparent)), url(${fondo}) center/cover, linear-gradient(135deg, var(--grano) 0%, var(--ink) 100%)` : "linear-gradient(135deg, var(--grano) 0%, var(--ink) 100%)",
         color: "var(--paper)"
       }
     }, React.createElement("div", {
@@ -6001,34 +6504,31 @@ const PaginaContenido = ({
         justifyContent: "space-between",
         alignItems: "flex-start"
       }
-    }, React.createElement("div", {
-      style: {
-        filter: "invert(1) hue-rotate(180deg)"
-      }
-    }, React.createElement(LogoTaza, {
-      size: 36
-    })), React.createElement("div", {
+    }, React.createElement(EmblemaEvento, {
+      size: 36,
+      claro: true
+    }), React.createElement("div", {
       className: "mono",
       style: {
         color: "var(--paper-3)",
         textAlign: "right"
       }
-    }, "NARI\xD1O", React.createElement("br", null), "COLOMBIA")), React.createElement("div", null, React.createElement("div", {
+    }, textoCfg("pasaporte", "lugar_1", ""), React.createElement("br", null), textoCfg("pasaporte", "lugar_2", ""))), React.createElement("div", null, React.createElement("div", {
       className: "mono",
       style: {
         color: "var(--paper-3)"
       }
-    }, "Pasaporte del Caf\xE9"), React.createElement("h1", {
+    }, textoCfg("pasaporte", "etiqueta", "Pasaporte del evento")), React.createElement("h1", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 48,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "6px 0 0",
         lineHeight: 0.9,
         letterSpacing: "-0.02em"
       }
-    }, "La Mejor", React.createElement("br", null), "Taza.")), React.createElement("div", null, React.createElement("div", {
+    }, textoCfg("pasaporte", "titulo_portada", nombreEvento()))), React.createElement("div", null, React.createElement("div", {
       style: {
         height: 1,
         background: "var(--paper-3)",
@@ -6044,9 +6544,9 @@ const PaginaContenido = ({
     }, "Portador"), React.createElement("div", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 26,
-        fontWeight: 400
+        fontWeight: "var(--display-weight)"
       }
     }, passport.nombre), React.createElement("div", {
       style: {
@@ -6098,9 +6598,9 @@ const PaginaContenido = ({
     }, "Sello \xB7 ", s.municipio), React.createElement("h2", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 28,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "0 0 4px",
         lineHeight: 1
       }
@@ -6182,7 +6682,7 @@ const PaginaContenido = ({
         fontSize: 13,
         color: "var(--ink-2)",
         lineHeight: 1.5,
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontFamily: "var(--font-display)"
       }
     }, "\"", s.descripcion, "\""), (sello.fecha || sello.hora) && React.createElement("div", {
@@ -6227,13 +6727,13 @@ const PaginaContenido = ({
     }, "Fin del pasaporte"), React.createElement("h2", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 32,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "12px 0 8px",
         lineHeight: 1
       }
-    }, "Gracias por", React.createElement("br", null), "caminar el caf\xE9", React.createElement("br", null), "con nosotros."), React.createElement("div", {
+    }, textoCfg("pasaporte", "cierre_titulo", "Gracias por recorrer el evento con nosotros.")), React.createElement("div", {
       style: {
         marginTop: 20,
         padding: "12px 18px",
@@ -6241,7 +6741,7 @@ const PaginaContenido = ({
         borderRadius: 999,
         fontSize: 14
       }
-    }, "Vuelve el pr\xF3ximo festival"));
+    }, textoCfg("pasaporte", "cierre_boton", "Te esperamos en la próxima edición")));
   }
   return null;
 };
@@ -6307,6 +6807,9 @@ const PublicDashboard = ({
   onDetail
 }) => {
   const [tick, setTick] = React.useState(0);
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  const conCompra = compraActiva();
   React.useEffect(() => {
     const t = setInterval(() => setTick(x => x + 1), 5000);
     return () => clearInterval(t);
@@ -6324,17 +6827,17 @@ const PublicDashboard = ({
       }
     }, React.createElement("div", {
       className: "mono"
-    }, "Festival 2026"), React.createElement("h1", {
+    }, pieDeMarca(aj)), React.createElement("h1", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 64,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "12px 0 16px",
         lineHeight: 1,
         letterSpacing: "-0.02em"
       }
-    }, "El festival arranca pronto."), React.createElement("p", {
+    }, nombreEvento(aj), " arranca pronto."), React.createElement("p", {
       style: {
         color: "var(--ink-2)",
         maxWidth: 540,
@@ -6342,7 +6845,13 @@ const PublicDashboard = ({
         fontSize: 16,
         lineHeight: 1.6
       }
-    }, "A\xFAn no hay stands registrados. Si eres organizador inicia sesi\xF3n y registra el primero."), React.createElement("a", {
+    }, "A\xFAn no hay espacios registrados. Si eres organizador inicia sesi\xF3n y registra el primero."), React.createElement("div", {
+      style: {
+        maxWidth: 720,
+        margin: "0 auto 24px",
+        textAlign: "left"
+      }
+    }, React.createElement(DatosEvento, null)), React.createElement("a", {
       href: "/admin/login",
       "data-route": true,
       className: "btn btn-primary"
@@ -6379,26 +6888,25 @@ const PublicDashboard = ({
   }, "Ranking p\xFAblico"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: "min(96px, 12vw)",
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "8px 0 0",
       lineHeight: 0.9,
       letterSpacing: "-0.03em"
     }
-  }, "\xBFCu\xE1l es la", React.createElement("br", null), "mejor taza de", React.createElement("br", null), React.createElement("span", {
-    style: {
-      color: "var(--galeras)"
-    }
-  }, "Nari\xF1o"), "?"), React.createElement("p", {
+  }, React.createElement(LemaDestacado, {
+    texto: textoCfg("evento", "lema", "¿Cuál es el mejor espacio del evento?", aj)
+  })), React.createElement("p", {
     style: {
       fontSize: 15,
       color: "var(--ink-2)",
       marginTop: 18,
       maxWidth: 520,
-      lineHeight: 1.6
+      lineHeight: 1.6,
+      whiteSpace: "pre-line"
     }
-  }, "El festival lo decide el p\xFAblico. Escanea el QR de cada stand, vota con un emoji y sella tu pasaporte.")), React.createElement("div", {
+  }, textoCfg("evento", "descripcion", "", aj))), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -6427,8 +6935,9 @@ const PublicDashboard = ({
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
+      fontWeight: "var(--display-weight)",
       fontSize: 36,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       lineHeight: 1
     }
   }, m.k), React.createElement("div", {
@@ -6436,7 +6945,24 @@ const PublicDashboard = ({
     style: {
       marginTop: 6
     }
-  }, m.sub))))), React.createElement("section", {
+  }, m.sub))))), ev.mostrar_datos !== false && filasDatosEvento(aj).length > 0 && React.createElement("section", {
+    className: "seccion",
+    style: {
+      paddingBottom: 8
+    }
+  }, React.createElement("div", {
+    style: {
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: "18px 22px",
+      background: "var(--paper-2)"
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 12
+    }
+  }, nombreEvento(aj), " \xB7 Datos del evento"), React.createElement(DatosEvento, null))), React.createElement("section", {
     style: {
       padding: "24px 32px 40px"
     }
@@ -6485,12 +7011,12 @@ const PublicDashboard = ({
       style: {
         color: actualRank === 1 ? "var(--paper-3)" : "var(--ink-3)"
       }
-    }, "#", actualRank, " ", actualRank === 1 && "· La Mejor Taza"), React.createElement("div", null, React.createElement("div", {
+    }, "#", actualRank, " ", actualRank === 1 && "· " + textoCfg("simbolos", "primer_lugar", "Primer lugar", aj)), React.createElement("div", null, React.createElement("div", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: actualRank === 1 ? 36 : 24,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         lineHeight: 1,
         letterSpacing: "-0.01em"
       }
@@ -6510,7 +7036,8 @@ const PublicDashboard = ({
     }, React.createElement("span", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontWeight: "var(--display-weight)",
+        fontStyle: "var(--display-style)",
         fontSize: 28
       }
     }, calcScore(s.votos).toFixed(0)), React.createElement("span", {
@@ -6588,11 +7115,7 @@ const PublicDashboard = ({
   }, comentarios.slice(0, 6).map((c, i) => {
     const s = stands.find(x => x.id === c.stand);
     if (!s) return null;
-    const emoji = {
-      bueno: "😍",
-      regular: "😐",
-      malo: "😞"
-    }[c.emoji] || "•";
+    const emoji = simboloVoto(c.emoji).emoji;
     return React.createElement("a", {
       key: i,
       href: "/festival/" + s.id,
@@ -6626,7 +7149,7 @@ const PublicDashboard = ({
         color: "var(--ink-2)",
         marginTop: 4,
         lineHeight: 1.4,
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontFamily: "var(--font-display)"
       }
     }, "\"", c.texto, "\""), React.createElement("div", {
@@ -6634,7 +7157,7 @@ const PublicDashboard = ({
       style: {
         marginTop: 6
       }
-    }, c.autor, " \xB7 ", c.hora, " ", c.compra && React.createElement("span", {
+    }, c.autor, " \xB7 ", c.hora, " ", conCompra && c.compra && React.createElement("span", {
       style: {
         color: "var(--cafeto)"
       }
@@ -6649,7 +7172,7 @@ const PublicDashboard = ({
     style: {
       marginBottom: 14
     }
-  }, "Tabla completa \xB7 ", stands.length, " stands"), React.createElement("div", {
+  }, "Tabla completa \xB7 ", stands.length, " espacios"), React.createElement("div", {
     style: {
       border: "1px solid var(--line)",
       borderRadius: "var(--r-md)",
@@ -6673,7 +7196,8 @@ const PublicDashboard = ({
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 20,
       letterSpacing: "-0.01em"
     }
@@ -6692,7 +7216,8 @@ const PublicDashboard = ({
     className: "rank-puntaje",
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 24
     }
   }, calcScore(s.votos).toFixed(0)), React.createElement("div", {
@@ -6722,7 +7247,7 @@ const PublicDashboard = ({
     style: {
       color: "var(--ink-3)"
     }
-  }, "Comit\xE9 del Caf\xE9 \xB7 Gobernaci\xF3n de Nari\xF1o \xB7 2026")), React.createElement("style", null, `@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`));
+  }, textoCfg("evento", "pie_pagina", "Gobernación de Nariño", aj))), React.createElement("style", null, `@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`));
 };
 const normMuni = s => (s || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase().trim();
 const MapaNarino = ({
@@ -6779,7 +7304,7 @@ const MapaNarino = ({
     style: {
       color: "var(--ink-3)"
     }
-  }, stands.length, " establecimientos / fincas")), React.createElement("div", {
+  }, stands.length, " espacios")), React.createElement("div", {
     style: {
       aspectRatio: `${vw} / ${vh}`,
       position: "relative",
@@ -6891,6 +7416,9 @@ const PublicDetail = ({
   const rank = [...allStands].sort((a, b) => calcScore(b.votos) - calcScore(a.votos)).findIndex(x => x.id === stand.id) + 1;
   const totalv = totalVotos(stand.votos) || 0;
   const titulos = window.titulosEstrellas();
+  const activas = estrellasActivas();
+  const aj = usarAjustesFestival();
+  const preguntasPublicas = ((aj.inscripcion || {}).preguntas || []).filter(p => p.publica && p.activa !== false);
   const [mio, setMio] = React.useState(null);
   React.useEffect(() => {
     const correo = window.LMTPerfil && window.LMTPerfil.correoConocido() || "";
@@ -6965,9 +7493,9 @@ const PublicDetail = ({
   }, "Posici\xF3n #", rank || "—", " \xB7 ", stand.municipio), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: "min(72px, 9vw)",
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "8px 0 0",
       lineHeight: 0.9,
       letterSpacing: "-0.02em"
@@ -7011,7 +7539,8 @@ const PublicDetail = ({
   }, m.k), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 32,
       marginTop: 6,
       lineHeight: 1
@@ -7021,7 +7550,7 @@ const PublicDetail = ({
     style: {
       color: "var(--ink-3)"
     }
-  }, m.sub)))), React.createElement("div", {
+  }, m.sub)))), activas.length > 0 && React.createElement("div", {
     style: {
       marginTop: 24,
       padding: 18,
@@ -7033,14 +7562,14 @@ const PublicDetail = ({
     style: {
       marginBottom: 10
     }
-  }, "Votaci\xF3n del festival"), React.createElement("div", {
+  }, "Votaci\xF3n del evento"), React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
       gap: 6,
       maxWidth: 340
     }
-  }, ESTRELLA_CAMPOS.map(campo => React.createElement(EstrellasLectura, {
+  }, activas.map(campo => React.createElement(EstrellasLectura, {
     key: campo,
     etiqueta: titulos[campo],
     tam: 16,
@@ -7072,7 +7601,7 @@ const PublicDetail = ({
       gap: 6,
       maxWidth: 340
     }
-  }, ESTRELLA_CAMPOS.map(campo => React.createElement(EstrellasLectura, {
+  }, activas.map(campo => React.createElement(EstrellasLectura, {
     key: campo,
     etiqueta: titulos[campo],
     tam: 16,
@@ -7092,11 +7621,7 @@ const PublicDetail = ({
     style: {
       fontWeight: 500
     }
-  }, {
-    bueno: "Excelente",
-    regular: "Regular",
-    malo: "Mejorable"
-  }[mio.emoji] || mio.emoji))), React.createElement("div", {
+  }, simboloVoto(mio.emoji).label))), React.createElement("div", {
     style: {
       marginTop: 24,
       padding: 18,
@@ -7108,22 +7633,12 @@ const PublicDetail = ({
     style: {
       marginBottom: 10
     }
-  }, "Distribuci\xF3n"), [{
-    k: "Excelente",
-    v: stand.votos.bueno,
-    color: "var(--good)",
-    emoji: "😍"
-  }, {
-    k: "Regular",
-    v: stand.votos.regular,
-    color: "var(--meh)",
-    emoji: "😐"
-  }, {
-    k: "Malo",
-    v: stand.votos.malo,
-    color: "var(--bad)",
-    emoji: "😞"
-  }].map(r => {
+  }, "Distribuci\xF3n"), simbolosVoto().slice().reverse().map(x => ({
+    k: x.label,
+    v: stand.votos[x.id],
+    color: x.color,
+    emoji: x.emoji
+  })).map(r => {
     const pct = totalv > 0 ? r.v / totalv * 100 : 0;
     return React.createElement("div", {
       key: r.k,
@@ -7186,7 +7701,8 @@ const PublicDetail = ({
   }, "#", numeroDeEspacio(stand, allStands)), React.createElement("div", null, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
       lineHeight: 0.95,
       letterSpacing: "-0.02em"
@@ -7211,7 +7727,22 @@ const PublicDetail = ({
       fontSize: 13,
       lineHeight: 1.55
     }
-  }, mio && mio.visitado ? "Ya sellaste este espacio en tu pasaporte." : "Para votar, escanea el código QR que está en el puesto. Así el sello dice que estuviste ahí.")), contacto.length > 0 && React.createElement("div", {
+  }, mio && mio.visitado ? "Ya sellaste este espacio en tu pasaporte." : "Para votar, escanea el código QR que está en el puesto. Así el sello dice que estuviste ahí.")), preguntasPublicas.length > 0 && stand.respuestas_extra && Object.keys(stand.respuestas_extra).length > 0 && React.createElement("div", {
+    style: {
+      marginTop: 20,
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: 18
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 10
+    }
+  }, "M\xE1s sobre este espacio"), React.createElement(RespuestasLectura, {
+    preguntas: preguntasPublicas,
+    respuestas: stand.respuestas_extra
+  })), contacto.length > 0 && React.createElement("div", {
     style: {
       marginTop: 20,
       border: "1px solid var(--line)",
@@ -7280,7 +7811,7 @@ const PublicDetail = ({
     style: {
       fontSize: 13,
       color: "var(--ink-3)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontFamily: "var(--font-display)"
     }
   }, "A\xFAn no hay comentarios. S\xE9 el primero."), commentsForStand.map((c, i) => React.createElement("div", {
@@ -7293,7 +7824,7 @@ const PublicDetail = ({
     style: {
       fontSize: 13,
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       lineHeight: 1.4
     }
   }, "\"", c.texto, "\""), React.createElement("div", {
@@ -7383,7 +7914,8 @@ const TarjetaRecorrido = ({
   }) : React.createElement("span", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 20,
       color: "var(--paper)"
     }
@@ -7414,7 +7946,7 @@ const TarjetaRecorrido = ({
       flexDirection: "column",
       gap: 3
     }
-  }, ESTRELLA_CAMPOS.map(campo => {
+  }, estrellasActivas().map(campo => {
     const clave = ESTRELLA_CLAVES[campo];
     const mia = valoracion ? valoracion[clave] : null;
     const media = (stand.estrellas || {})[clave];
@@ -7485,7 +8017,7 @@ const RecorridoPage = ({
   }, [stands, setVisitados]);
   if (!correo) {
     return React.createElement(PuertaCorreo, {
-      titulo: "Tu recorrido por el festival.",
+      titulo: "Tu recorrido por el evento.",
       nota: "Escribe el correo con el que votas en los espacios y ver\xE1s cu\xE1les llevas sellados. No hace falta contrase\xF1a.",
       volverA: "/festival",
       volverTexto: "\u2190 Volver al ranking",
@@ -7508,13 +8040,13 @@ const RecorridoPage = ({
   }, "Mi recorrido"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: "min(56px, 11vw)",
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 8px",
       lineHeight: 1
     }
-  }, "Los stands del festival."), React.createElement("p", {
+  }, "Los espacios del evento."), React.createElement("p", {
     style: {
       fontSize: 14,
       color: "var(--ink-2)",
@@ -7766,6 +8298,79 @@ const SelectorAcceso = ({
     }
   }, "Es c\xF3modo de recordar, pero tambi\xE9n m\xE1s f\xE1cil de adivinar que una contrase\xF1a. Cuando entres, el sistema te pedir\xE1 crear una."));
 };
+const usarCamposInscripcion = () => {
+  const aj = usarAjustesFestival();
+  const insc = aj.inscripcion || {};
+  const C = k => (insc.campos || {})[k] || {
+    activo: true,
+    requerido: false
+  };
+  const on = k => C(k).activo !== false;
+  const req = k => on(k) && !!C(k).requerido;
+  const lbl = (k, def) => (C(k).etiqueta || def) + (req(k) ? " *" : "");
+  const ayu = (k, def) => C(k).ayuda !== undefined && C(k).ayuda !== null ? C(k).ayuda : def;
+  const sec = (k, campo, def = "") => {
+    const v = ((insc.secciones || {})[k] || {})[campo];
+    return v !== undefined && v !== null ? v : def;
+  };
+  const preguntas = (insc.preguntas || []).filter(p => p.activa !== false);
+  return {
+    aj,
+    insc,
+    C,
+    on,
+    req,
+    lbl,
+    ayu,
+    sec,
+    preguntas
+  };
+};
+const InscripcionCerrada = ({
+  mensaje
+}) => React.createElement("div", {
+  className: "mobile-page"
+}, React.createElement("div", {
+  className: "mobile-inner",
+  style: {
+    textAlign: "center",
+    padding: 40
+  }
+}, React.createElement("div", {
+  className: "mono"
+}, "Inscripci\xF3n de espacios"), React.createElement("h1", {
+  className: "titulo-xl",
+  style: {
+    margin: "10px 0 16px"
+  }
+}, "La inscripci\xF3n est\xE1 cerrada."), React.createElement("p", {
+  style: {
+    color: "var(--ink-2)",
+    lineHeight: 1.65,
+    marginBottom: 24,
+    whiteSpace: "pre-line"
+  }
+}, mensaje), React.createElement("div", {
+  style: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10
+  }
+}, React.createElement("a", {
+  href: "/promotor",
+  "data-route": true,
+  className: "btn btn-primary",
+  style: {
+    justifyContent: "center"
+  }
+}, "Ya tengo acceso al portal \u2192"), React.createElement("a", {
+  href: "/",
+  "data-route": true,
+  className: "btn btn-ghost",
+  style: {
+    justifyContent: "center"
+  }
+}, "\u2190 Volver al inicio"))));
 const PromotorRegistroPage = () => {
   const vacio = {
     nombre: "",
@@ -7795,6 +8400,18 @@ const PromotorRegistroPage = () => {
     acceso_valor: "",
     acceso_valor2: ""
   };
+  const cfg = usarCamposInscripcion();
+  const {
+    aj,
+    insc,
+    C,
+    on,
+    req,
+    lbl,
+    ayu,
+    sec,
+    preguntas
+  } = cfg;
   const [form, setForm] = React.useState(vacio);
   const [ubicacion, setUbicacion] = React.useState({
     lat: null,
@@ -7811,6 +8428,7 @@ const PromotorRegistroPage = () => {
     invima: null,
     manipulacion_alimentos: null
   });
+  const [respuestas, setRespuestas] = React.useState({});
   const ponSino = (k, v) => setSino(s => ({
     ...s,
     [k]: v
@@ -7825,6 +8443,11 @@ const PromotorRegistroPage = () => {
     ...f,
     [k]: v
   }));
+  if (!enviado && aj.estado && aj.estado.inscripcion_abierta === false) {
+    return React.createElement(InscripcionCerrada, {
+      mensaje: insc.mensaje_cerrada || "Las inscripciones están cerradas."
+    });
+  }
   const subirLogo = async file => {
     const res = await window.LMTApi.subirLogoInscripcion(file);
     setLogo(res.logo || "");
@@ -7832,73 +8455,126 @@ const PromotorRegistroPage = () => {
   const enviar = async e => {
     e.preventDefault();
     setError("");
-    const sec = window.LMTSecurity;
+    const sec2 = window.LMTSecurity;
+    const falta = (k, def) => {
+      setError("Completa «" + (C(k).etiqueta || def) + "».");
+    };
+    const sinResponder = (k, def) => {
+      setError("Responde «" + (C(k).etiqueta || def) + "».");
+    };
     if (!form.nombre.trim()) {
       setError(ERRORES.nombre_invalido);
       return;
     }
-    if (!sec || !sec.isEmail(form.email.trim())) {
+    if (req("documento") && !form.documento) {
+      falta("documento", "Documento");
+      return;
+    }
+    if (req("telefono") && !form.telefono) {
+      falta("telefono", "Teléfono");
+      return;
+    }
+    if (!sec2 || !sec2.isEmail(form.email.trim())) {
       setError(ERRORES.email_invalido);
+      return;
+    }
+    if (!form.empresa.trim()) {
+      falta("empresa", "Empresa");
+      return;
+    }
+    if (req("stand_nombre") && !form.stand_nombre.trim()) {
+      falta("stand_nombre", "Nombre del espacio");
       return;
     }
     if (!form.municipio.trim()) {
       setError("Indica el municipio de tu espacio.");
       return;
     }
-    if (!form.stand_direccion.trim()) {
+    if (req("direccion") && !form.stand_direccion.trim()) {
       setError(ERRORES.direccion_requerida);
       return;
     }
-    if (!form.tipo_organizacion) {
-      setError(ERRORES.tipo_organizacion_invalido);
+    if (on("tipo_organizacion")) {
+      if (req("tipo_organizacion") && !form.tipo_organizacion) {
+        setError(ERRORES.tipo_organizacion_invalido);
+        return;
+      }
+      if (form.tipo_organizacion === "otro" && !form.tipo_organizacion_otro.trim()) {
+        setError(ERRORES.detalle_requerido);
+        return;
+      }
+    }
+    if (on("actividad_cafe")) {
+      if (req("actividad_cafe") && !form.actividad_cafe) {
+        sinResponder("actividad_cafe", "Actividad");
+        return;
+      }
+      if (form.actividad_cafe === "otro" && !form.actividad_cafe_otro.trim()) {
+        setError(ERRORES.detalle_requerido);
+        return;
+      }
+    }
+    if (req("nit") && !form.stand_nit) {
+      falta("nit", "NIT");
       return;
     }
-    if (form.tipo_organizacion === "otro" && !form.tipo_organizacion_otro.trim()) {
-      setError(ERRORES.detalle_requerido);
+    if (req("sitio_web") && !form.stand_sitio_web.trim()) {
+      falta("sitio_web", "Sitio web");
       return;
     }
-    if (!form.actividad_cafe) {
-      setError(ERRORES.actividad_cafe_invalida);
+    if (req("descripcion") && !form.stand_descripcion.trim()) {
+      falta("descripcion", "Descripción");
       return;
     }
-    if (form.actividad_cafe === "otro" && !form.actividad_cafe_otro.trim()) {
-      setError(ERRORES.detalle_requerido);
+    if (req("logo") && !logo) {
+      setError(ERRORES.logo_requerido);
       return;
     }
-    if (!form.poblacion) {
-      setError(ERRORES.poblacion_invalida);
+    if (on("poblacion")) {
+      if (req("poblacion") && !form.poblacion) {
+        setError(ERRORES.poblacion_invalida);
+        return;
+      }
+      if (form.poblacion === "otro" && !form.poblacion_otro.trim()) {
+        setError(ERRORES.detalle_requerido);
+        return;
+      }
+    }
+    if (req("linea_productiva") && lineas.length === 0) {
+      sinResponder("linea_productiva", "Línea");
       return;
     }
-    if (form.poblacion === "otro" && !form.poblacion_otro.trim()) {
-      setError(ERRORES.detalle_requerido);
+    for (const k of ["cert_internacional", "organico", "especial"]) {
+      if (req(k) && sino[k] === null) {
+        sinResponder(k, k);
+        return;
+      }
+    }
+    if (req("promedio_taza") && !form.promedio_taza.trim()) {
+      falta("promedio_taza", "Promedio de taza");
       return;
     }
-    if (sino.marca_registrada === null) {
-      setError(ERRORES.marca_registrada_requerida);
-      return;
+    for (const k of ["marca_registrada", "camara_comercio", "invima", "manipulacion_alimentos"]) {
+      if (req(k) && sino[k] === null) {
+        sinResponder(k, k);
+        return;
+      }
     }
-    if (sino.camara_comercio === null) {
-      setError(ERRORES.camara_comercio_requerido);
-      return;
-    }
-    if (sino.invima === null) {
-      setError(ERRORES.invima_requerido);
-      return;
-    }
-    if (sino.manipulacion_alimentos === null) {
-      setError(ERRORES.manipulacion_requerida);
-      return;
-    }
-    if (presentacion.length === 0) {
+    if (req("presentacion") && presentacion.length === 0) {
       setError(ERRORES.presentacion_requerida);
       return;
     }
-    if (presentacion.includes("otros") && !form.presentacion_otro.trim()) {
+    if (on("presentacion") && presentacion.includes("otros") && !form.presentacion_otro.trim()) {
       setError(ERRORES.detalle_requerido);
       return;
     }
-    if (!logo) {
-      setError(ERRORES.logo_requerido);
+    const pendiente = preguntaSinResponder(preguntas, respuestas);
+    if (pendiente) {
+      setError("Responde «" + pendiente.etiqueta + "».");
+      return;
+    }
+    if (req("mensaje") && !form.mensaje.trim()) {
+      falta("mensaje", "Mensaje");
       return;
     }
     if (!acepta) {
@@ -7930,13 +8606,14 @@ const PromotorRegistroPage = () => {
       const res = await window.LMTApi.promotorRegistro({
         ...form,
         stand_nombre: form.stand_nombre.trim() || form.empresa.trim(),
-        email: sec.normalizeEmail(form.email),
+        email: sec2.normalizeEmail(form.email),
         logo: logo || null,
         lat: ubicacion.lat,
         lng: ubicacion.lng,
         linea_productiva: lineas,
         presentacion,
         ...sino,
+        respuestas_extra: respuestas,
         acepta_datos: true
       });
       if (res && res.qr_token) setQr({
@@ -7965,9 +8642,9 @@ const PromotorRegistroPage = () => {
     }, "Solicitud enviada"), React.createElement("h2", {
       style: {
         fontFamily: "var(--font-display)",
-        fontStyle: "italic",
+        fontStyle: "var(--display-style)",
         fontSize: 36,
-        fontWeight: 400,
+        fontWeight: "var(--display-weight)",
         margin: "10px 0 16px",
         lineHeight: 1.05
       }
@@ -7997,6 +8674,7 @@ const PromotorRegistroPage = () => {
       }
     }, "\u2190 Volver al inicio")));
   }
+  const hayDetalle = ["cert_internacional", "organico", "especial", "promedio_taza", "marca_registrada", "camara_comercio", "invima", "manipulacion_alimentos", "presentacion"].some(on);
   return React.createElement("div", {
     className: "mobile-page"
   }, React.createElement("div", {
@@ -8016,20 +8694,21 @@ const PromotorRegistroPage = () => {
   }, "Promotores \xB7 Inscripci\xF3n"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 38,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 10px",
       lineHeight: 1.05
     }
-  }, "Inscribe tu espacio", React.createElement("br", null), "en el festival."), React.createElement("p", {
+  }, insc.titulo || "Inscribe tu espacio en el evento."), React.createElement("p", {
     style: {
       color: "var(--ink-2)",
       fontSize: 14,
       lineHeight: 1.6,
-      marginBottom: 26
+      marginBottom: 26,
+      whiteSpace: "pre-line"
     }
-  }, "Completa los datos de tu espacio. Un organizador revisar\xE1 la solicitud y te enviar\xE1 por correo tu acceso al portal y el c\xF3digo QR de tu espacio, ya listo para imprimir."), React.createElement("form", {
+  }, insc.intro || "Completa los datos de tu espacio. Un organizador revisará la solicitud y te enviará por correo tu acceso al portal y el código QR de tu espacio, ya listo para imprimir."), React.createElement("form", {
     onSubmit: enviar,
     style: {
       display: "flex",
@@ -8043,34 +8722,36 @@ const PromotorRegistroPage = () => {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-nombre"
-  }, "Nombre completo del propietario *"), React.createElement("input", {
+  }, lbl("nombre", "Nombre completo del responsable")), React.createElement("input", {
     id: "in-nombre",
     value: form.nombre,
     onChange: e => set("nombre", e.target.value),
     maxLength: 120,
     required: true,
     autoComplete: "name"
-  })), React.createElement("div", {
+  })), (on("documento") || on("telefono")) && React.createElement("div", {
     className: "grid-2"
-  }, React.createElement(CampoNumerico, {
+  }, on("documento") && React.createElement(CampoNumerico, {
     id: "in-doc",
-    etiqueta: "Documento de identidad",
+    etiqueta: C("documento").etiqueta || "Documento de identidad",
+    requerido: req("documento"),
     valor: form.documento,
     onCambio: v => set("documento", v),
-    ayuda: "C\xE9dula del propietario, s\xF3lo n\xFAmeros."
-  }), React.createElement(CampoNumerico, {
+    ayuda: ayu("documento", "Sólo números.")
+  }), on("telefono") && React.createElement(CampoNumerico, {
     id: "in-tel",
-    etiqueta: "Tel\xE9fono",
+    etiqueta: C("telefono").etiqueta || "Teléfono",
     telefono: true,
     maxLength: 15,
+    requerido: req("telefono"),
     valor: form.telefono,
     onCambio: v => set("telefono", v),
-    ayuda: "S\xF3lo n\xFAmeros, sin espacios ni guiones."
+    ayuda: ayu("telefono", "Sólo números, sin espacios ni guiones.")
   })), React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-email"
-  }, "Correo electr\xF3nico *"), React.createElement("input", {
+  }, lbl("email", "Correo electrónico")), React.createElement("input", {
     id: "in-email",
     type: "email",
     value: form.email,
@@ -8080,38 +8761,41 @@ const PromotorRegistroPage = () => {
     autoComplete: "email"
   }), React.createElement("span", {
     className: "ayuda"
-  }, "Aqu\xED llegar\xE1n tu contrase\xF1a de acceso y el QR de tu espacio."))), React.createElement(BloqueForm, {
+  }, ayu("email", "Aquí llegarán tu contraseña de acceso y el QR de tu espacio.")))), React.createElement(BloqueForm, {
     titulo: "Tu espacio",
-    nota: "Es lo que ver\xE1n los visitantes del festival."
+    nota: "Es lo que ver\xE1n los visitantes del evento."
   }, React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-empresa"
-  }, "Empresa, finca o marca *"), React.createElement("input", {
+  }, lbl("empresa", "Empresa, organización o marca")), React.createElement("input", {
     id: "in-empresa",
     value: form.empresa,
     onChange: e => set("empresa", e.target.value),
     maxLength: 120,
-    required: true,
-    placeholder: "Finca El Tambo"
-  })), React.createElement("div", {
+    required: true
+  }), ayu("empresa", "") && React.createElement("span", {
+    className: "ayuda"
+  }, ayu("empresa", ""))), on("stand_nombre") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-stand-nombre"
-  }, "Nombre del producto"), React.createElement("input", {
+  }, lbl("stand_nombre", "Nombre del espacio")), React.createElement("input", {
     id: "in-stand-nombre",
     value: form.stand_nombre,
     onChange: e => set("stand_nombre", e.target.value),
     maxLength: 80,
+    required: req("stand_nombre"),
     placeholder: form.empresa || "Igual al de la empresa"
-  }), React.createElement("span", {
+  }), ayu("stand_nombre", "") && React.createElement("span", {
     className: "ayuda"
-  }, "D\xE9jalo vac\xEDo para usar el nombre de la empresa.")), React.createElement("div", {
+  }, ayu("stand_nombre", ""))), React.createElement("div", {
     className: "grid-2"
   }, React.createElement(SelectorMunicipio, {
     id: "in-mun",
     valor: form.municipio,
     requerido: true,
+    etiqueta: C("municipio").etiqueta || "Municipio",
     onCambio: (municipio, region) => setForm(f => ({
       ...f,
       municipio,
@@ -8122,24 +8806,24 @@ const PromotorRegistroPage = () => {
     valor: form.stand_region,
     municipio: form.municipio,
     onCambio: v => set("stand_region", v)
-  })), React.createElement("div", {
+  })), on("direccion") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-dir"
-  }, "Direcci\xF3n *"), React.createElement("input", {
+  }, lbl("direccion", "Dirección")), React.createElement("input", {
     id: "in-dir",
     value: form.stand_direccion,
     onChange: e => set("stand_direccion", e.target.value),
     maxLength: 255,
-    required: true,
-    placeholder: "Vereda El Ingenio"
-  }), React.createElement("span", {
+    required: req("direccion")
+  }), ayu("direccion", "") && React.createElement("span", {
     className: "ayuda"
-  }, "D\xF3nde queda tu finca o tu negocio. El punto del mapa se\xF1ala la zona; la direcci\xF3n es la que lleva a la puerta.")), React.createElement(SelectorCatalogo, {
+  }, ayu("direccion", ""))), on("tipo_organizacion") && React.createElement(SelectorCatalogo, {
     id: "in-org",
-    requerido: true,
-    etiqueta: "\xBFQu\xE9 tipo de organizaci\xF3n eres?",
-    catalogo: ORGANIZACIONES,
+    requerido: req("tipo_organizacion"),
+    etiqueta: C("tipo_organizacion").etiqueta || "¿Qué tipo de organización eres?",
+    ayuda: ayu("tipo_organizacion", ""),
+    catalogo: opcionesCampo("tipo_organizacion", ORGANIZACIONES),
     valor: form.tipo_organizacion,
     otro: form.tipo_organizacion_otro,
     onCambio: v => setForm(f => ({
@@ -8149,11 +8833,12 @@ const PromotorRegistroPage = () => {
     })),
     onOtro: v => set("tipo_organizacion_otro", v),
     etiquetaOtro: "\xBFCu\xE1l es tu tipo de organizaci\xF3n?"
-  }), React.createElement(SelectorCatalogo, {
+  }), on("actividad_cafe") && React.createElement(SelectorCatalogo, {
     id: "in-act",
-    requerido: true,
-    etiqueta: "\xBFCu\xE1l es tu actividad o v\xEDnculo con la cadena de valor del caf\xE9?",
-    catalogo: ACTIVIDADES_CAFE,
+    requerido: req("actividad_cafe"),
+    etiqueta: C("actividad_cafe").etiqueta || "¿Cuál es tu actividad principal?",
+    ayuda: ayu("actividad_cafe", ""),
+    catalogo: opcionesCampo("actividad_cafe", ACTIVIDADES_CAFE),
     valor: form.actividad_cafe,
     otro: form.actividad_cafe_otro,
     onCambio: v => setForm(f => ({
@@ -8163,59 +8848,63 @@ const PromotorRegistroPage = () => {
     })),
     onOtro: v => set("actividad_cafe_otro", v),
     etiquetaOtro: "\xBFCu\xE1l es tu actividad?"
-  }), React.createElement("div", {
+  }), (on("nit") || on("sitio_web")) && React.createElement("div", {
     className: "grid-2"
-  }, React.createElement(CampoNumerico, {
+  }, on("nit") && React.createElement(CampoNumerico, {
     id: "in-nit",
-    etiqueta: "NIT o RUT",
+    etiqueta: C("nit").etiqueta || "NIT o RUT",
+    requerido: req("nit"),
     valor: form.stand_nit,
     onCambio: v => set("stand_nit", v),
-    ayuda: "Si est\xE1s constituido como empresa. S\xF3lo n\xFAmeros, con el d\xEDgito de verificaci\xF3n al final."
-  }), React.createElement("div", {
+    ayuda: ayu("nit", "")
+  }), on("sitio_web") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-web"
-  }, "Sitio web o red social"), React.createElement("input", {
+  }, lbl("sitio_web", "Sitio web o red social")), React.createElement("input", {
     id: "in-web",
     type: "url",
     value: form.stand_sitio_web,
     onChange: e => set("stand_sitio_web", e.target.value),
     maxLength: 255,
+    required: req("sitio_web"),
     placeholder: "https://\u2026",
     inputMode: "url"
-  }))), React.createElement("div", {
+  }), ayu("sitio_web", "") && React.createElement("span", {
+    className: "ayuda"
+  }, ayu("sitio_web", "")))), on("descripcion") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-desc"
-  }, "Descripci\xF3n del producto"), React.createElement("textarea", {
+  }, lbl("descripcion", "Descripción del espacio")), React.createElement("textarea", {
     id: "in-desc",
     rows: 3,
     value: form.stand_descripcion,
     onChange: e => set("stand_descripcion", e.target.value),
     maxLength: 800,
-    placeholder: "Variedad, proceso, altura, historia de la finca\u2026",
+    required: req("descripcion"),
     style: {
       border: "1px solid var(--line-2)",
       borderRadius: "var(--r-md)",
       padding: 12
     }
-  }), React.createElement("span", {
+  }), ayu("descripcion", "") && React.createElement("span", {
     className: "ayuda"
-  }, "Se muestra en la ficha p\xFAblica de tu espacio.")), React.createElement(SubirImagen, {
+  }, ayu("descripcion", ""))), on("logo") && React.createElement(React.Fragment, null, React.createElement(SubirImagen, {
     actual: logo ? urlImagen(logo) : "",
-    etiqueta: "Logo de tu producto *",
+    etiqueta: lbl("logo", "Logo de tu espacio"),
     cuadrada: true,
     encuadrable: true,
     ruta: logo,
     onSubir: subirLogo
-  }), !logo && React.createElement("span", {
+  }), !logo && ayu("logo", "") && React.createElement("span", {
     className: "ayuda",
     style: {
-      color: "var(--meh)"
+      color: req("logo") ? "var(--meh)" : undefined
     }
-  }, "Hace falta para terminar la inscripci\xF3n: con \xE9l se te reconoce en el pasaporte de los visitantes y en la lista del festival.")), React.createElement(BloqueForm, {
-    titulo: "\xBFD\xF3nde est\xE1s?",
-    nota: "Toca el mapa de Nari\xF1o donde queda tu finca o tu negocio. Al marcarlo se completa solo el municipio. Es opcional, pero ayuda a los visitantes a encontrarte y al festival a saber de qu\xE9 zonas viene el caf\xE9."
+  }, ayu("logo", "")))), on("ubicacion") && React.createElement(BloqueForm, {
+    titulo: sec("ubicacion", "titulo", "¿Dónde estás?"),
+    nota: sec("ubicacion", "nota")
   }, React.createElement(SelectorUbicacion, {
     lat: ubicacion.lat,
     lng: ubicacion.lng,
@@ -8232,14 +8921,14 @@ const PromotorRegistroPage = () => {
         stand_region: subregionDe(u.municipio) || f.stand_region
       }));
     }
-  })), React.createElement(BloqueForm, {
-    titulo: "Qui\xE9n participa",
-    nota: "Sirve para saber a qui\xE9n est\xE1 llegando el festival. Nadie queda fuera por lo que responda aqu\xED."
+  })), on("poblacion") && React.createElement(BloqueForm, {
+    titulo: sec("participa", "titulo", "Quién participa"),
+    nota: sec("participa", "nota")
   }, React.createElement(SelectorCatalogo, {
     id: "in-pob",
-    requerido: true,
-    etiqueta: "\xBFA cu\xE1l de los siguientes grupos o tipos de poblaci\xF3n pertenece usted principalmente?",
-    catalogo: POBLACIONES,
+    requerido: req("poblacion"),
+    etiqueta: C("poblacion").etiqueta || "¿A qué grupo o tipo de población pertenece?",
+    catalogo: opcionesCampo("poblacion", POBLACIONES),
     valor: form.poblacion,
     otro: form.poblacion_otro,
     onCambio: v => setForm(f => ({
@@ -8248,59 +8937,56 @@ const PromotorRegistroPage = () => {
       poblacion_otro: v === "otro" ? f.poblacion_otro : ""
     })),
     onOtro: v => set("poblacion_otro", v),
-    ayuda: "Selecciona una sola opci\xF3n.",
+    ayuda: ayu("poblacion", "Selecciona una sola opción."),
     etiquetaOtro: "\xBFCu\xE1l?"
-  })), React.createElement(BloqueForm, {
-    titulo: "L\xEDnea productiva en la cual participa",
-    nota: "Puedes marcar m\xE1s de una."
+  })), on("linea_productiva") && React.createElement(BloqueForm, {
+    titulo: sec("linea", "titulo", "Línea en la cual participa"),
+    nota: sec("linea", "nota")
   }, React.createElement(SelectorMultiple, {
     id: "in-linea",
-    etiqueta: "L\xEDnea productiva",
-    catalogo: LINEAS_PRODUCTIVAS,
+    requerido: req("linea_productiva"),
+    etiqueta: C("linea_productiva").etiqueta || "Línea",
+    ayuda: ayu("linea_productiva", ""),
+    catalogo: opcionesCampo("linea_productiva", LINEAS_PRODUCTIVAS),
     valores: lineas,
     onCambio: setLineas
-  })), React.createElement(BloqueForm, {
-    titulo: "Informaci\xF3n detallada",
-    nota: "Detalles sobre tu emprendimiento, la presentaci\xF3n del producto, el origen y tu propuesta de valor. Esta informaci\xF3n nos ayuda a conocer mejor tu papel en la cadena productiva del caf\xE9."
-  }, React.createElement(SiNo, {
-    id: "in-certint",
-    valor: sino.cert_internacional,
-    onCambio: v => ponSino("cert_internacional", v),
-    etiqueta: "\xBFSu caf\xE9 cuenta con certificaciones internacionales?"
-  }), React.createElement(SiNo, {
-    id: "in-organico",
-    valor: sino.organico,
-    onCambio: v => ponSino("organico", v),
-    etiqueta: "\xBFSu caf\xE9 es org\xE1nico?"
-  }), React.createElement(SiNo, {
-    id: "in-especial",
-    valor: sino.especial,
-    onCambio: v => ponSino("especial", v),
-    etiqueta: "\xBFSu caf\xE9 es especial?"
-  }), React.createElement("div", {
+  })), hayDetalle && React.createElement(BloqueForm, {
+    titulo: sec("detalle", "titulo", "Información detallada"),
+    nota: sec("detalle", "nota")
+  }, ["cert_internacional", "organico", "especial"].filter(on).map(k => React.createElement(SiNo, {
+    key: k,
+    id: "in-" + k,
+    valor: sino[k],
+    requerido: req(k),
+    nota: ayu(k, ""),
+    onCambio: v => ponSino(k, v),
+    etiqueta: C(k).etiqueta || k
+  })), on("promedio_taza") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-taza"
-  }, "\xBFCu\xE1l es el promedio de taza de su caf\xE9?"), React.createElement("input", {
+  }, lbl("promedio_taza", "Promedio de taza")), React.createElement("input", {
     id: "in-taza",
     value: form.promedio_taza,
     maxLength: 40,
+    required: req("promedio_taza"),
     onChange: e => set("promedio_taza", e.target.value),
-    placeholder: "Ej: 84,5 puntos SCA"
-  })), React.createElement(SiNo, {
+    placeholder: ayu("promedio_taza", "")
+  })), on("marca_registrada") && React.createElement(SiNo, {
     id: "in-marca",
-    requerido: true,
+    requerido: req("marca_registrada"),
     valor: sino.marca_registrada,
+    nota: ayu("marca_registrada", ""),
     onCambio: v => ponSino("marca_registrada", v),
-    etiqueta: "\xBFSu marca se encuentra registrada ante la Superintendencia de Industria y Comercio?"
-  }), React.createElement(SiNo, {
+    etiqueta: C("marca_registrada").etiqueta || "¿Su marca está registrada?"
+  }), on("camara_comercio") && React.createElement(SiNo, {
     id: "in-camara",
-    requerido: true,
+    requerido: req("camara_comercio"),
     valor: sino.camara_comercio,
     onCambio: v => ponSino("camara_comercio", v),
-    etiqueta: "\xBFCuenta con Certificado de Existencia y Representaci\xF3n Legal (C\xE1mara de Comercio)?",
-    nota: "Para personas jur\xEDdicas, asociaciones o cooperativas, con fecha de expedici\xF3n no mayor a noventa (90) d\xEDas. Para peque\xF1os productores individuales se acepta la certificaci\xF3n de la UMATA, la Secretar\xEDa de Agricultura Municipal o el Comit\xE9 de Cafeteros."
-  }), sino.camara_comercio === true && React.createElement("div", {
+    etiqueta: C("camara_comercio").etiqueta || "¿Cuenta con Cámara de Comercio?",
+    nota: ayu("camara_comercio", "")
+  }), on("camara_comercio") && sino.camara_comercio === true && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-cc-num"
@@ -8309,13 +8995,14 @@ const PromotorRegistroPage = () => {
     value: form.camara_comercio_numero,
     maxLength: 60,
     onChange: e => set("camara_comercio_numero", e.target.value)
-  })), React.createElement(SiNo, {
+  })), on("invima") && React.createElement(SiNo, {
     id: "in-invima",
-    requerido: true,
+    requerido: req("invima"),
     valor: sino.invima,
+    nota: ayu("invima", ""),
     onCambio: v => ponSino("invima", v),
-    etiqueta: "\xBFSu marca cuenta con acreditaci\xF3n sanitaria (INVIMA)?"
-  }), sino.invima === true && React.createElement("div", {
+    etiqueta: C("invima").etiqueta || "¿Cuenta con acreditación sanitaria (INVIMA)?"
+  }), on("invima") && sino.invima === true && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-invima-det"
@@ -8331,21 +9018,22 @@ const PromotorRegistroPage = () => {
       borderRadius: "var(--r-md)",
       padding: 12
     }
-  })), React.createElement(SiNo, {
+  })), on("manipulacion_alimentos") && React.createElement(SiNo, {
     id: "in-manip",
-    requerido: true,
+    requerido: req("manipulacion_alimentos"),
     valor: sino.manipulacion_alimentos,
+    nota: ayu("manipulacion_alimentos", ""),
     onCambio: v => ponSino("manipulacion_alimentos", v),
-    etiqueta: "\xBFEl o la expositora cuenta con certificado de manipulaci\xF3n de alimentos vigente?"
-  }), React.createElement(SelectorMultiple, {
+    etiqueta: C("manipulacion_alimentos").etiqueta || "¿Cuenta con certificado de manipulación de alimentos?"
+  }), on("presentacion") && React.createElement(SelectorMultiple, {
     id: "in-pres",
-    requerido: true,
-    etiqueta: "Presentaci\xF3n del producto",
-    catalogo: PRESENTACIONES,
+    requerido: req("presentacion"),
+    etiqueta: C("presentacion").etiqueta || "Presentación del producto",
+    catalogo: opcionesCampo("presentacion", PRESENTACIONES),
     valores: presentacion,
     onCambio: setPresentacion,
-    ayuda: "Puedes marcar m\xE1s de una."
-  }), presentacion.includes("otros") && React.createElement("div", {
+    ayuda: ayu("presentacion", "Puedes marcar más de una.")
+  }), on("presentacion") && presentacion.includes("otros") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-pres-otro"
@@ -8355,6 +9043,18 @@ const PromotorRegistroPage = () => {
     maxLength: 120,
     required: true,
     onChange: e => set("presentacion_otro", e.target.value)
+  }))), preguntas.length > 0 && React.createElement(BloqueForm, {
+    titulo: sec("extra", "titulo", "Preguntas adicionales"),
+    nota: sec("extra", "nota")
+  }, preguntas.map(p => React.createElement(PreguntaEntrada, {
+    key: p.id,
+    pregunta: p,
+    idBase: "in",
+    valor: respuestas[p.id],
+    onCambio: v => setRespuestas(r => ({
+      ...r,
+      [p.id]: v
+    }))
   }))), React.createElement(BloqueForm, {
     titulo: "C\xF3mo vas a entrar",
     nota: "Por si el correo no llega: con esto entras igual."
@@ -8370,16 +9070,17 @@ const PromotorRegistroPage = () => {
     })),
     onValor: v => set("acceso_valor", v),
     onValor2: v => set("acceso_valor2", v)
-  })), React.createElement("div", {
+  })), on("mensaje") && React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "in-msg"
-  }, "Mensaje para el organizador (opcional)"), React.createElement("textarea", {
+  }, lbl("mensaje", "Mensaje para el organizador (opcional)")), React.createElement("textarea", {
     id: "in-msg",
     rows: 2,
     value: form.mensaje,
     onChange: e => set("mensaje", e.target.value),
     maxLength: 500,
+    required: req("mensaje"),
     style: {
       border: "1px solid var(--line-2)",
       borderRadius: "var(--r-md)",
@@ -8492,9 +9193,9 @@ const PromotorLoginPage = ({
   }, "Portal del promotor"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 38,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 22px",
       lineHeight: 1.05
     }
@@ -8615,9 +9316,9 @@ const PromotorCambioClave = ({
   }, "Primer ingreso"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 34,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 10px",
       lineHeight: 1.05
     }
@@ -9119,9 +9820,9 @@ const EmpresaEditor = ({
   }, React.createElement("div", null, React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 30,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "0 0 6px"
     }
   }, "Los datos de tu empresa"), React.createElement("p", {
@@ -9131,7 +9832,7 @@ const EmpresaEditor = ({
       lineHeight: 1.6,
       margin: 0
     }
-  }, "Esta informaci\xF3n se muestra a los visitantes del festival junto a tu stand.")), React.createElement("div", {
+  }, "Esta informaci\xF3n se muestra a los visitantes del evento junto a tu espacio.")), React.createElement("div", {
     className: "field"
   }, React.createElement("label", null, "Nombre de la empresa o finca *"), React.createElement("input", {
     value: form.nombre,
@@ -9248,9 +9949,9 @@ const PerfilEditor = ({
   }, React.createElement("h2", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 30,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: 0
     }
   }, "Mis datos"), React.createElement("div", {
@@ -9296,7 +9997,7 @@ const PerfilEditor = ({
     onCambio: municipio => set("municipio", municipio)
   }), React.createElement("p", {
     className: "ayuda"
-  }, "Tu municipio define la regi\xF3n del espacio en el mapa del festival."), React.createElement(Aviso, null, error), React.createElement(Aviso, {
+  }, "Tu municipio define la regi\xF3n del espacio en el mapa del evento."), React.createElement(Aviso, null, error), React.createElement(Aviso, {
     tipo: "ok"
   }, ok), React.createElement("button", {
     className: "btn btn-primary",
@@ -9372,6 +10073,10 @@ const RevisionInscripcion = ({
   const p = datos.promotor || {};
   const b = datos.stand_borrador || {};
   const g = datos.gestion || {};
+  const nom = (k, def) => campoCfg(k).etiqueta || def;
+  const visible = (k, v) => campoCfg(k).activo !== false || v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+  const siNoTxt = v => v === null || v === undefined ? "" : v ? "Sí" : "No";
+  const preguntasExtra = (cfgEvento().inscripcion || {}).preguntas || [];
   const fila = (k, v) => v ? React.createElement("div", {
     key: k,
     style: {
@@ -9420,7 +10125,7 @@ const RevisionInscripcion = ({
       margin: "0 0 18px",
       maxWidth: 620
     }
-  }, "Al aprobar, esto se convierte en el espacio del festival tal cual est\xE1: el nombre y la descripci\xF3n los ver\xE1 el p\xFAblico, y el logo saldr\xE1 en el pasaporte de cada visitante. Si algo est\xE1 mal, es mejor rechazarlo con el motivo y que lo vuelva a enviar."), React.createElement("div", {
+  }, "Al aprobar, esto se convierte en el espacio del evento tal cual est\xE1: el nombre y la descripci\xF3n los ver\xE1 el p\xFAblico, y el logo saldr\xE1 en el pasaporte de cada visitante. Si algo est\xE1 mal, es mejor rechazarlo con el motivo y que lo vuelva a enviar."), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
@@ -9435,7 +10140,7 @@ const RevisionInscripcion = ({
     style: {
       fontSize: 13,
       marginTop: 10,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontFamily: "var(--font-display)",
       color: "var(--ink-2)"
     }
@@ -9444,19 +10149,19 @@ const RevisionInscripcion = ({
     style: {
       marginBottom: 8
     }
-  }, "El espacio que se crear\xE1"), fila("Nombre", b.nombre), fila("Municipio", b.municipio), fila("Región", b.region), fila("Dirección", b.direccion), fila("Organización", etiquetaCatalogo(ORGANIZACIONES, b.tipo_organizacion, b.tipo_organizacion_otro)), fila("Actividad", etiquetaCatalogo(ACTIVIDADES_CAFE, b.actividad_cafe, b.actividad_cafe_otro)), fila("Población", etiquetaCatalogo(POBLACIONES, b.poblacion, b.poblacion_otro)), fila("Línea productiva", etiquetasCatalogo(LINEAS_PRODUCTIVAS, b.linea_productiva)), fila("NIT", b.nit), fila("Sitio web", b.sitio_web), fila("Ubicación", b.lat != null ? b.lat.toFixed(5) + ", " + b.lng.toFixed(5) : "sin marcar en el mapa"), b.descripcion && React.createElement("p", {
+  }, "El espacio que se crear\xE1"), fila("Nombre", b.nombre), fila("Municipio", b.municipio), fila("Región", b.region), fila("Dirección", b.direccion), fila("Organización", etiquetaCatalogo(opcionesCampo("tipo_organizacion", ORGANIZACIONES), b.tipo_organizacion, b.tipo_organizacion_otro)), fila("Actividad", etiquetaCatalogo(opcionesCampo("actividad_cafe", ACTIVIDADES_CAFE), b.actividad_cafe, b.actividad_cafe_otro)), fila("Población", etiquetaCatalogo(opcionesCampo("poblacion", POBLACIONES), b.poblacion, b.poblacion_otro)), fila("Línea", etiquetasCatalogo(opcionesCampo("linea_productiva", LINEAS_PRODUCTIVAS), b.linea_productiva)), fila("NIT", b.nit), fila("Sitio web", b.sitio_web), fila("Ubicación", b.lat != null ? b.lat.toFixed(5) + ", " + b.lng.toFixed(5) : "sin marcar en el mapa"), b.descripcion && React.createElement("p", {
     style: {
       fontSize: 13,
       marginTop: 10,
       color: "var(--ink-2)",
       lineHeight: 1.6
     }
-  }, b.descripcion)), React.createElement("div", null, React.createElement("div", {
+  }, b.descripcion)), React.createElement("div", null, ["marca_registrada", "camara_comercio", "invima", "manipulacion_alimentos"].some(k => visible(k, b[k])) && React.createElement("div", {
     className: "mono",
     style: {
       marginBottom: 8
     }
-  }, "Requisitos"), [["Marca registrada (SIC)", b.marca_registrada], ["Cámara de Comercio", b.camara_comercio], ["Acreditación INVIMA", b.invima], ["Manipulación de alimentos", b.manipulacion_alimentos]].map(([k, v]) => React.createElement("div", {
+  }, "Requisitos"), [["marca_registrada", "Marca registrada (SIC)"], ["camara_comercio", "Cámara de Comercio"], ["invima", "Acreditación INVIMA"], ["manipulacion_alimentos", "Manipulación de alimentos"]].filter(([c]) => visible(c, b[c])).map(([c, def]) => [nom(c, def), b[c]]).map(([k, v]) => React.createElement("div", {
     key: k,
     style: {
       display: "flex",
@@ -9482,7 +10187,15 @@ const RevisionInscripcion = ({
     style: {
       margin: "18px 0 8px"
     }
-  }, "El producto"), fila("Presentación", etiquetasCatalogo(PRESENTACIONES, b.presentacion, b.presentacion_otro)), fila("Promedio de taza", b.promedio_taza), fila("Certificaciones int.", b.cert_internacional === null ? "" : b.cert_internacional ? "Sí" : "No"), fila("Orgánico", b.organico === null ? "" : b.organico ? "Sí" : "No"), fila("Especial", b.especial === null ? "" : b.especial ? "Sí" : "No")), React.createElement("div", null, React.createElement("div", {
+  }, "El producto"), fila(nom("presentacion", "Presentación"), etiquetasCatalogo(opcionesCampo("presentacion", PRESENTACIONES), b.presentacion, b.presentacion_otro)), fila(nom("promedio_taza", "Promedio de taza"), b.promedio_taza), fila(nom("cert_internacional", "Certificaciones int."), siNoTxt(b.cert_internacional)), fila(nom("organico", "Orgánico"), siNoTxt(b.organico)), fila(nom("especial", "Especial"), siNoTxt(b.especial)), preguntasExtra.length > 0 && b.respuestas_extra && Object.keys(b.respuestas_extra).length > 0 && React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "mono",
+    style: {
+      margin: "18px 0 8px"
+    }
+  }, "Preguntas del evento"), React.createElement(RespuestasLectura, {
+    preguntas: preguntasExtra,
+    respuestas: b.respuestas_extra
+  }))), React.createElement("div", null, React.createElement("div", {
     className: "mono",
     style: {
       marginBottom: 8
@@ -9512,7 +10225,7 @@ const RevisionInscripcion = ({
       marginTop: 8,
       lineHeight: 1.5
     }
-  }, "Se inscribi\xF3 antes de que el logo fuera obligatorio. Su tarjeta y su hoja del pasaporte saldr\xE1n con la inicial."))), b.lat != null && React.createElement("div", {
+  }, "Sin logo: su tarjeta y su hoja del pasaporte saldr\xE1n con la inicial."))), b.lat != null && React.createElement("div", {
     style: {
       marginTop: 20
     }
@@ -9550,6 +10263,56 @@ const RevisionInscripcion = ({
       justifyContent: "center"
     }
   }, "Cerrar sin aprobar")));
+};
+const EstadoInscripcion = () => {
+  const aj = usarAjustesFestival();
+  const insc = aj.inscripcion || {};
+  const abierta = !(aj.estado && aj.estado.inscripcion_abierta === false);
+  const cierre = insc.cierre ? fechasEvento({
+    fecha_inicio: insc.cierre
+  }) : "";
+  return React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "center",
+      flexWrap: "wrap",
+      marginBottom: 18,
+      padding: "10px 14px",
+      borderRadius: "var(--r-md)",
+      border: "1px solid var(--line)",
+      background: abierta ? "color-mix(in oklch, var(--good) 7%, var(--paper))" : "color-mix(in oklch, var(--bad) 7%, var(--paper))"
+    }
+  }, React.createElement("span", {
+    "aria-hidden": "true",
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: "50%",
+      background: abierta ? "var(--good)" : "var(--bad)"
+    }
+  }), React.createElement("span", {
+    style: {
+      fontSize: 13,
+      flex: 1,
+      minWidth: 200
+    }
+  }, abierta ? React.createElement(React.Fragment, null, "La inscripci\xF3n p\xFAblica est\xE1 ", React.createElement("strong", {
+    style: {
+      fontWeight: 600
+    }
+  }, "abierta"), cierre ? React.createElement(React.Fragment, null, " hasta el ", cierre) : null, ".") : React.createElement(React.Fragment, null, "La inscripci\xF3n p\xFAblica est\xE1 ", React.createElement("strong", {
+    style: {
+      fontWeight: 600
+    }
+  }, "cerrada"), insc.abierta && cierre ? React.createElement(React.Fragment, null, ": cerr\xF3 el ", cierre) : null, ". Nadie puede enviar solicitudes nuevas.")), React.createElement("a", {
+    href: "/admin/festival",
+    "data-route": true,
+    className: "mono",
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Cambiar \u2192"));
 };
 const AdminPromotores = ({
   stands
@@ -9676,7 +10439,7 @@ const AdminPromotores = ({
       marginTop: 10,
       maxWidth: 620
     }
-  }, "Al verificar una solicitud el sistema genera una contrase\xF1a temporal y la env\xEDa al correo del promotor. S\xF3lo entonces podr\xE1 entrar a cargar su empresa y sus productos.")), React.createElement("div", {
+  }, "Al verificar una solicitud el sistema genera una contrase\xF1a temporal y la env\xEDa al correo del promotor. S\xF3lo entonces podr\xE1 entrar a cargar su empresa y sus productos.")), React.createElement(EstadoInscripcion, null), React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -9744,7 +10507,8 @@ const AdminPromotores = ({
   }, "Sin inscripciones"), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 26,
       color: "var(--ink)",
       margin: "8px 0 4px"
@@ -9753,7 +10517,7 @@ const AdminPromotores = ({
     style: {
       fontSize: 13
     }
-  }, "Comparte el enlace ", React.createElement("code", null, "/inscripcion"), " con los caficultores.")) : React.createElement("div", {
+  }, "Comparte el enlace ", React.createElement("code", null, "/inscripcion"), " con quienes vayan a exponer.")) : React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -9819,7 +10583,7 @@ const AdminPromotores = ({
       fontSize: 13,
       color: "var(--ink-2)",
       marginTop: 8,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontFamily: "var(--font-display)"
     }
   }, "\u201C", p.mensaje, "\u201D"), p.motivo && p.estado === "rechazado" && React.createElement("div", {
@@ -9959,6 +10723,7 @@ Object.assign(window, {
   PromotorPortalPage,
   PromotorPage,
   AdminPromotores,
+  EstadoInscripcion,
   RevisionInscripcion,
   AdminCorreos,
   EstadoPill,
@@ -9972,12 +10737,12 @@ const ROL_ETIQUETA = {
   propietario: {
     texto: "Propietario",
     color: "var(--galeras)",
-    ayuda: "Administra el festival y las cuentas de acceso."
+    ayuda: "Administra el evento y las cuentas de acceso."
   },
   organizador: {
     texto: "Organizador",
     color: "var(--cafeto)",
-    ayuda: "Administra el festival: espacios, votos, pasaportes y promotores."
+    ayuda: "Administra el evento: espacios, votos, pasaportes y promotores."
   }
 };
 const RolPill = ({
@@ -10068,8 +10833,8 @@ const AdminCambioClave = ({
   }, "Primer acceso"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
-      fontWeight: 400,
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
       fontSize: 32,
       margin: "6px 0 12px",
       lineHeight: 1.1
@@ -10113,7 +10878,7 @@ const AdminCambioClave = ({
     required: true
   }), React.createElement("span", {
     className: "ayuda"
-  }, "M\xEDnimo 10 caracteres, con may\xFAsculas, min\xFAsculas y n\xFAmeros. Evita tu nombre, tu correo y palabras como \xABcaf\xE9\xBB o \xABfestival\xBB.")), React.createElement("div", {
+  }, "M\xEDnimo 10 caracteres, con may\xFAsculas, min\xFAsculas y n\xFAmeros. Evita tu nombre, tu correo y el nombre del evento.")), React.createElement("div", {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "cc-repetir"
@@ -10781,7 +11546,7 @@ const EnlacePorCorreo = () => {
         lineHeight: 1.65,
         marginTop: 20
       }
-    }, "Si ese correo particip\xF3 en el festival, en unos minutos recibir\xE1s un enlace para abrir tu perfil. Revisa tambi\xE9n la carpeta de correo no deseado.");
+    }, "Si ese correo particip\xF3 en el evento, en unos minutos recibir\xE1s un enlace para abrir tu perfil. Revisa tambi\xE9n la carpeta de correo no deseado.");
   }
   if (!abierto) {
     return React.createElement("button", {
@@ -10838,7 +11603,7 @@ const EnlacePorCorreo = () => {
 const PerfilSinAcceso = ({
   onListo
 }) => React.createElement(PuertaCorreo, {
-  titulo: "Tu perfil del festival.",
+  titulo: "Tu perfil del evento.",
   nota: "Escribe el correo con el que votas en los espacios. No hace falta contrase\xF1a: si quieres una, la pones despu\xE9s desde aqu\xED dentro.",
   onListo: onListo
 }, React.createElement(EnlacePorCorreo, null));
@@ -11016,7 +11781,7 @@ const PerfilVisitantePage = () => {
         acepta_datos: true
       }));
       setExistia(true);
-      setOk("Tus datos quedaron guardados. Gracias por ayudarnos a conocer al público del festival.");
+      setOk("Tus datos quedaron guardados. Gracias por ayudarnos a conocer al público del evento.");
       window.scrollTo({
         top: 0,
         behavior: "smooth"
@@ -11076,9 +11841,9 @@ const PerfilVisitantePage = () => {
   }, "Perfil del visitante"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 34,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 10px",
       lineHeight: 1.05
     }
@@ -11089,7 +11854,7 @@ const PerfilVisitantePage = () => {
       lineHeight: 1.65,
       marginBottom: 8
     }
-  }, "Con esto sabemos qui\xE9n viene al festival y podemos preparar mejor la pr\xF3xima edici\xF3n.", React.createElement("strong", null, " Ning\xFAn dato es obligatorio"), ": responde s\xF3lo lo que quieras."), React.createElement("p", {
+  }, "Con esto sabemos qui\xE9n viene al evento y podemos preparar mejor la pr\xF3xima edici\xF3n.", React.createElement("strong", null, " Ning\xFAn dato es obligatorio"), ": responde s\xF3lo lo que quieras."), React.createElement("p", {
     className: "mono",
     style: {
       color: "var(--ink-3)",
@@ -11241,7 +12006,7 @@ const PerfilVisitantePage = () => {
     className: "ayuda"
   }, "S\xF3lo si vienes por una instituci\xF3n.")), React.createElement(CampoOpcion, {
     id: "pf-medio",
-    label: "\xBFC\xF3mo te enteraste del festival?",
+    label: "\xBFC\xF3mo te enteraste del evento?",
     valor: form.como_se_entero,
     opciones: ops.como_se_entero,
     etiquetas: PERFIL_ETIQUETAS.como_se_entero,
@@ -11250,7 +12015,7 @@ const PerfilVisitantePage = () => {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "pf-primera"
-  }, "\xBFEs tu primera vez en el festival?"), React.createElement("select", {
+  }, "\xBFEs tu primera vez en el evento?"), React.createElement("select", {
     id: "pf-primera",
     value: form.primera_visita === null || form.primera_visita === undefined ? "" : form.primera_visita ? "si" : "no",
     onChange: e => set("primera_visita", e.target.value === "" ? null : e.target.value === "si")
@@ -11264,7 +12029,7 @@ const PerfilVisitantePage = () => {
     className: "field"
   }, React.createElement("label", {
     htmlFor: "pf-exp"
-  }, "\xBFQu\xE9 esperas del festival?"), React.createElement("textarea", {
+  }, "\xBFQu\xE9 esperas del evento?"), React.createElement("textarea", {
     id: "pf-exp",
     rows: 3,
     value: form.expectativa,
@@ -11311,7 +12076,7 @@ const PerfilVisitantePage = () => {
     style: {
       marginTop: 3
     }
-  }), React.createElement("span", null, "Autorizo a la Gobernaci\xF3n de Nari\xF1o a tratar estos datos con fines estad\xEDsticos y de caracterizaci\xF3n del p\xFAblico del festival, conforme a la Ley 1581 de 2012. Puedo consultarlos, corregirlos o borrarlos cuando quiera desde esta misma p\xE1gina.")), React.createElement(Aviso, null, error), React.createElement("button", {
+  }), React.createElement("span", null, "Autorizo a la Gobernaci\xF3n de Nari\xF1o a tratar estos datos con fines estad\xEDsticos y de caracterizaci\xF3n del p\xFAblico del evento, conforme a la Ley 1581 de 2012. Puedo consultarlos, corregirlos o borrarlos cuando quiera desde esta misma p\xE1gina.")), React.createElement(Aviso, null, error), React.createElement("button", {
     className: "btn btn-primary",
     type: "submit",
     disabled: busy,
@@ -11544,8 +12309,9 @@ const AdminCaracterizacion = () => {
   }, m.k), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
+      fontWeight: "var(--display-weight)",
       fontSize: 40,
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       lineHeight: 1,
       marginTop: 8
     }
@@ -11568,7 +12334,8 @@ const AdminCaracterizacion = () => {
   }, "Sin perfiles"), React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 26,
       color: "var(--ink)",
       margin: "8px 0 4px"
@@ -11646,7 +12413,7 @@ const AdminCaracterizacion = () => {
     style: {
       marginBottom: 12
     }
-  }, "Qu\xE9 esperan del festival \xB7 ", expectativas.length, " respuestas"), React.createElement("div", {
+  }, "Qu\xE9 esperan del evento \xB7 ", expectativas.length, " respuestas"), React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -11699,8 +12466,9 @@ const Cifra = ({
 }, etiqueta), React.createElement("div", {
   style: {
     fontFamily: "var(--font-display)",
+    fontWeight: "var(--display-weight)",
     fontSize: 34,
-    fontStyle: "italic",
+    fontStyle: "var(--display-style)",
     lineHeight: 1
   }
 }, valor), nota && React.createElement("div", {
@@ -11754,13 +12522,21 @@ const EconomiaPage = () => {
   }, "Actividad econ\xF3mica"), React.createElement("h1", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontStyle: "var(--display-style)",
       fontSize: 40,
-      fontWeight: 400,
+      fontWeight: "var(--display-weight)",
       margin: "6px 0 10px",
       lineHeight: 1
     }
-  }, "Las compras del festival."), React.createElement("p", {
+  }, "Las compras del evento."), !compraActiva() && React.createElement(Aviso, {
+    tipo: "info"
+  }, "La pregunta \xAB\xBFCompraste algo?\xBB est\xE1 desactivada en la encuesta del voto, as\xED que no entran compras nuevas. Lo de aqu\xED es lo que se declar\xF3 mientras estuvo activa. Se activa en ", React.createElement("a", {
+    href: "/admin/festival",
+    "data-route": true,
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Configuraci\xF3n del evento \u2192 Encuesta"), "."), React.createElement("p", {
     style: {
       fontSize: 14,
       color: "var(--ink-2)",
@@ -11888,12 +12664,313 @@ Object.assign(window, {
 });
 })();
 
+/* components/Encuesta.jsx */
+(function () {
+const BarraResultado = ({
+  etiqueta,
+  n,
+  total,
+  nota
+}) => {
+  const pct = total > 0 ? n / total * 100 : 0;
+  const texto = `${etiqueta}: ${n} de ${total} (${pct.toFixed(0)}%)`;
+  return React.createElement("div", {
+    title: texto,
+    style: {
+      display: "grid",
+      gridTemplateColumns: "minmax(80px, 34%) 1fr auto",
+      gap: 10,
+      alignItems: "center",
+      padding: "5px 0"
+    }
+  }, React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "var(--ink)",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, etiqueta, nota && React.createElement("span", {
+    className: "mono",
+    style: {
+      marginLeft: 6,
+      color: "var(--ink-3)"
+    }
+  }, nota)), React.createElement("div", {
+    role: "img",
+    "aria-label": texto,
+    style: {
+      height: 8,
+      background: "var(--paper-2)",
+      borderRadius: 4,
+      overflow: "hidden"
+    }
+  }, React.createElement("div", {
+    style: {
+      width: pct + "%",
+      minWidth: n > 0 ? 4 : 0,
+      height: "100%",
+      background: "var(--grano)",
+      borderRadius: 4,
+      transition: "width 0.4s"
+    }
+  })), React.createElement("span", {
+    className: "mono",
+    style: {
+      color: "var(--ink-2)",
+      minWidth: 74,
+      textAlign: "right"
+    }
+  }, n, " \xB7 ", pct.toFixed(0), "%"));
+};
+const TarjetaPregunta = ({
+  p
+}) => {
+  const tipo = (window.TIPOS_PREGUNTA || {})[p.tipo] || p.tipo;
+  return React.createElement("div", {
+    style: {
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: 18,
+      opacity: p.activa ? 1 : 0.7
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 10,
+      flexWrap: "wrap",
+      alignItems: "baseline"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 600,
+      lineHeight: 1.3,
+      flex: "1 1 220px"
+    }
+  }, p.etiqueta), React.createElement("div", {
+    className: "mono",
+    style: {
+      color: "var(--ink-3)"
+    }
+  }, tipo, p.sistema ? " · del sistema" : "", !p.activa ? " · desactivada" : "")), React.createElement("div", {
+    className: "mono",
+    style: {
+      margin: "6px 0 12px",
+      color: "var(--ink-3)"
+    }
+  }, p.n, " ", p.n === 1 ? "respuesta" : "respuestas"), p.tipo === "estrellas" && React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "auto 1fr",
+      gap: 18,
+      alignItems: "center"
+    }
+  }, React.createElement("div", {
+    style: {
+      textAlign: "center",
+      minWidth: 84
+    }
+  }, React.createElement("div", {
+    style: {
+      fontFamily: "var(--font-display)",
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
+      fontSize: 40,
+      lineHeight: 1
+    }
+  }, p.promedio !== null && p.promedio !== undefined ? p.promedio.toFixed(1) : "—"), React.createElement("div", {
+    className: "mono",
+    style: {
+      marginTop: 4
+    }
+  }, "de 5")), React.createElement("div", null, [5, 4, 3, 2, 1].map(k => React.createElement(BarraResultado, {
+    key: k,
+    etiqueta: "★".repeat(k),
+    n: (p.distribucion || [])[k - 1] || 0,
+    total: p.n
+  })))), p.tipo === "si_no" && React.createElement("div", null, React.createElement(BarraResultado, {
+    etiqueta: "S\xED",
+    n: p.si || 0,
+    total: p.n
+  }), React.createElement(BarraResultado, {
+    etiqueta: "No",
+    n: p.no || 0,
+    total: p.n
+  })), (p.tipo === "opcion" || p.tipo === "multiple") && React.createElement("div", null, (p.opciones || []).map(o => React.createElement(BarraResultado, {
+    key: o.texto,
+    etiqueta: o.texto,
+    n: o.n,
+    total: p.n,
+    nota: o.retirada ? "ya no está en la lista" : ""
+  })), p.tipo === "multiple" && React.createElement("p", {
+    className: "ayuda",
+    style: {
+      marginTop: 6
+    }
+  }, "Se pod\xEDa marcar m\xE1s de una: los porcentajes no suman 100.")), p.recientes && (p.recientes.length ? React.createElement("ul", {
+    style: {
+      margin: 0,
+      paddingLeft: 18,
+      display: "grid",
+      gap: 6
+    }
+  }, p.recientes.map((t, i) => React.createElement("li", {
+    key: i,
+    style: {
+      fontSize: 13,
+      color: "var(--ink-2)",
+      lineHeight: 1.5
+    }
+  }, t))) : React.createElement("p", {
+    className: "ayuda"
+  }, "A\xFAn no hay respuestas.")));
+};
+const EncuestaResultadosPage = ({
+  user,
+  stands
+}) => {
+  const [stand, setStand] = React.useState("");
+  const [datos, setDatos] = React.useState(null);
+  const [error, setError] = React.useState("");
+  React.useEffect(() => {
+    let vivo = true;
+    const cargar = async () => {
+      if (!window.LMTApi || !window.LMTApi.enabled) return;
+      try {
+        const d = await window.LMTApi.resultadosEncuesta(stand);
+        if (vivo) {
+          setDatos(d);
+          setError("");
+        }
+      } catch (e) {
+        if (vivo) setError(mensajeError(e));
+      }
+    };
+    cargar();
+    window.addEventListener("lmt:auth", cargar);
+    return () => {
+      vivo = false;
+      window.removeEventListener("lmt:auth", cargar);
+    };
+  }, [stand]);
+  const simbolos = simbolosVoto().slice().reverse();
+  const csv = window.LMTApi && window.LMTApi.urlFor ? window.LMTApi.urlFor("/export/votos.csv") : "";
+  return React.createElement(AdminShell, {
+    active: "encuesta",
+    user: user
+  }, React.createElement("div", {
+    className: "admin-page"
+  }, React.createElement("div", {
+    className: "mono"
+  }, "Encuesta"), React.createElement("h1", {
+    className: "titulo-xl"
+  }, "Resultados del voto."), React.createElement("p", {
+    style: {
+      fontSize: 14,
+      color: "var(--ink-2)",
+      lineHeight: 1.6,
+      maxWidth: 640,
+      margin: "10px 0 20px"
+    }
+  }, "Lo que respondi\xF3 el p\xFAblico al votar en cada espacio. Las preguntas se cambian en", " ", React.createElement("a", {
+    href: "/admin/festival",
+    "data-route": true,
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Configuraci\xF3n del evento \u2192 Encuesta"), "; una pregunta desactivada sigue aqu\xED con lo que se respondi\xF3 mientras estuvo activa."), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12,
+      flexWrap: "wrap",
+      alignItems: "flex-end",
+      marginBottom: 22
+    }
+  }, React.createElement("div", {
+    className: "field",
+    style: {
+      minWidth: 240,
+      flex: "0 1 320px"
+    }
+  }, React.createElement("label", {
+    htmlFor: "enc-stand"
+  }, "Espacio"), React.createElement("select", {
+    id: "enc-stand",
+    value: stand,
+    onChange: e => setStand(e.target.value)
+  }, React.createElement("option", {
+    value: ""
+  }, "Todos los espacios"), (stands || []).map(s => React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.nombre, " \xB7 ", s.municipio)))), csv && React.createElement("a", {
+    href: csv,
+    className: "btn btn-ghost"
+  }, "\u2193 Descargar todos los votos (CSV)")), React.createElement(Aviso, null, error), !datos && !error && React.createElement("p", {
+    className: "mono",
+    style: {
+      color: "var(--ink-3)"
+    }
+  }, "Cargando\u2026"), datos && React.createElement(React.Fragment, null, React.createElement("div", {
+    style: {
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: 18,
+      marginBottom: 16,
+      background: "var(--paper-2)"
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: 10,
+      marginBottom: 10
+    }
+  }, React.createElement("span", {
+    style: {
+      fontFamily: "var(--font-display)",
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
+      fontSize: 36,
+      lineHeight: 1
+    }
+  }, datos.total), React.createElement("span", {
+    className: "mono"
+  }, datos.total === 1 ? "voto" : "votos", stand ? " en este espacio" : " en todo el evento")), simbolos.map(x => React.createElement(BarraResultado, {
+    key: x.id,
+    etiqueta: x.emoji + " " + x.label,
+    n: (datos.emojis || {})[x.id] || 0,
+    total: datos.total
+  }))), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
+      gap: 14
+    }
+  }, (datos.preguntas || []).map(p => React.createElement(TarjetaPregunta, {
+    key: p.id,
+    p: p
+  }))), (datos.preguntas || []).length === 0 && React.createElement("p", {
+    style: {
+      color: "var(--ink-2)"
+    }
+  }, "La encuesta no tiene preguntas adem\xE1s del emoji."))));
+};
+Object.assign(window, {
+  EncuestaResultadosPage
+});
+})();
+
 /* components/Festival.jsx */
 (function () {
 const Miniatura = ({
   url,
   alto = 130,
-  vacio = "Diseño del sistema"
+  vacio = "Diseño del sistema",
+  contener = false
 }) => {
   const [estado, setEstado] = React.useState("cargando");
   React.useEffect(() => {
@@ -11918,8 +12995,9 @@ const Miniatura = ({
     style: {
       width: "100%",
       height: "100%",
-      objectFit: "cover",
-      display: estado === "ok" ? "block" : "none"
+      objectFit: contener ? "contain" : "cover",
+      display: estado === "ok" ? "block" : "none",
+      padding: contener ? 10 : 0
     }
   }) : React.createElement("span", {
     className: "mono",
@@ -11948,7 +13026,7 @@ const Miniatura = ({
       lineHeight: 1.5,
       marginTop: 6
     }
-  }, "El archivo est\xE1 guardado pero el navegador recibe un error al pedirlo. Suele ser permisos: usa \xABCorregir permisos de las im\xE1genes\xBB aqu\xED abajo."));
+  }, "El archivo est\xE1 guardado pero el navegador recibe un error al pedirlo. Suele ser permisos: usa \xABCorregir permisos de las im\xE1genes\xBB al final de la pesta\xF1a Pasaporte."));
 };
 const FondoRanura = ({
   titulo,
@@ -11956,7 +13034,9 @@ const FondoRanura = ({
   url,
   onSubir,
   onQuitar,
-  subiendo
+  subiendo,
+  contener = false,
+  vacio
 }) => React.createElement("div", {
   style: {
     border: "1px solid var(--line-2)",
@@ -11973,12 +13053,12 @@ const FondoRanura = ({
     marginBottom: 10
   }
 }, React.createElement(Miniatura, {
-  url: url
+  url: url,
+  contener: contener,
+  vacio: vacio
 })), ayuda && React.createElement("p", {
-  className: "mono",
+  className: "ayuda",
   style: {
-    color: "var(--ink-3)",
-    lineHeight: 1.5,
     marginBottom: 8
   }
 }, ayuda), React.createElement("div", {
@@ -12011,20 +13091,820 @@ const FondoRanura = ({
     color: "var(--bad)"
   }
 }, "Quitar")));
+const clonarAjustes = o => JSON.parse(JSON.stringify(o || {}));
+const ponerEn = (obj, ruta, valor) => {
+  const copia = clonarAjustes(obj);
+  const partes = ruta.split(".");
+  let t = copia;
+  partes.slice(0, -1).forEach(k => {
+    if (t[k] === undefined || t[k] === null || typeof t[k] !== "object") t[k] = {};
+    t = t[k];
+  });
+  t[partes[partes.length - 1]] = valor;
+  return copia;
+};
+const leerDe = (obj, ruta) => ruta.split(".").reduce((t, k) => t == null ? undefined : t[k], obj);
+const sinCalculados = aj => {
+  const c = clonarAjustes(aj);
+  delete c.estado;
+  delete c.tema_css;
+  return c;
+};
+const nuevaId = () => "p_" + Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, "x").padEnd(8, "x");
+const CampoCfg = ({
+  id,
+  etiqueta,
+  valor,
+  onCambio,
+  max = 120,
+  ayuda,
+  largo = false,
+  filas = 3,
+  placeholder,
+  tipo = "text"
+}) => React.createElement("div", {
+  className: "field"
+}, React.createElement("label", {
+  htmlFor: id
+}, etiqueta), largo ? React.createElement("textarea", {
+  id: id,
+  rows: filas,
+  maxLength: max,
+  value: valor || "",
+  placeholder: placeholder,
+  onChange: e => onCambio(e.target.value),
+  style: {
+    border: "1px solid var(--line-2)",
+    borderRadius: "var(--r-md)",
+    padding: 12,
+    lineHeight: 1.6,
+    resize: "vertical"
+  }
+}) : React.createElement("input", {
+  id: id,
+  type: tipo,
+  maxLength: max,
+  value: valor || "",
+  placeholder: placeholder,
+  onChange: e => onCambio(e.target.value)
+}), ayuda && React.createElement("span", {
+  className: "ayuda"
+}, ayuda));
+const Interruptor = ({
+  id,
+  etiqueta,
+  valor,
+  onCambio,
+  ayuda,
+  deshabilitado = false
+}) => React.createElement("label", {
+  htmlFor: id,
+  style: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+    cursor: deshabilitado ? "not-allowed" : "pointer",
+    padding: "10px 12px",
+    borderRadius: "var(--r-md)",
+    border: "1px solid var(--line-2)",
+    background: valor ? "color-mix(in oklch, var(--grano) 6%, var(--paper))" : "var(--paper)",
+    opacity: deshabilitado ? 0.6 : 1
+  }
+}, React.createElement("input", {
+  id: id,
+  type: "checkbox",
+  checked: !!valor,
+  disabled: deshabilitado,
+  onChange: e => onCambio(e.target.checked),
+  style: {
+    marginTop: 3,
+    width: 18,
+    height: 18,
+    flex: "0 0 auto"
+  }
+}), React.createElement("span", {
+  style: {
+    minWidth: 0
+  }
+}, React.createElement("span", {
+  style: {
+    fontSize: 14,
+    fontWeight: 600,
+    display: "block"
+  }
+}, etiqueta), ayuda && React.createElement("span", {
+  className: "ayuda",
+  style: {
+    display: "block",
+    marginTop: 2
+  }
+}, ayuda)));
+const Casilla = ({
+  etiqueta,
+  valor,
+  onCambio,
+  deshabilitado = false,
+  titulo
+}) => React.createElement("label", {
+  title: titulo,
+  style: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+    cursor: deshabilitado ? "not-allowed" : "pointer",
+    opacity: deshabilitado ? 0.55 : 1,
+    whiteSpace: "nowrap"
+  }
+}, React.createElement("input", {
+  type: "checkbox",
+  checked: !!valor,
+  disabled: deshabilitado,
+  onChange: e => onCambio(e.target.checked)
+}), etiqueta);
+const hex6 = v => {
+  const s = String(v || "").trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(s)) return s;
+  if (/^#[0-9a-f]{3}$/.test(s)) return "#" + s.slice(1).split("").map(c => c + c).join("");
+  return "";
+};
+const SelectorColor = ({
+  id,
+  etiqueta,
+  ayuda,
+  valor,
+  base,
+  onCambio
+}) => {
+  const efectivo = hex6(valor) || hex6(base) || "#000000";
+  const [texto, setTexto] = React.useState(valor || "");
+  React.useEffect(() => {
+    setTexto(valor || "");
+  }, [valor]);
+  return React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "44px minmax(0, 1fr)",
+      gap: 10,
+      alignItems: "center"
+    }
+  }, React.createElement("input", {
+    id: id,
+    type: "color",
+    value: efectivo,
+    onChange: e => onCambio(e.target.value),
+    "aria-label": etiqueta,
+    style: {
+      width: 44,
+      height: 44,
+      padding: 0,
+      border: "1px solid var(--line-2)",
+      borderRadius: "var(--r-sm)",
+      background: "none",
+      cursor: "pointer"
+    }
+  }), React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: 8,
+      flexWrap: "wrap"
+    }
+  }, React.createElement("label", {
+    htmlFor: id,
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, etiqueta), React.createElement("input", {
+    value: texto,
+    placeholder: hex6(base) || "",
+    maxLength: 7,
+    "aria-label": etiqueta + " (código)",
+    onChange: e => {
+      setTexto(e.target.value);
+      if (hex6(e.target.value) || e.target.value === "") onCambio(e.target.value === "" ? "" : hex6(e.target.value));
+    },
+    className: "ruta",
+    style: {
+      width: 78,
+      border: "none",
+      borderBottom: "1px solid var(--line-2)",
+      background: "transparent",
+      padding: "2px 0"
+    }
+  }), valor && React.createElement("button", {
+    type: "button",
+    onClick: () => onCambio(""),
+    className: "mono",
+    style: {
+      background: "none",
+      border: 0,
+      color: "var(--ink-3)",
+      textDecoration: "underline",
+      cursor: "pointer"
+    }
+  }, "base")), ayuda && React.createElement("div", {
+    className: "ayuda"
+  }, ayuda)));
+};
+const ESQUINAS_TEMA = {
+  recta: [2, 3, 4],
+  normal: [4, 8, 14],
+  redondeada: [8, 14, 22]
+};
+const GRUPOS_COLOR = [["Fondo y secciones", [["paper", "Fondo", "El papel de toda la aplicación."], ["paper-2", "Secciones", "Bloques, tarjetas y franjas."], ["paper-3", "Secciones resaltadas", "Texto claro sobre fondo oscuro, rayados."]]], ["Texto", [["ink", "Texto principal", "Títulos, botones y fondos oscuros."], ["ink-2", "Texto secundario", "Párrafos y explicaciones."], ["ink-3", "Metadatos", "Etiquetas en mayúsculas, fechas, notas."]]], ["Líneas", [["line", "Divisores", ""], ["line-2", "Bordes de campos", ""]]], ["Acentos", [["grano", "Acento principal", "Enlaces y botón al pasar el ratón."], ["galeras", "Palabra destacada", "La última palabra del lema y el mapa."], ["cafeto", "Acento secundario", "Avisos y estados intermedios."]]], ["Calificaciones", [["good", "Excelente / correcto", ""], ["meh", "Regular / estrellas", ""], ["bad", "Mejorable / error", ""]]]];
+const variablesTema = (tema, catalogo) => {
+  const t = tema || {};
+  const base = (((catalogo || {}).paletas || {}).institucional || {}).colores || {};
+  const fuentes = (catalogo || {}).fuentes || {};
+  const v = {};
+  Object.keys(base).forEach(k => {
+    v["--" + k] = hex6((t.colores || {})[k]) || base[k];
+  });
+  const f = t.fuentes || {};
+  if (fuentes[f.display]) v["--font-display"] = fuentes[f.display].pila;
+  if (fuentes[f.texto]) v["--font-sans"] = fuentes[f.texto].pila;
+  if (fuentes[f.meta]) v["--font-mono"] = fuentes[f.meta].pila;
+  v["--display-style"] = t.titulos_cursiva ? "italic" : "normal";
+  v["--display-weight"] = String(t.titulos_peso || 400);
+  const r = ESQUINAS_TEMA[t.esquinas] || ESQUINAS_TEMA.normal;
+  v["--r-sm"] = r[0] + "px";
+  v["--r-md"] = r[1] + "px";
+  v["--r-lg"] = r[2] + "px";
+  return v;
+};
+const VistaTema = ({
+  tema,
+  catalogo,
+  nombre,
+  lema
+}) => React.createElement("div", {
+  style: {
+    ...variablesTema(tema, catalogo),
+    background: "var(--paper)",
+    color: "var(--ink)",
+    fontFamily: "var(--font-sans)",
+    border: "1px solid var(--line)",
+    borderRadius: "var(--r-md)",
+    overflow: "hidden"
+  }
+}, React.createElement("div", {
+  style: {
+    padding: "12px 16px",
+    borderBottom: "1px solid var(--line)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10
+  }
+}, React.createElement("div", {
+  style: {
+    lineHeight: 1
+  }
+}, React.createElement("div", {
+  style: {
+    fontFamily: "var(--font-display)",
+    fontStyle: "var(--display-style)",
+    fontWeight: "var(--display-weight)",
+    fontSize: 17
+  }
+}, nombre), React.createElement("div", {
+  className: "mono",
+  style: {
+    fontSize: 9,
+    marginTop: 3
+  }
+}, "Metadatos \xB7 etiquetas")), React.createElement("span", {
+  className: "mono",
+  style: {
+    color: "var(--good)"
+  }
+}, "\u25CF En vivo")), React.createElement("div", {
+  style: {
+    padding: 16
+  }
+}, React.createElement("div", {
+  className: "mono"
+}, "Ranking p\xFAblico"), React.createElement("div", {
+  style: {
+    fontFamily: "var(--font-display)",
+    fontStyle: "var(--display-style)",
+    fontWeight: "var(--display-weight)",
+    fontSize: 30,
+    lineHeight: 1,
+    margin: "6px 0 8px"
+  }
+}, React.createElement(LemaDestacado, {
+  texto: lema
+})), React.createElement("p", {
+  style: {
+    fontSize: 13,
+    color: "var(--ink-2)",
+    lineHeight: 1.55,
+    margin: "0 0 12px"
+  }
+}, "Texto secundario de un p\xE1rrafo. ", React.createElement("a", {
+  href: "#vista",
+  onClick: e => e.preventDefault(),
+  style: {
+    color: "var(--grano)"
+  }
+}, "Un enlace"), "."), React.createElement("div", {
+  style: {
+    background: "var(--paper-2)",
+    border: "1px solid var(--line)",
+    borderRadius: "var(--r-md)",
+    padding: 12,
+    marginBottom: 12
+  }
+}, React.createElement("div", {
+  style: {
+    display: "flex",
+    gap: 3,
+    marginBottom: 8
+  }
+}, [1, 2, 3, 4, 5].map(n => React.createElement(Estrella, {
+  key: n,
+  tam: 18,
+  relleno: n <= 4 ? 1 : 0,
+  color: n <= 4 ? "var(--meh)" : "var(--line-2)"
+}))), React.createElement("div", {
+  style: {
+    display: "flex",
+    height: 5,
+    borderRadius: 999,
+    overflow: "hidden",
+    background: "var(--paper)"
+  }
+}, React.createElement("div", {
+  style: {
+    width: "62%",
+    background: "var(--good)"
+  }
+}), React.createElement("div", {
+  style: {
+    width: "25%",
+    background: "var(--meh)"
+  }
+}), React.createElement("div", {
+  style: {
+    width: "13%",
+    background: "var(--bad)"
+  }
+}))), React.createElement("div", {
+  style: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap"
+  }
+}, React.createElement("span", {
+  className: "btn btn-primary",
+  style: {
+    fontSize: 13,
+    padding: "8px 14px"
+  }
+}, "Bot\xF3n principal"), React.createElement("span", {
+  className: "btn btn-ghost",
+  style: {
+    fontSize: 13,
+    padding: "8px 14px"
+  }
+}, "Secundario"))), React.createElement("div", {
+  style: {
+    background: "var(--ink)",
+    color: "var(--paper)",
+    padding: "12px 16px"
+  }
+}, React.createElement("div", {
+  className: "mono",
+  style: {
+    color: "var(--paper-3)"
+  }
+}, "Franja oscura"), React.createElement("div", {
+  style: {
+    fontSize: 13
+  }
+}, "Texto claro sobre la tinta del tema.")));
+const EditorPreguntas = ({
+  preguntas,
+  onCambio,
+  tipos,
+  conPublica = false,
+  idBase
+}) => {
+  const lista = Array.isArray(preguntas) ? preguntas : [];
+  const cambiar = (i, k, v) => onCambio(lista.map((p, j) => j === i ? {
+    ...p,
+    [k]: v
+  } : p));
+  const mover = (i, d) => {
+    const j = i + d;
+    if (j < 0 || j >= lista.length) return;
+    const c = lista.slice();
+    [c[i], c[j]] = [c[j], c[i]];
+    onCambio(c);
+  };
+  const quitar = i => onCambio(lista.filter((_, j) => j !== i));
+  const anadir = () => onCambio(lista.concat([{
+    id: nuevaId(),
+    tipo: tipos[0],
+    etiqueta: "",
+    ayuda: "",
+    activa: true,
+    requerida: false,
+    opciones: [],
+    ...(conPublica ? {
+      publica: false
+    } : {})
+  }]));
+  return React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, lista.map((p, i) => {
+    const conOpciones = p.tipo === "opcion" || p.tipo === "multiple";
+    const opciones = Array.isArray(p.opciones) ? p.opciones : [];
+    return React.createElement("div", {
+      key: p.id,
+      style: {
+        border: "1px solid var(--line-2)",
+        borderRadius: "var(--r-md)",
+        padding: 14,
+        background: p.activa === false ? "var(--paper-2)" : "var(--paper)"
+      }
+    }, React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+        flexWrap: "wrap",
+        marginBottom: 10
+      }
+    }, React.createElement("span", {
+      className: "mono",
+      style: {
+        color: "var(--ink-3)"
+      }
+    }, String(i + 1).padStart(2, "0")), p.sistema ? React.createElement("span", {
+      className: "mono"
+    }, "Estrellas \xB7 del sistema") : React.createElement("select", {
+      value: p.tipo,
+      "aria-label": "Tipo de pregunta",
+      onChange: e => cambiar(i, "tipo", e.target.value),
+      style: {
+        border: "1px solid var(--line-2)",
+        borderRadius: "var(--r-sm)",
+        padding: "6px 8px",
+        background: "var(--paper)"
+      }
+    }, tipos.map(t => React.createElement("option", {
+      key: t,
+      value: t
+    }, TIPOS_PREGUNTA[t] || t))), React.createElement("span", {
+      style: {
+        flex: 1
+      }
+    }), React.createElement("button", {
+      type: "button",
+      className: "mono",
+      onClick: () => mover(i, -1),
+      disabled: i === 0,
+      "aria-label": "Subir",
+      style: {
+        background: "none",
+        border: "1px solid var(--line-2)",
+        borderRadius: "var(--r-sm)",
+        padding: "4px 8px",
+        cursor: "pointer"
+      }
+    }, "\u2191"), React.createElement("button", {
+      type: "button",
+      className: "mono",
+      onClick: () => mover(i, 1),
+      disabled: i === lista.length - 1,
+      "aria-label": "Bajar",
+      style: {
+        background: "none",
+        border: "1px solid var(--line-2)",
+        borderRadius: "var(--r-sm)",
+        padding: "4px 8px",
+        cursor: "pointer"
+      }
+    }, "\u2193"), !p.sistema && React.createElement("button", {
+      type: "button",
+      className: "mono",
+      onClick: () => quitar(i),
+      style: {
+        background: "none",
+        border: "1px solid var(--bad)",
+        color: "var(--bad)",
+        borderRadius: "var(--r-sm)",
+        padding: "4px 8px",
+        cursor: "pointer"
+      }
+    }, "Eliminar")), React.createElement("div", {
+      className: "field"
+    }, React.createElement("label", {
+      htmlFor: idBase + "-et-" + p.id
+    }, "Pregunta"), React.createElement("input", {
+      id: idBase + "-et-" + p.id,
+      value: p.etiqueta || "",
+      maxLength: p.sistema ? 40 : 200,
+      placeholder: "Escribe la pregunta",
+      onChange: e => cambiar(i, "etiqueta", e.target.value)
+    })), !p.sistema && React.createElement("div", {
+      className: "field",
+      style: {
+        marginTop: 10
+      }
+    }, React.createElement("label", {
+      htmlFor: idBase + "-ay-" + p.id
+    }, "Ayuda (opcional)"), React.createElement("input", {
+      id: idBase + "-ay-" + p.id,
+      value: p.ayuda || "",
+      maxLength: 300,
+      onChange: e => cambiar(i, "ayuda", e.target.value)
+    })), conOpciones && React.createElement("div", {
+      className: "field",
+      style: {
+        marginTop: 10
+      }
+    }, React.createElement("label", {
+      htmlFor: idBase + "-op-" + p.id
+    }, "Opciones \xB7 una por l\xEDnea"), React.createElement("textarea", {
+      id: idBase + "-op-" + p.id,
+      rows: Math.max(3, opciones.length + 1),
+      value: opciones.join("\n"),
+      onChange: e => cambiar(i, "opciones", e.target.value.split("\n").map(x => x.slice(0, 120))),
+      style: {
+        border: "1px solid var(--line-2)",
+        borderRadius: "var(--r-md)",
+        padding: 10,
+        lineHeight: 1.6
+      }
+    }), React.createElement("span", {
+      className: "ayuda"
+    }, "Al menos dos. Cambiar el texto de una opci\xF3n no cambia lo ya respondido con el texto anterior.")), React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 16,
+        flexWrap: "wrap",
+        marginTop: 12
+      }
+    }, React.createElement(Casilla, {
+      etiqueta: "Activa",
+      valor: p.activa !== false,
+      onCambio: v => cambiar(i, "activa", v),
+      titulo: "Desactivada no se pregunta; lo respondido antes se conserva."
+    }), !p.sistema && React.createElement(Casilla, {
+      etiqueta: "Obligatoria",
+      valor: !!p.requerida,
+      onCambio: v => cambiar(i, "requerida", v)
+    }), conPublica && !p.sistema && React.createElement(Casilla, {
+      etiqueta: "Se ve en la ficha p\xFAblica",
+      valor: !!p.publica,
+      onCambio: v => cambiar(i, "publica", v)
+    })));
+  }), React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost",
+    onClick: anadir,
+    style: {
+      alignSelf: "flex-start"
+    }
+  }, "+ A\xF1adir pregunta"));
+};
+const problemasPreguntas = (preguntas, donde) => (preguntas || []).flatMap((p, i) => {
+  if (p.sistema) return [];
+  const n = `${donde}: pregunta ${i + 1}`;
+  const out = [];
+  if (!(p.etiqueta || "").trim()) out.push(`${n} no tiene texto.`);
+  if ((p.tipo === "opcion" || p.tipo === "multiple") && (p.opciones || []).filter(o => (o || "").trim()).length < 2) {
+    out.push(`${n} («${(p.etiqueta || "").trim() || "sin texto"}») necesita al menos dos opciones.`);
+  }
+  return out;
+});
+const EditorOpciones = ({
+  opciones,
+  onCambio,
+  claveOtro = "otro"
+}) => {
+  const lista = Array.isArray(opciones) ? opciones : [];
+  const normales = lista.filter(o => o[0] !== claveOtro);
+  const otro = lista.find(o => o[0] === claveOtro);
+  const poner = (normalesNuevas, otroNuevo) => onCambio(normalesNuevas.concat(otroNuevo ? [otroNuevo] : []));
+  return React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, normales.map((o, i) => React.createElement("div", {
+    key: (o[0] || "nueva") + i,
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center"
+    }
+  }, React.createElement("input", {
+    value: o[1],
+    maxLength: 300,
+    "aria-label": "Opción " + (i + 1),
+    onChange: e => poner(normales.map((x, j) => j === i ? [x[0], e.target.value] : x), otro),
+    style: {
+      flex: 1,
+      minWidth: 0,
+      border: "none",
+      borderBottom: "1px solid var(--line-2)",
+      padding: "6px 0",
+      background: "transparent",
+      fontSize: 14
+    }
+  }), React.createElement("button", {
+    type: "button",
+    className: "mono",
+    onClick: () => poner(normales.filter((_, j) => j !== i), otro),
+    style: {
+      background: "none",
+      border: 0,
+      color: "var(--bad)",
+      cursor: "pointer"
+    }
+  }, "quitar"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "center",
+      flexWrap: "wrap",
+      marginTop: 4
+    }
+  }, React.createElement("button", {
+    type: "button",
+    className: "mono",
+    onClick: () => poner(normales.concat([["", ""]]), otro),
+    style: {
+      background: "none",
+      border: "1px dashed var(--line-2)",
+      borderRadius: "var(--r-sm)",
+      padding: "6px 10px",
+      cursor: "pointer"
+    }
+  }, "+ Opci\xF3n"), React.createElement(Casilla, {
+    etiqueta: "Incluir «" + (otro ? otro[1] : "Otro") + "» con campo para escribir",
+    valor: !!otro,
+    onCambio: v => poner(normales, v ? [claveOtro, claveOtro === "otros" ? "Otros" : "Otro"] : null)
+  })), React.createElement("span", {
+    className: "ayuda"
+  }, "Cambiar el texto de una opci\xF3n cambia c\xF3mo se lee en todos los informes: se guarda su clave, no la frase."));
+};
+const GRUPOS_INSCRIPCION = [["persona", "Quién eres"], ["espacio", "Tu espacio"], ["ubicacion", "Ubicación"], ["participa", "Quién participa"], ["linea", "Línea"], ["detalle", "Información detallada"], ["final", "Al final"]];
+const FilaCampo = ({
+  clave,
+  campo,
+  onCambio
+}) => {
+  const [abierto, setAbierto] = React.useState(false);
+  const fijo = !!campo.fijo;
+  const conOpciones = Array.isArray(campo.opciones);
+  return React.createElement("div", {
+    style: {
+      borderBottom: "1px solid var(--line)",
+      padding: "10px 0",
+      opacity: campo.activo === false ? 0.65 : 1
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) auto",
+      gap: 10,
+      alignItems: "center"
+    }
+  }, React.createElement("input", {
+    value: campo.etiqueta || "",
+    maxLength: 200,
+    "aria-label": "Texto del campo " + clave,
+    onChange: e => onCambio({
+      ...campo,
+      etiqueta: e.target.value
+    }),
+    style: {
+      minWidth: 0,
+      border: "none",
+      borderBottom: "1px solid var(--line-2)",
+      padding: "6px 0",
+      background: "transparent",
+      fontSize: 14,
+      fontWeight: 500
+    }
+  }), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "center",
+      flexWrap: "wrap",
+      justifyContent: "flex-end"
+    }
+  }, React.createElement(Casilla, {
+    etiqueta: "Se pide",
+    valor: campo.activo !== false,
+    deshabilitado: fijo,
+    titulo: fijo ? "El sistema lo necesita: no se puede quitar." : "",
+    onCambio: v => onCambio({
+      ...campo,
+      activo: v
+    })
+  }), React.createElement(Casilla, {
+    etiqueta: "Obligatorio",
+    valor: !!campo.requerido,
+    deshabilitado: fijo || campo.tipo === "mapa" || campo.activo === false,
+    onCambio: v => onCambio({
+      ...campo,
+      requerido: v
+    })
+  }), React.createElement("button", {
+    type: "button",
+    className: "mono",
+    onClick: () => setAbierto(x => !x),
+    "aria-expanded": abierto,
+    style: {
+      background: "none",
+      border: 0,
+      color: "var(--grano)",
+      cursor: "pointer",
+      textDecoration: "underline"
+    }
+  }, abierto ? "cerrar" : conOpciones ? "ayuda y opciones" : "ayuda"))), fijo && React.createElement("div", {
+    className: "mono",
+    style: {
+      color: "var(--ink-3)",
+      marginTop: 4
+    }
+  }, "Lo necesita el sistema"), abierto && React.createElement("div", {
+    style: {
+      marginTop: 10,
+      paddingLeft: 12,
+      borderLeft: "2px solid var(--line-2)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, React.createElement(CampoCfg, {
+    id: "fc-ay-" + clave,
+    etiqueta: "Texto de ayuda bajo el campo",
+    valor: campo.ayuda,
+    max: 400,
+    onCambio: v => onCambio({
+      ...campo,
+      ayuda: v
+    })
+  }), conOpciones && React.createElement("div", null, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 6
+    }
+  }, "Opciones de la lista"), React.createElement(EditorOpciones, {
+    opciones: campo.opciones,
+    claveOtro: clave === "presentacion" ? "otros" : "otro",
+    onCambio: ops => onCambio({
+      ...campo,
+      opciones: ops
+    })
+  }))));
+};
+const PESTANAS_EVENTO = [["evento", "Evento"], ["marca", "Marca y símbolos"], ["apariencia", "Colores y letra"], ["encuesta", "Encuesta del voto"], ["inscripcion", "Inscripción"], ["pasaporte", "Pasaporte"], ["datos", "Datos personales"]];
 const FestivalPage = () => {
   const [aj, setAj] = React.useState(null);
+  const [borrador, setBorrador] = React.useState(null);
+  const [catalogo, setCatalogo] = React.useState(null);
+  const [pestana, setPestana] = React.useState(() => {
+    try {
+      return sessionStorage.getItem("lmt.cfg.pestana") || "evento";
+    } catch (_) {
+      return "evento";
+    }
+  });
   const [error, setError] = React.useState("");
   const [ok, setOk] = React.useState("");
   const [subiendo, setSubiendo] = React.useState("");
-  const [aplicando, setAplicando] = React.useState(false);
+  const [guardando, setGuardando] = React.useState(false);
   const [verAviso, setVerAviso] = React.useState(false);
   React.useEffect(() => {
     let cancelado = false;
     const cargar = async () => {
       if (cancelado || !window.LMTApi || !window.LMTApi.enabled) return;
       try {
-        const d = await window.LMTApi.festivalAjustes();
-        if (!cancelado) setAj(d);
+        const [d, c] = await Promise.all([window.LMTApi.festivalAjustes(), window.LMTApi.festivalCatalogo()]);
+        if (cancelado) return;
+        setAj(d);
+        setBorrador(sinCalculados(d));
+        setCatalogo(c);
       } catch (e) {
         if (!cancelado) setError(mensajeError(e));
       }
@@ -12036,36 +13916,89 @@ const FestivalPage = () => {
       window.removeEventListener("lmt:auth", cargar);
     };
   }, []);
-  if (!aj) {
+  React.useEffect(() => {
+    try {
+      sessionStorage.setItem("lmt.cfg.pestana", pestana);
+    } catch (_) {}
+  }, [pestana]);
+  const sucio = React.useMemo(() => !!(aj && borrador && JSON.stringify(sinCalculados(aj)) !== JSON.stringify(borrador)), [aj, borrador]);
+  React.useEffect(() => {
+    if (!sucio) return undefined;
+    const avisar = e => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [sucio]);
+  if (!aj || !borrador || !catalogo) {
     return React.createElement(AdminShell, {
       active: "festival"
+    }, React.createElement("div", {
+      className: "admin-page"
     }, error ? React.createElement(Aviso, null, error) : React.createElement("p", {
       className: "mono",
       style: {
         color: "var(--ink-3)"
       }
-    }, "Cargando\u2026"));
+    }, "Cargando\u2026")));
   }
-  const guardar = async siguiente => {
+  const b = borrador;
+  const v = ruta => leerDe(b, ruta);
+  const p = ruta => valor => {
+    setOk("");
+    setBorrador(x => ponerEn(x, ruta, valor));
+  };
+  const problemas = [...problemasPreguntas((b.encuesta || {}).preguntas, "Encuesta"), ...problemasPreguntas((b.inscripcion || {}).preguntas, "Inscripción")];
+  const aplicar = d => {
+    setAj(d);
+    if (window.LMTFestival && window.LMTFestival.poner) window.LMTFestival.poner(d);
+  };
+  const guardar = async () => {
     setError("");
     setOk("");
+    if (problemas.length) {
+      setError(problemas[0]);
+      return;
+    }
+    setGuardando(true);
     try {
-      const d = await window.LMTApi.guardarFestivalAjustes(siguiente);
-      setAj(d);
-      if (window.LMTFestival) await window.LMTFestival.cargar();
-      setOk("Guardado.");
+      const d = await window.LMTApi.guardarFestivalAjustes(borrador);
+      aplicar(d);
+      setBorrador(sinCalculados(d));
+      setOk("Guardado. Los cambios ya se ven en toda la plataforma.");
     } catch (e) {
       setError(mensajeError(e));
+    } finally {
+      setGuardando(false);
     }
   };
-  const subirFondo = async (destino, archivo) => {
+  const descartar = () => {
+    setBorrador(sinCalculados(aj));
+    setError("");
+    setOk("");
+  };
+  const mezclarImagenes = d => setBorrador(x => ({
+    ...x,
+    marca: {
+      ...(x.marca || {}),
+      logo: (d.marca || {}).logo || ""
+    },
+    pasaporte: {
+      ...(x.pasaporte || {}),
+      portada: (d.pasaporte || {}).portada || "",
+      contraportada: (d.pasaporte || {}).contraportada || "",
+      hojas: (d.pasaporte || {}).hojas || []
+    }
+  }));
+  const subirImagen = async (destino, archivo) => {
     setError("");
     setOk("");
     setSubiendo(destino);
     try {
       const d = await window.LMTApi.subirFondoPasaporte(destino, archivo);
-      setAj(d);
-      if (window.LMTFestival) await window.LMTFestival.cargar();
+      aplicar(d);
+      mezclarImagenes(d);
       setOk("Imagen subida.");
     } catch (e) {
       setError(mensajeError(e));
@@ -12073,87 +14006,368 @@ const FestivalPage = () => {
       setSubiendo("");
     }
   };
-  const quitarFondo = async (destino, indice) => {
+  const quitarImagen = async (destino, indice) => {
     setError("");
     setOk("");
     try {
       const d = await window.LMTApi.quitarFondoPasaporte(destino, indice);
-      setAj(d);
-      if (window.LMTFestival) await window.LMTFestival.cargar();
+      aplicar(d);
+      mezclarImagenes(d);
     } catch (e) {
       setError(mensajeError(e));
     }
   };
-  const aplicar = async () => {
-    setError("");
+  const cargarPlantilla = clave => {
+    const pl = (catalogo.plantillas || {})[clave];
+    if (!pl) return;
+    if (!window.confirm("Se reemplazarán los textos, colores, preguntas y campos del borrador por los de «" + pl.titulo + "». Las imágenes subidas se conservan. No se guarda nada hasta que pulses «Guardar cambios». ¿Continuar?")) return;
+    const nuevo = clonarAjustes(pl.ajustes);
+    nuevo.marca = {
+      ...(nuevo.marca || {}),
+      logo: (b.marca || {}).logo || ""
+    };
+    nuevo.pasaporte = {
+      ...(nuevo.pasaporte || {}),
+      portada: (b.pasaporte || {}).portada || "",
+      contraportada: (b.pasaporte || {}).contraportada || "",
+      hojas: (b.pasaporte || {}).hojas || []
+    };
+    setBorrador(nuevo);
+    setOk("Plantilla cargada en el borrador. Revísala y pulsa «Guardar cambios».");
+  };
+  const aplicarPaleta = clave => {
+    const pal = (catalogo.paletas || {})[clave];
+    if (!pal) return;
     setOk("");
-    setAplicando(true);
-    try {
-      const d = await window.LMTApi.festivalAjustes();
-      setAj(d);
-      if (window.LMTFestival) await window.LMTFestival.cargar();
-      const n = (d.pasaporte && d.pasaporte.hojas || []).length;
-      setOk(`Aplicado. El pasaporte usa ${n === 0 ? "el papel del sistema" : n + (n === 1 ? " imagen" : " imágenes") + " en las hojas internas"}${d.pasaporte && d.pasaporte.portada ? ", con portada propia" : ""}.`);
-    } catch (e) {
-      setError(mensajeError(e));
-    } finally {
-      setAplicando(false);
-    }
+    setBorrador(x => ({
+      ...x,
+      tema: {
+        ...(x.tema || {}),
+        preset: clave,
+        colores: {
+          ...pal.colores
+        },
+        fuentes: {
+          ...pal.fuentes
+        },
+        titulos_cursiva: !!pal.titulos_cursiva,
+        titulos_peso: pal.titulos_peso
+      }
+    }));
   };
-  const hojas = aj.pasaporte && aj.pasaporte.hojas || [];
+  const fuentes = catalogo.fuentes || {};
+  const basePaleta = ((catalogo.paletas || {}).institucional || {}).colores || {};
+  const campos = (b.inscripcion || {}).campos || {};
+  const hojas = b.pasaporte && b.pasaporte.hojas || [];
   return React.createElement(AdminShell, {
     active: "festival"
   }, React.createElement("div", {
-    className: "mono"
-  }, "Personalizaci\xF3n"), React.createElement("h1", {
+    className: "admin-page",
     style: {
-      fontFamily: "var(--font-display)",
-      fontStyle: "italic",
-      fontSize: 40,
-      fontWeight: 400,
-      margin: "6px 0 10px",
-      lineHeight: 1
+      maxWidth: 1080,
+      paddingBottom: 120
     }
-  }, "C\xF3mo se ve el festival."), React.createElement("p", {
+  }, React.createElement("div", {
+    className: "mono"
+  }, "Configuraci\xF3n del evento"), React.createElement("h1", {
+    className: "titulo-xl"
+  }, nombreEvento(b)), React.createElement("p", {
     style: {
       fontSize: 14,
       color: "var(--ink-2)",
       lineHeight: 1.6,
-      maxWidth: 620,
-      marginBottom: 22
+      maxWidth: 680,
+      margin: "10px 0 18px"
     }
-  }, "Todo lo de aqu\xED tiene un valor que ya funciona. Lo que no toques se queda como est\xE1 y el pasaporte conserva su dise\xF1o."), React.createElement(Aviso, null, error), React.createElement(Aviso, {
+  }, "Todo lo que identifica a este evento: su nombre y sus datos, el logo, los colores y la letra, lo que se pregunta al votar y al inscribir un espacio, y los textos del pasaporte. Los cambios se preparan en un borrador y se aplican al pulsar \xABGuardar cambios\xBB."), React.createElement("details", {
+    style: {
+      border: "1px solid var(--line)",
+      borderRadius: "var(--r-md)",
+      padding: "12px 16px",
+      marginBottom: 20,
+      background: "var(--paper-2)"
+    }
+  }, React.createElement("summary", {
+    style: {
+      cursor: "pointer",
+      fontSize: 14,
+      fontWeight: 600
+    }
+  }, "Empezar desde una plantilla"), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+      gap: 12,
+      marginTop: 12
+    }
+  }, Object.entries(catalogo.plantillas || {}).map(([clave, pl]) => React.createElement("div", {
+    key: clave,
+    style: {
+      border: "1px solid var(--line-2)",
+      borderRadius: "var(--r-md)",
+      padding: 14,
+      background: "var(--paper)"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 15
+    }
+  }, pl.titulo), React.createElement("p", {
+    className: "ayuda",
+    style: {
+      margin: "6px 0 10px"
+    }
+  }, pl.descripcion), React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost",
+    onClick: () => cargarPlantilla(clave)
+  }, "Cargar en el borrador"))))), React.createElement("div", {
+    role: "tablist",
+    "aria-label": "Secciones de la configuraci\xF3n",
+    style: {
+      display: "flex",
+      gap: 6,
+      overflowX: "auto",
+      paddingBottom: 4,
+      marginBottom: 22,
+      borderBottom: "1px solid var(--line)",
+      scrollbarWidth: "thin"
+    }
+  }, PESTANAS_EVENTO.map(([id, texto]) => React.createElement("button", {
+    key: id,
+    type: "button",
+    role: "tab",
+    "aria-selected": pestana === id,
+    onClick: () => setPestana(id),
+    style: {
+      padding: "10px 14px",
+      minHeight: 44,
+      whiteSpace: "nowrap",
+      fontSize: 14,
+      borderBottom: "2px solid " + (pestana === id ? "var(--ink)" : "transparent"),
+      fontWeight: pestana === id ? 700 : 400,
+      color: pestana === id ? "var(--ink)" : "var(--ink-2)"
+    }
+  }, texto))), React.createElement(Aviso, null, error), React.createElement(Aviso, {
     tipo: "ok"
-  }, ok), React.createElement(BloqueForm, {
-    titulo: "Nombre de la edici\xF3n"
-  }, React.createElement("p", {
+  }, ok), React.createElement("div", {
+    style: {
+      height: 14
+    }
+  }), pestana === "evento" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Nombre y portada",
+    nota: "El nombre sale junto al logo en toda la aplicaci\xF3n, en el t\xEDtulo de la pesta\xF1a del navegador y en los correos."
+  }, React.createElement(CampoCfg, {
+    id: "ev-nombre",
+    etiqueta: "Nombre del evento",
+    valor: v("evento.nombre"),
+    max: 60,
+    onCambio: p("evento.nombre")
+  }), React.createElement(CampoCfg, {
+    id: "ev-lema",
+    etiqueta: "Lema del tablero p\xFAblico",
+    valor: v("evento.lema"),
+    max: 140,
+    onCambio: p("evento.lema"),
+    ayuda: "El titular grande del ranking. Su \xFAltima palabra sale en el color destacado."
+  }), React.createElement(CampoCfg, {
+    id: "ev-desc",
+    etiqueta: "Descripci\xF3n",
+    valor: v("evento.descripcion"),
+    max: 600,
+    largo: true,
+    onCambio: p("evento.descripcion"),
+    ayuda: "El p\xE1rrafo bajo el lema: qu\xE9 es y c\xF3mo se participa."
+  }), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "ev-ptit",
+    etiqueta: "T\xEDtulo de la portada (/)",
+    valor: v("evento.portada_titulo"),
+    max: 140,
+    onCambio: p("evento.portada_titulo")
+  }), React.createElement(CampoCfg, {
+    id: "ev-ptxt",
+    etiqueta: "Texto de la portada",
+    valor: v("evento.portada_texto"),
+    max: 600,
+    largo: true,
+    onCambio: p("evento.portada_texto")
+  }))), React.createElement(BloqueForm, {
+    titulo: "Datos b\xE1sicos",
+    nota: "Se muestran en la portada y en el tablero principal. Lo que dejes vac\xEDo no aparece."
+  }, React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "ev-fi",
+    tipo: "date",
+    etiqueta: "Fecha de inicio",
+    valor: v("evento.fecha_inicio"),
+    max: 10,
+    onCambio: p("evento.fecha_inicio")
+  }), React.createElement(CampoCfg, {
+    id: "ev-ff",
+    tipo: "date",
+    etiqueta: "Fecha de cierre",
+    valor: v("evento.fecha_fin"),
+    max: 10,
+    onCambio: p("evento.fecha_fin")
+  })), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "ev-hor",
+    etiqueta: "Horario",
+    valor: v("evento.horario"),
+    max: 120,
+    placeholder: "9:00 a. m. a 6:00 p. m.",
+    onCambio: p("evento.horario")
+  }), React.createElement(CampoCfg, {
+    id: "ev-lug",
+    etiqueta: "Lugar",
+    valor: v("evento.lugar"),
+    max: 160,
+    placeholder: "Plaza de Nari\xF1o",
+    onCambio: p("evento.lugar")
+  })), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "ev-ciu",
+    etiqueta: "Ciudad",
+    valor: v("evento.ciudad"),
+    max: 80,
+    onCambio: p("evento.ciudad")
+  }), React.createElement(CampoCfg, {
+    id: "ev-org",
+    etiqueta: "Organiza",
+    valor: v("evento.organizador"),
+    max: 160,
+    onCambio: p("evento.organizador")
+  })), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "ev-web",
+    tipo: "url",
+    etiqueta: "Sitio web",
+    valor: v("evento.sitio_web"),
+    max: 255,
+    placeholder: "https://\u2026",
+    onCambio: p("evento.sitio_web")
+  }), React.createElement(CampoCfg, {
+    id: "ev-con",
+    etiqueta: "Contacto",
+    valor: v("evento.contacto"),
+    max: 160,
+    placeholder: "Correo o tel\xE9fono",
+    onCambio: p("evento.contacto")
+  })), React.createElement(CampoCfg, {
+    id: "ev-pie",
+    etiqueta: "Pie de p\xE1gina del tablero",
+    valor: v("evento.pie_pagina"),
+    max: 160,
+    onCambio: p("evento.pie_pagina")
+  }), React.createElement(Interruptor, {
+    id: "ev-mostrar",
+    etiqueta: "Mostrar los datos del evento en la portada y el tablero",
+    valor: v("evento.mostrar_datos") !== false,
+    onCambio: p("evento.mostrar_datos")
+  }), React.createElement("div", {
+    style: {
+      border: "1px dashed var(--line-2)",
+      borderRadius: "var(--r-md)",
+      padding: 16
+    }
+  }, React.createElement("div", {
     className: "mono",
     style: {
-      color: "var(--ink-3)",
-      lineHeight: 1.5
+      marginBottom: 10
     }
-  }, "El rengl\xF3n que va bajo \xABLa Mejor Taza\xBB en toda la aplicaci\xF3n y en la cabecera de los correos que salen del sistema."), React.createElement("div", {
-    className: "field",
+  }, "As\xED se ver\xE1n"), filasDatosEvento(b).length ? React.createElement("div", {
     style: {
-      maxWidth: 340
+      display: "grid",
+      gap: 12,
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 170px), 1fr))"
     }
-  }, React.createElement("label", {
-    htmlFor: "fm-pie"
-  }, "Texto bajo el logotipo"), React.createElement("input", {
-    id: "fm-pie",
-    maxLength: 60,
-    value: aj.marca && aj.marca.pie || "",
-    placeholder: PIE_MARCA,
-    onChange: e => setAj({
-      ...aj,
-      marca: {
-        ...(aj.marca || {}),
-        pie: e.target.value
-      }
-    })
-  }), React.createElement("span", {
+  }, filasDatosEvento(b).map(([k, val]) => React.createElement("div", {
+    key: k
+  }, React.createElement("div", {
+    className: "mono"
+  }, k), React.createElement("div", {
+    style: {
+      fontSize: 14
+    }
+  }, val)))) : React.createElement("p", {
     className: "ayuda"
-  }, "Si lo dejas vac\xEDo vuelve a \xAB", PIE_MARCA, "\xBB.")), React.createElement("div", {
+  }, "Todav\xEDa no hay datos que mostrar.")))), pestana === "marca" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Logo",
+    nota: "Va a la izquierda del nombre en toda la aplicaci\xF3n, en la portada del pasaporte y como icono de la pesta\xF1a. PNG con fondo transparente es lo mejor. Se guarda al subirlo."
+  }, React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(FondoRanura, {
+    titulo: "Logo del evento",
+    url: urlImagen((b.marca || {}).logo),
+    contener: true,
+    vacio: "Sin logo: se usa el s\xEDmbolo",
+    subiendo: subiendo === "logo",
+    onSubir: f => subirImagen("logo", f),
+    onQuitar: () => quitarImagen("logo")
+  }), React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", {
+    htmlFor: "mc-simbolo"
+  }, "S\xEDmbolo cuando no hay logo"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap"
+    }
+  }, SIMBOLOS_MARCA.map(([k, t]) => React.createElement("button", {
+    key: k,
+    type: "button",
+    onClick: () => p("marca.simbolo")(k),
+    title: t,
+    "aria-pressed": ((b.marca || {}).simbolo || "pasaporte") === k,
+    style: {
+      padding: 8,
+      borderRadius: "var(--r-md)",
+      border: ((b.marca || {}).simbolo || "pasaporte") === k ? "2px solid var(--ink)" : "1px solid var(--line-2)",
+      background: "var(--paper)"
+    }
+  }, React.createElement(SimboloSvg, {
+    simbolo: k,
+    size: 36
+  }))))), React.createElement(Interruptor, {
+    id: "mc-nombre",
+    etiqueta: "Escribir el nombre junto al logo",
+    ayuda: "Desact\xEDvalo si el logo ya lleva el nombre escrito.",
+    valor: (b.marca || {}).mostrar_nombre !== false,
+    onCambio: p("marca.mostrar_nombre")
+  }), React.createElement(CampoCfg, {
+    id: "mc-pie",
+    etiqueta: "Texto bajo el nombre",
+    valor: v("marca.pie"),
+    max: 60,
+    onCambio: p("marca.pie"),
+    ayuda: "El rengl\xF3n peque\xF1o bajo el nombre. Tambi\xE9n encabeza los correos."
+  }))), React.createElement("div", {
     style: {
       border: "1px dashed var(--line-2)",
       borderRadius: "var(--r-sm)",
@@ -12172,9 +14386,19 @@ const FestivalPage = () => {
       alignItems: "center",
       gap: 10
     }
-  }, React.createElement(LogoTaza, {
+  }, (b.marca || {}).logo ? React.createElement("img", {
+    src: urlImagen(b.marca.logo),
+    alt: "",
+    style: {
+      height: 28,
+      width: "auto",
+      maxWidth: 90,
+      objectFit: "contain"
+    }
+  }) : React.createElement(SimboloSvg, {
+    simbolo: (b.marca || {}).simbolo || "pasaporte",
     size: 28
-  }), React.createElement("div", {
+  }), (b.marca || {}).mostrar_nombre !== false && React.createElement("div", {
     style: {
       lineHeight: 1
     }
@@ -12182,41 +14406,557 @@ const FestivalPage = () => {
     style: {
       fontFamily: "var(--font-display)",
       fontSize: 20,
-      fontStyle: "italic"
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)"
     }
-  }, "La Mejor Taza"), React.createElement("div", {
+  }, nombreEvento(b)), React.createElement("div", {
     className: "mono",
     style: {
       fontSize: 9,
       marginTop: 2
     }
-  }, (aj.marca && aj.marca.pie || "").trim() || PIE_MARCA))))), React.createElement(BloqueForm, {
-    titulo: "Las tres valoraciones del voto"
-  }, React.createElement("p", {
+  }, pieDeMarca(b)))))), React.createElement(BloqueForm, {
+    titulo: "S\xEDmbolos del voto",
+    nota: "Los tres botones con los que se califica un espacio. El orden y su significado no cambian (peor, intermedio, mejor); cambian el dibujo y la palabra."
+  }, React.createElement("div", {
+    className: "grid-3"
+  }, [["malo", "Peor"], ["regular", "Intermedio"], ["bueno", "Mejor"]].map(([k, orden]) => React.createElement("div", {
+    key: k,
+    style: {
+      border: "1px solid var(--line-2)",
+      borderRadius: "var(--r-md)",
+      padding: 12,
+      textAlign: "center"
+    }
+  }, React.createElement("div", {
     className: "mono",
     style: {
-      color: "var(--ink-3)",
-      lineHeight: 1.5
+      marginBottom: 6
     }
-  }, "C\xF3mo se llaman las tres estrellas que punt\xFAa el visitante. Cambiar el nombre no toca lo ya votado: sigue siendo la misma valoraci\xF3n."), React.createElement("div", {
+  }, orden), React.createElement("input", {
+    value: v("simbolos.votos." + k + ".emoji") || "",
+    maxLength: 8,
+    "aria-label": "Emoji " + orden,
+    onChange: e => p("simbolos.votos." + k + ".emoji")(e.target.value),
+    style: {
+      width: 70,
+      fontSize: 34,
+      textAlign: "center",
+      border: "none",
+      borderBottom: "1px solid var(--line-2)",
+      background: "transparent"
+    }
+  }), React.createElement("input", {
+    value: v("simbolos.votos." + k + ".texto") || "",
+    maxLength: 24,
+    "aria-label": "Palabra " + orden,
+    onChange: e => p("simbolos.votos." + k + ".texto")(e.target.value),
+    style: {
+      width: "100%",
+      textAlign: "center",
+      marginTop: 8,
+      border: "none",
+      borderBottom: "1px solid var(--line-2)",
+      background: "transparent",
+      fontSize: 14
+    }
+  })))), React.createElement("span", {
+    className: "ayuda"
+  }, "Pega un emoji en cada casilla (en el tel\xE9fono, desde el teclado de emoji).")), React.createElement(BloqueForm, {
+    titulo: "Sello y podio"
+  }, React.createElement("div", {
     className: "grid-2"
-  }, [["innovacion", "Primera"], ["atencion", "Segunda"], ["calidad", "Tercera"]].map(([k, orden]) => React.createElement("div", {
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, React.createElement(CampoCfg, {
+    id: "mc-sello",
+    etiqueta: "Palabra dentro del sello",
+    valor: v("simbolos.sello"),
+    max: 18,
+    onCambio: p("simbolos.sello"),
+    ayuda: "Se escribe en may\xFAsculas. De f\xE1brica: VISITADO."
+  }), React.createElement(CampoCfg, {
+    id: "mc-primero",
+    etiqueta: "R\xF3tulo del primer lugar",
+    valor: v("simbolos.primer_lugar"),
+    max: 40,
+    onCambio: p("simbolos.primer_lugar"),
+    ayuda: "Junto al \xAB#1\xBB del podio en el tablero."
+  })), React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      background: "var(--paper-2)",
+      borderRadius: "var(--r-md)",
+      padding: 16
+    }
+  }, React.createElement("div", {
+    style: {
+      position: "relative"
+    }
+  }, React.createElement(SelloVista, {
+    palabra: (v("simbolos.sello") || "VISITADO").toUpperCase()
+  })))))), pestana === "apariencia" && React.createElement("div", {
+    className: "editor-2col"
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Paletas",
+    nota: "Un punto de partida: aplica los colores y la letra de una vez. Despu\xE9s puedes cambiar cada uno."
+  }, React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
+      gap: 10
+    }
+  }, Object.entries(catalogo.paletas || {}).map(([clave, pal]) => React.createElement("button", {
+    key: clave,
+    type: "button",
+    onClick: () => aplicarPaleta(clave),
+    style: {
+      textAlign: "left",
+      padding: 12,
+      borderRadius: "var(--r-md)",
+      border: (b.tema || {}).preset === clave ? "2px solid var(--ink)" : "1px solid var(--line-2)",
+      background: "var(--paper)"
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 0,
+      height: 22,
+      borderRadius: 4,
+      overflow: "hidden",
+      marginBottom: 8
+    }
+  }, ["paper", "paper-2", "ink", "grano", "galeras", "meh"].map(k => React.createElement("span", {
+    key: k,
+    style: {
+      flex: 1,
+      background: pal.colores[k]
+    }
+  }))), React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, pal.nombre), React.createElement("div", {
+    className: "ayuda"
+  }, (fuentes[pal.fuentes.display] || {}).nombre))))), React.createElement(BloqueForm, {
+    titulo: "Tipograf\xEDa"
+  }, [["display", "Títulos"], ["texto", "Texto"], ["meta", "Metadatos y etiquetas"]].map(([rol, et]) => React.createElement("div", {
     className: "field",
-    key: k
+    key: rol
   }, React.createElement("label", {
-    htmlFor: "fs-" + k
-  }, orden, " valoraci\xF3n"), React.createElement("input", {
-    id: "fs-" + k,
-    maxLength: 40,
-    value: aj.estrellas[k],
-    onChange: e => setAj({
-      ...aj,
-      estrellas: {
-        ...aj.estrellas,
-        [k]: e.target.value
+    htmlFor: "tp-" + rol
+  }, et), React.createElement("select", {
+    id: "tp-" + rol,
+    value: ((b.tema || {}).fuentes || {})[rol] || "",
+    onChange: e => {
+      p("tema.fuentes." + rol)(e.target.value);
+      p("tema.preset")("personalizado");
+    }
+  }, Object.entries(fuentes).map(([k, f]) => React.createElement("option", {
+    key: k,
+    value: k
+  }, f.nombre))), React.createElement("span", {
+    style: {
+      fontFamily: (fuentes[((b.tema || {}).fuentes || {})[rol]] || {}).pila,
+      fontSize: rol === "display" ? 22 : 15,
+      marginTop: 4
+    }
+  }, "Pasaporte de Nari\xF1o \xB7 \xC1\xC9\xCD\xD3\xDA \xF1 0123"))), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", {
+    htmlFor: "tp-peso"
+  }, "Peso de los t\xEDtulos"), React.createElement("select", {
+    id: "tp-peso",
+    value: (b.tema || {}).titulos_peso || 400,
+    onChange: e => {
+      p("tema.titulos_peso")(Number(e.target.value));
+      p("tema.preset")("personalizado");
+    }
+  }, [[300, "Fino"], [400, "Normal"], [500, "Medio"], [600, "Seminegrita"], [700, "Negrita"]].map(([n, t]) => React.createElement("option", {
+    key: n,
+    value: n
+  }, t)))), React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", {
+    htmlFor: "tp-esq"
+  }, "Esquinas"), React.createElement("select", {
+    id: "tp-esq",
+    value: (b.tema || {}).esquinas || "normal",
+    onChange: e => p("tema.esquinas")(e.target.value)
+  }, React.createElement("option", {
+    value: "recta"
+  }, "Casi rectas"), React.createElement("option", {
+    value: "normal"
+  }, "Normales"), React.createElement("option", {
+    value: "redondeada"
+  }, "Redondeadas")))), React.createElement(Interruptor, {
+    id: "tp-cursiva",
+    etiqueta: "T\xEDtulos en cursiva",
+    ayuda: (fuentes[((b.tema || {}).fuentes || {}).display] || {}).cursiva === false ? "La letra elegida para los títulos no tiene cursiva: el navegador la inclinaría a la fuerza." : "Luce con letras editoriales como Instrument Serif.",
+    valor: !!(b.tema || {}).titulos_cursiva,
+    onCambio: x => {
+      p("tema.titulos_cursiva")(x);
+      p("tema.preset")("personalizado");
+    }
+  })), GRUPOS_COLOR.map(([grupo, lista]) => React.createElement(BloqueForm, {
+    key: grupo,
+    titulo: grupo
+  }, lista.map(([k, et, ay]) => React.createElement(SelectorColor, {
+    key: k,
+    id: "col-" + k,
+    etiqueta: et,
+    ayuda: ay,
+    valor: ((b.tema || {}).colores || {})[k] || "",
+    base: basePaleta[k],
+    onCambio: x => {
+      p("tema.colores." + k)(x);
+      p("tema.preset")("personalizado");
+    }
+  })))), React.createElement("p", {
+    className: "ayuda"
+  }, "\xABbase\xBB devuelve el color al del tema institucional. Comprueba que el texto se lea bien sobre el fondo: la vista previa usa exactamente estos valores.")), React.createElement("aside", {
+    style: {
+      position: "sticky",
+      top: 24,
+      alignSelf: "start"
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 10
+    }
+  }, "Vista previa"), React.createElement(VistaTema, {
+    tema: b.tema,
+    catalogo: catalogo,
+    nombre: nombreEvento(b),
+    lema: textoCfg("evento", "lema", "¿Cuál es el mejor espacio?", b)
+  }))), pestana === "encuesta" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Textos del formulario de voto",
+    nota: "Lo que ve quien escanea el QR de un espacio."
+  }, React.createElement(CampoCfg, {
+    id: "en-tit",
+    etiqueta: "T\xEDtulo",
+    valor: v("encuesta.titulo"),
+    max: 120,
+    onCambio: p("encuesta.titulo")
+  }), React.createElement(CampoCfg, {
+    id: "en-ins",
+    etiqueta: "Instrucci\xF3n",
+    valor: v("encuesta.instrucciones"),
+    max: 200,
+    onCambio: p("encuesta.instrucciones")
+  }), React.createElement(CampoCfg, {
+    id: "en-emo",
+    etiqueta: "Pregunta sobre los emoji",
+    valor: v("encuesta.pregunta_emoji"),
+    max: 120,
+    onCambio: p("encuesta.pregunta_emoji"),
+    ayuda: "Tocar un emoji env\xEDa el voto, as\xED que todo lo dem\xE1s va antes."
+  }), React.createElement(CampoCfg, {
+    id: "en-aviso",
+    etiqueta: "Aviso de datos al pie",
+    valor: v("encuesta.aviso_datos"),
+    max: 200,
+    onCambio: p("encuesta.aviso_datos"),
+    ayuda: "Vac\xEDo = no se muestra."
+  })), React.createElement(BloqueForm, {
+    titulo: "\xBFCompraste algo?",
+    nota: "Alimenta el informe de Actividad econ\xF3mica. Desact\xEDvala si en el evento no se vende nada."
+  }, React.createElement(Interruptor, {
+    id: "en-compra",
+    etiqueta: "Preguntar si compr\xF3",
+    valor: v("encuesta.compra.activa") !== false,
+    onCambio: p("encuesta.compra.activa")
+  }), v("encuesta.compra.activa") !== false && React.createElement(React.Fragment, null, React.createElement(CampoCfg, {
+    id: "en-cp",
+    etiqueta: "Pregunta",
+    valor: v("encuesta.compra.pregunta"),
+    max: 120,
+    onCambio: p("encuesta.compra.pregunta")
+  }), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "en-csi",
+    etiqueta: "Bot\xF3n \xABs\xED\xBB",
+    valor: v("encuesta.compra.si"),
+    max: 40,
+    onCambio: p("encuesta.compra.si")
+  }), React.createElement(CampoCfg, {
+    id: "en-cno",
+    etiqueta: "Bot\xF3n \xABno\xBB",
+    valor: v("encuesta.compra.no"),
+    max: 40,
+    onCambio: p("encuesta.compra.no")
+  })), React.createElement(Interruptor, {
+    id: "en-cval",
+    etiqueta: "Preguntar cu\xE1nto gast\xF3",
+    valor: v("encuesta.compra.pide_valor") !== false,
+    onCambio: p("encuesta.compra.pide_valor")
+  }), v("encuesta.compra.pide_valor") !== false && React.createElement(CampoCfg, {
+    id: "en-cvp",
+    etiqueta: "Pregunta del importe",
+    valor: v("encuesta.compra.pregunta_valor"),
+    max: 120,
+    onCambio: p("encuesta.compra.pregunta_valor")
+  }))), React.createElement(BloqueForm, {
+    titulo: "Comentario"
+  }, React.createElement(Interruptor, {
+    id: "en-com",
+    etiqueta: "Permitir un comentario",
+    ayuda: "Sale en el tablero p\xFAblico y en la ficha del espacio.",
+    valor: v("encuesta.comentario.activo") !== false,
+    onCambio: p("encuesta.comentario.activo")
+  }), v("encuesta.comentario.activo") !== false && React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "en-cet",
+    etiqueta: "Texto del enlace",
+    valor: v("encuesta.comentario.etiqueta"),
+    max: 120,
+    onCambio: p("encuesta.comentario.etiqueta")
+  }), React.createElement(CampoCfg, {
+    id: "en-cph",
+    etiqueta: "Ejemplo dentro del campo",
+    valor: v("encuesta.comentario.placeholder"),
+    max: 160,
+    onCambio: p("encuesta.comentario.placeholder")
+  }))), React.createElement(BloqueForm, {
+    titulo: "Preguntas",
+    nota: "Las tres valoraciones con estrellas son del sistema: se pueden renombrar y desactivar, no borrar. A\xF1ade las tuyas debajo; las respuestas se ven en Encuesta y en el CSV de votos."
+  }, React.createElement(EditorPreguntas, {
+    idBase: "en",
+    tipos: ["estrellas", "si_no", "opcion", "texto"],
+    preguntas: v("encuesta.preguntas"),
+    onCambio: p("encuesta.preguntas")
+  }), React.createElement("a", {
+    href: "/admin/encuesta",
+    "data-route": true,
+    className: "mono",
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Ver los resultados de la encuesta \u2192"))), pestana === "inscripcion" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Formulario abierto",
+    nota: "Con la inscripci\xF3n cerrada, /inscripcion muestra el mensaje de abajo y el servidor rechaza solicitudes nuevas. Los espacios se siguen pudiendo crear desde el panel."
+  }, React.createElement(Interruptor, {
+    id: "in-abierta",
+    etiqueta: "Inscripci\xF3n p\xFAblica abierta",
+    valor: !!v("inscripcion.abierta"),
+    onCambio: p("inscripcion.abierta")
+  }), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "in-cierre",
+    tipo: "date",
+    etiqueta: "Cierre autom\xE1tico (opcional)",
+    valor: v("inscripcion.cierre"),
+    max: 10,
+    onCambio: p("inscripcion.cierre"),
+    ayuda: "Se cierra sola al terminar ese d\xEDa (hora de Colombia)."
+  }), React.createElement("div", null)), React.createElement(CampoCfg, {
+    id: "in-msgc",
+    etiqueta: "Mensaje con la inscripci\xF3n cerrada",
+    valor: v("inscripcion.mensaje_cerrada"),
+    max: 400,
+    largo: true,
+    onCambio: p("inscripcion.mensaje_cerrada")
+  })), React.createElement(BloqueForm, {
+    titulo: "Encabezado del formulario"
+  }, React.createElement(CampoCfg, {
+    id: "in-tit",
+    etiqueta: "T\xEDtulo",
+    valor: v("inscripcion.titulo"),
+    max: 120,
+    onCambio: p("inscripcion.titulo")
+  }), React.createElement(CampoCfg, {
+    id: "in-intro",
+    etiqueta: "Introducci\xF3n",
+    valor: v("inscripcion.intro"),
+    max: 800,
+    largo: true,
+    onCambio: p("inscripcion.intro")
+  })), React.createElement(BloqueForm, {
+    titulo: "Campos",
+    nota: "Qu\xE9 se pide, con qu\xE9 texto y si es obligatorio. El editor de espacios del panel pide lo mismo. Un campo que dejes de pedir conserva los datos que ya ten\xEDa."
+  }, GRUPOS_INSCRIPCION.map(([grupo, titulo]) => {
+    const claves = Object.keys(campos).filter(k => campos[k].grupo === grupo);
+    if (!claves.length) return null;
+    const seccion = ["ubicacion", "participa", "linea", "detalle"].includes(grupo) ? grupo : null;
+    return React.createElement("div", {
+      key: grupo
+    }, React.createElement("div", {
+      className: "mono",
+      style: {
+        margin: "6px 0 2px"
       }
-    })
-  }))))), React.createElement(BloqueForm, {
+    }, titulo), seccion && React.createElement("div", {
+      className: "grid-2",
+      style: {
+        margin: "6px 0 8px"
+      }
+    }, React.createElement(CampoCfg, {
+      id: "sec-t-" + grupo,
+      etiqueta: "T\xEDtulo del bloque",
+      valor: v("inscripcion.secciones." + seccion + ".titulo"),
+      max: 80,
+      onCambio: p("inscripcion.secciones." + seccion + ".titulo")
+    }), React.createElement(CampoCfg, {
+      id: "sec-n-" + grupo,
+      etiqueta: "Nota del bloque",
+      valor: v("inscripcion.secciones." + seccion + ".nota"),
+      max: 400,
+      onCambio: p("inscripcion.secciones." + seccion + ".nota")
+    })), claves.map(k => React.createElement(FilaCampo, {
+      key: k,
+      clave: k,
+      campo: campos[k],
+      onCambio: c => p("inscripcion.campos." + k)(c)
+    })));
+  })), React.createElement(BloqueForm, {
+    titulo: "Preguntas adicionales",
+    nota: "Preguntas propias de este evento. Salen en un bloque antes de \xABC\xF3mo vas a entrar\xBB. Las marcadas como p\xFAblicas se ven en la ficha del espacio."
+  }, React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "sec-t-extra",
+    etiqueta: "T\xEDtulo del bloque",
+    valor: v("inscripcion.secciones.extra.titulo"),
+    max: 80,
+    onCambio: p("inscripcion.secciones.extra.titulo")
+  }), React.createElement(CampoCfg, {
+    id: "sec-n-extra",
+    etiqueta: "Nota del bloque",
+    valor: v("inscripcion.secciones.extra.nota"),
+    max: 400,
+    onCambio: p("inscripcion.secciones.extra.nota")
+  })), React.createElement(EditorPreguntas, {
+    idBase: "ip",
+    conPublica: true,
+    tipos: ["texto", "parrafo", "numero", "fecha", "si_no", "opcion", "multiple"],
+    preguntas: v("inscripcion.preguntas"),
+    onCambio: p("inscripcion.preguntas")
+  })), React.createElement("a", {
+    href: "/inscripcion",
+    "data-route": true,
+    className: "mono",
+    style: {
+      color: "var(--grano)"
+    }
+  }, "Ver el formulario p\xFAblico (con lo guardado) \u2192")), pestana === "pasaporte" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Portada y hoja de datos"
+  }, React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "pp-eti",
+    etiqueta: "R\xF3tulo de la portada",
+    valor: v("pasaporte.etiqueta"),
+    max: 40,
+    onCambio: p("pasaporte.etiqueta")
+  }), React.createElement(CampoCfg, {
+    id: "pp-tit",
+    etiqueta: "T\xEDtulo de la portada",
+    valor: v("pasaporte.titulo_portada"),
+    max: 60,
+    onCambio: p("pasaporte.titulo_portada"),
+    placeholder: nombreEvento(b),
+    ayuda: "Vac\xEDo = el nombre del evento."
+  })), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "pp-l1",
+    etiqueta: "Lugar (l\xEDnea 1)",
+    valor: v("pasaporte.lugar_1"),
+    max: 30,
+    onCambio: p("pasaporte.lugar_1")
+  }), React.createElement(CampoCfg, {
+    id: "pp-l2",
+    etiqueta: "Lugar (l\xEDnea 2)",
+    valor: v("pasaporte.lugar_2"),
+    max: 30,
+    onCambio: p("pasaporte.lugar_2")
+  })), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "pp-e1",
+    etiqueta: "Encabezado de la hoja de datos (1)",
+    valor: v("pasaporte.encabezado_1"),
+    max: 40,
+    onCambio: p("pasaporte.encabezado_1")
+  }), React.createElement(CampoCfg, {
+    id: "pp-e2",
+    etiqueta: "Encabezado de la hoja de datos (2)",
+    valor: v("pasaporte.encabezado_2"),
+    max: 40,
+    onCambio: p("pasaporte.encabezado_2")
+  })), React.createElement(CampoCfg, {
+    id: "pp-pre",
+    etiqueta: "Prefijo del n\xFAmero de pasaporte",
+    valor: v("pasaporte.prefijo"),
+    max: 4,
+    onCambio: x => p("pasaporte.prefijo")(x.toUpperCase().replace(/[^A-Z]/g, "")),
+    ayuda: "Hasta 4 letras. Así: " + (v("pasaporte.prefijo") || "NAR") + "-K7Q2-M4XP. Cambiarlo cambia el número que ve todo el mundo."
+  })), React.createElement(BloqueForm, {
+    titulo: "Textos"
+  }, React.createElement(CampoCfg, {
+    id: "pp-inv",
+    etiqueta: "Invitaci\xF3n (pasaporte vac\xEDo)",
+    valor: v("pasaporte.invitacion"),
+    max: 120,
+    onCambio: p("pasaporte.invitacion")
+  }), React.createElement(CampoCfg, {
+    id: "pp-ct",
+    etiqueta: "Cierre: t\xEDtulo",
+    valor: v("pasaporte.cierre_titulo"),
+    max: 120,
+    onCambio: p("pasaporte.cierre_titulo")
+  }), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "pp-cb",
+    etiqueta: "Cierre: bot\xF3n",
+    valor: v("pasaporte.cierre_boton"),
+    max: 60,
+    onCambio: p("pasaporte.cierre_boton")
+  }), React.createElement(CampoCfg, {
+    id: "pp-cf",
+    etiqueta: "Contraportada: firma",
+    valor: v("pasaporte.cierre_firma"),
+    max: 60,
+    onCambio: p("pasaporte.cierre_firma")
+  }))), React.createElement(BloqueForm, {
     titulo: "Rejilla de \xABMi recorrido\xBB"
   }, React.createElement("div", {
     className: "grid-2"
@@ -12227,145 +14967,44 @@ const FestivalPage = () => {
     htmlFor: "fr-" + k
   }, etiqueta), React.createElement("select", {
     id: "fr-" + k,
-    value: aj.recorrido[k],
-    onChange: e => setAj({
-      ...aj,
-      recorrido: {
-        ...aj.recorrido,
-        [k]: Number(e.target.value)
-      }
-    })
+    value: v("recorrido." + k) || 1,
+    onChange: e => p("recorrido." + k)(Number(e.target.value))
   }, Array.from({
     length: max
   }, (_, i) => i + 1).map(n => React.createElement("option", {
     key: n,
     value: n
   }, n))))))), React.createElement(BloqueForm, {
-    titulo: "Pol\xEDtica de tratamiento de datos"
-  }, React.createElement("p", {
-    className: "mono",
-    style: {
-      color: "var(--ink-3)",
-      lineHeight: 1.5
-    }
-  }, "Es lo que lee quien se inscribe al pulsar \xABLeer la pol\xEDtica de tratamiento de datos\xBB, junto a la casilla de autorizaci\xF3n. Deja una l\xEDnea en blanco entre p\xE1rrafos."), React.createElement("div", {
-    className: "field"
-  }, React.createElement("label", {
-    htmlFor: "fd-texto"
-  }, "Texto del aviso"), React.createElement("textarea", {
-    id: "fd-texto",
-    rows: 12,
-    maxLength: 8000,
-    value: aj.datos && aj.datos.texto || "",
-    onChange: e => setAj({
-      ...aj,
-      datos: {
-        ...(aj.datos || {}),
-        texto: e.target.value
-      }
-    }),
-    style: {
-      border: "1px solid var(--line-2)",
-      borderRadius: "var(--r-md)",
-      padding: 12,
-      lineHeight: 1.6,
-      resize: "vertical"
-    }
-  }), React.createElement("span", {
-    className: "ayuda"
-  }, (aj.datos && aj.datos.texto || "").length.toLocaleString(), " de 8.000 caracteres. Vac\xEDo = vuelve al texto que trae el sistema.")), React.createElement("div", {
-    className: "field"
-  }, React.createElement("label", {
-    htmlFor: "fd-enlace"
-  }, "Enlace a la pol\xEDtica completa"), React.createElement("input", {
-    id: "fd-enlace",
-    type: "url",
-    inputMode: "url",
-    maxLength: 400,
-    value: aj.datos && aj.datos.enlace || "",
-    placeholder: "https://www.narino.gov.co/\u2026",
-    onChange: e => setAj({
-      ...aj,
-      datos: {
-        ...(aj.datos || {}),
-        enlace: e.target.value
-      }
-    })
-  }), React.createElement("span", {
-    className: "ayuda"
-  }, "Sale al final del aviso como \xABPol\xEDtica de Tratamiento de Datos Personales de la Gobernaci\xF3n de Nari\xF1o\xBB. D\xE9jalo vac\xEDo para no mostrar ning\xFAn enlace.")), React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      alignItems: "center"
-    }
-  }, React.createElement("button", {
-    type: "button",
-    className: "btn btn-ghost",
-    onClick: () => setVerAviso(true)
-  }, "Ver c\xF3mo queda el aviso"))), React.createElement(AvisoDatos, {
-    abierto: verAviso,
-    onCerrar: () => setVerAviso(false),
-    datos: aj.datos
-  }), React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: () => guardar(aj),
-    style: {
-      marginBottom: 28
-    }
-  }, "Guardar textos y columnas"), React.createElement("div", {
-    className: "mono",
-    style: {
-      margin: "8px 0 12px"
-    }
-  }, "Fondos del pasaporte"), React.createElement("p", {
-    style: {
-      fontSize: 13,
-      color: "var(--ink-2)",
-      lineHeight: 1.6,
-      maxWidth: 620,
-      marginBottom: 16
-    }
-  }, "Si no subes nada, el pasaporte usa el papel que trae el sistema. Las im\xE1genes se ven ", React.createElement("strong", {
-    style: {
-      fontWeight: 500
-    }
-  }, "detr\xE1s del texto"), ", as\xED que conviene que sean claras y sin mucho detalle: una textura, no una foto."), React.createElement("div", {
+    titulo: "Fondos del pasaporte",
+    nota: "Si no subes nada, el pasaporte usa el papel del sistema. Las im\xE1genes se ven detr\xE1s del texto: mejor claras y sin mucho detalle. Se guardan al subirlas."
+  }, React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-      gap: 12,
-      marginBottom: 20
+      gap: 12
     }
   }, React.createElement(FondoRanura, {
     titulo: "Portada",
-    url: urlImagen(aj.pasaporte.portada),
+    url: urlImagen((b.pasaporte || {}).portada),
     subiendo: subiendo === "portada",
     ayuda: "La tapa del pasaporte. Sobre ella va el nombre del portador en claro.",
-    onSubir: f => subirFondo("portada", f),
-    onQuitar: () => quitarFondo("portada")
+    onSubir: f => subirImagen("portada", f),
+    onQuitar: () => quitarImagen("portada")
   }), React.createElement(FondoRanura, {
     titulo: "Contraportada",
-    url: urlImagen(aj.pasaporte.contraportada),
+    url: urlImagen((b.pasaporte || {}).contraportada),
     subiendo: subiendo === "contraportada",
     ayuda: "La tapa de atr\xE1s, la que cierra el libro.",
-    onSubir: f => subirFondo("contraportada", f),
-    onQuitar: () => quitarFondo("contraportada")
+    onSubir: f => subirImagen("contraportada", f),
+    onQuitar: () => quitarImagen("contraportada")
   })), React.createElement("div", {
-    className: "mono",
-    style: {
-      margin: "20px 0 10px"
-    }
+    className: "mono"
   }, "Hojas internas \xB7 ", hojas.length, " ", hojas.length === 1 ? "imagen" : "imágenes"), React.createElement("p", {
+    className: "ayuda",
     style: {
-      fontSize: 13,
-      color: "var(--ink-2)",
-      lineHeight: 1.6,
-      maxWidth: 620,
-      marginBottom: 14
+      margin: 0
     }
-  }, "Se reparten en orden por las hojas de dentro. Si hay m\xE1s hojas que im\xE1genes, se repiten desde el principio, as\xED que con dos o tres ya se nota variedad sin que el pasaporte pese."), React.createElement("div", {
+  }, "Se reparten en orden por las hojas de dentro y se repiten cuando se acaban."), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
@@ -12396,7 +15035,7 @@ const FestivalPage = () => {
     }
   }, i + 1), React.createElement("button", {
     type: "button",
-    onClick: () => quitarFondo("hojas", i),
+    onClick: () => quitarImagen("hojas", i),
     className: "mono",
     style: {
       background: "none",
@@ -12424,36 +15063,163 @@ const FestivalPage = () => {
     onChange: e => {
       const f = e.target.files && e.target.files[0];
       e.target.value = "";
-      if (f) subirFondo("hojas", f);
+      if (f) subirImagen("hojas", f);
     }
-  }))), React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      alignItems: "center",
-      marginTop: 22
-    }
-  }, React.createElement("button", {
-    className: "btn btn-primary",
-    disabled: aplicando,
-    onClick: aplicar,
-    style: {
-      justifyContent: "center"
-    }
-  }, aplicando ? "Aplicando…" : "Guardar y aplicar al pasaporte"), React.createElement("a", {
+  }))), React.createElement("a", {
     href: "/pasaporte",
     "data-route": true,
-    className: "btn btn-ghost",
+    className: "mono",
     style: {
-      justifyContent: "center"
+      color: "var(--grano)"
     }
-  }, "Ver el pasaporte \u2192")), React.createElement(EstadoAlmacen, null));
+  }, "Ver el pasaporte \u2192"), React.createElement(EstadoAlmacen, null))), pestana === "datos" && React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, React.createElement(BloqueForm, {
+    titulo: "Pol\xEDtica de tratamiento de datos",
+    nota: "Es lo que lee quien se inscribe al pulsar \xABLeer la pol\xEDtica de tratamiento de datos\xBB, junto a la casilla de autorizaci\xF3n. Deja una l\xEDnea en blanco entre p\xE1rrafos."
+  }, React.createElement(CampoCfg, {
+    id: "fd-resp",
+    etiqueta: "Responsable (en la casilla de autorizaci\xF3n)",
+    valor: v("datos.responsable"),
+    max: 120,
+    onCambio: p("datos.responsable"),
+    ayuda: "\xABAutorizo a \u2026 a tratar mis datos personales\u2026\xBB"
+  }), React.createElement(CampoCfg, {
+    id: "fd-texto",
+    etiqueta: "Texto del aviso",
+    valor: v("datos.texto"),
+    max: 8000,
+    largo: true,
+    filas: 12,
+    onCambio: p("datos.texto"),
+    ayuda: (v("datos.texto") || "").length.toLocaleString() + " de 8.000 caracteres. Vacío = vuelve al texto que trae el sistema."
+  }), React.createElement("div", {
+    className: "grid-2"
+  }, React.createElement(CampoCfg, {
+    id: "fd-enlace",
+    tipo: "url",
+    etiqueta: "Enlace a la pol\xEDtica completa",
+    valor: v("datos.enlace"),
+    max: 400,
+    placeholder: "https://\u2026",
+    onCambio: p("datos.enlace"),
+    ayuda: "Vac\xEDo = no se muestra ning\xFAn enlace."
+  }), React.createElement(CampoCfg, {
+    id: "fd-enlace-t",
+    etiqueta: "Texto del enlace",
+    valor: v("datos.enlace_texto"),
+    max: 160,
+    onCambio: p("datos.enlace_texto")
+  })), React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost",
+    onClick: () => setVerAviso(true),
+    style: {
+      alignSelf: "flex-start"
+    }
+  }, "Ver c\xF3mo queda el aviso")), React.createElement(AvisoDatos, {
+    abierto: verAviso,
+    onCerrar: () => setVerAviso(false),
+    datos: b.datos
+  }))), React.createElement("div", {
+    style: {
+      position: "sticky",
+      bottom: 0,
+      zIndex: 15,
+      borderTop: "1px solid var(--line)",
+      background: "color-mix(in oklch, var(--paper) 94%, transparent)",
+      backdropFilter: "blur(6px)",
+      padding: "12px 24px",
+      display: "flex",
+      gap: 12,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, React.createElement("span", {
+    className: "mono",
+    style: {
+      flex: 1,
+      minWidth: 180,
+      color: problemas.length ? "var(--bad)" : sucio ? "var(--cafeto)" : "var(--ink-3)"
+    }
+  }, problemas.length ? problemas[0] : sucio ? "Hay cambios sin guardar" : "Todo guardado"), sucio && React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost",
+    onClick: descartar,
+    disabled: guardando
+  }, "Descartar"), React.createElement("button", {
+    type: "button",
+    className: "btn btn-primary",
+    onClick: guardar,
+    disabled: guardando || !sucio || problemas.length > 0,
+    style: {
+      opacity: guardando || !sucio || problemas.length ? 0.55 : 1
+    }
+  }, guardando ? "Guardando…" : "Guardar cambios")));
 };
+const SelloVista = ({
+  palabra
+}) => React.createElement("svg", {
+  width: 150,
+  height: 150,
+  viewBox: "0 0 110 110",
+  style: {
+    transform: "rotate(-8deg)",
+    mixBlendMode: "multiply"
+  },
+  "aria-label": "Sello: " + palabra
+}, React.createElement("circle", {
+  cx: "55",
+  cy: "55",
+  r: "48",
+  stroke: "var(--grano)",
+  strokeWidth: "2",
+  fill: "none"
+}), React.createElement("circle", {
+  cx: "55",
+  cy: "55",
+  r: "42",
+  stroke: "var(--grano)",
+  strokeWidth: "1",
+  fill: "none"
+}), React.createElement("text", {
+  x: "55",
+  y: "48",
+  textAnchor: "middle",
+  fill: "var(--grano)",
+  fontSize: "8",
+  fontFamily: "var(--font-mono)",
+  letterSpacing: "2"
+}, palabra), React.createElement("text", {
+  x: "55",
+  y: "62",
+  textAnchor: "middle",
+  fill: "var(--grano)",
+  fontSize: "16",
+  fontFamily: "var(--font-display)",
+  style: {
+    fontStyle: "var(--display-style)",
+    fontWeight: "var(--display-weight)"
+  }
+}, "Espacio"), React.createElement("text", {
+  x: "55",
+  y: "74",
+  textAnchor: "middle",
+  fill: "var(--grano)",
+  fontSize: "7",
+  fontFamily: "var(--font-mono)",
+  letterSpacing: "1"
+}, "12 NOV 2026"));
 Object.assign(window, {
   FestivalPage,
   Miniatura,
-  FondoRanura
+  FondoRanura,
+  VistaTema,
+  EditorPreguntas
 });
 })();
 
@@ -12533,7 +15299,7 @@ const SistemaPage = () => {
       marginTop: 10,
       maxWidth: 640
     }
-  }, "Borra los datos de ejemplo y de las pruebas para dejar el festival listo antes de abrir al p\xFAblico. ", React.createElement("strong", null, "Las cuentas de administraci\xF3n nunca se tocan"), ": si se borraran, nadie podr\xEDa volver a entrar a arreglarlo.")), React.createElement(Aviso, null, error), hecho && React.createElement(Aviso, {
+  }, "Borra los datos de ejemplo y de las pruebas para dejar el evento listo antes de abrir al p\xFAblico. ", React.createElement("strong", null, "Las cuentas de administraci\xF3n nunca se tocan"), ": si se borraran, nadie podr\xEDa volver a entrar a arreglarlo.")), React.createElement(Aviso, null, error), hecho && React.createElement(Aviso, {
     tipo: "ok"
   }, "Listo. ", Object.entries(hecho.borrado || {}).filter(([, n]) => n > 0).map(([k, n]) => `${k}: ${n}`).join(" · ") || "no había nada que borrar", "."), React.createElement("div", {
     style: {
@@ -12558,7 +15324,8 @@ const SistemaPage = () => {
   }, React.createElement("div", {
     style: {
       fontFamily: "var(--font-display)",
-      fontStyle: "italic",
+      fontWeight: "var(--display-weight)",
+      fontStyle: "var(--display-style)",
       fontSize: 28,
       lineHeight: 1
     }
@@ -13316,28 +16083,6 @@ Object.assign(window, {
 
 /* components/App.jsx */
 (function () {
-const PALETTES = {
-  "nariño": {
-    grano: "oklch(0.42 0.09 50)",
-    galeras: "oklch(0.55 0.13 30)",
-    cafeto: "oklch(0.5 0.08 145)",
-    paper: "oklch(0.97 0.015 75)",
-    ink: "oklch(0.22 0.02 60)"
-  },
-  "mercado": {
-    grano: "oklch(0.4 0.12 30)",
-    galeras: "oklch(0.6 0.17 45)",
-    cafeto: "oklch(0.55 0.11 130)",
-    paper: "oklch(0.96 0.025 80)",
-    ink: "oklch(0.22 0.03 50)"
-  }
-};
-const applyPalette = name => {
-  const p = PALETTES[name] || PALETTES["mercado"];
-  const r = document.documentElement.style;
-  Object.entries(p).forEach(([k, v]) => r.setProperty("--" + k, v));
-};
-applyPalette("mercado");
 const App = () => {
   const [route, setRoute] = React.useState(() => window.LMTRouter.current());
   const [user, setUser] = React.useState(() => window.LMTApi && window.LMTApi.user() || null);
@@ -13501,6 +16246,12 @@ const App = () => {
   if (route.path === "/admin/economia") {
     return React.createElement(EconomiaPage, null);
   }
+  if (route.path === "/admin/encuesta") {
+    return React.createElement(EncuestaResultadosPage, {
+      user: user,
+      stands: stands
+    });
+  }
   if (route.path === "/admin/festival") {
     return React.createElement(FestivalPage, null);
   }
@@ -13554,7 +16305,8 @@ const NotFound = ({
 }, "404"), React.createElement("h1", {
   style: {
     fontFamily: "var(--font-display)",
-    fontStyle: "italic",
+    fontWeight: "var(--display-weight)",
+    fontStyle: "var(--display-style)",
     fontSize: 56,
     margin: "12px 0",
     lineHeight: 1

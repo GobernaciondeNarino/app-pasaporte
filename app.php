@@ -46,12 +46,50 @@ $cfg = include __DIR__ . '/api/config.php';
 $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 if ($secure) header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
 
+// ---------------------------------------------------------------------------
+// Configuración del evento
+// ---------------------------------------------------------------------------
+// Nombre, colores y tipografías se leen AQUÍ, antes de enviar una sola línea de
+// HTML, y no después desde el navegador: si los pidiera el cliente, cada visita
+// enseñaría medio segundo los colores de fábrica y luego saltaría a los del
+// evento. Además van en el bootstrap, así que la primera pantalla ya sale con
+// los textos configurados y sin una petición más.
+//
+// Si la base no responde, la página se sirve igual con el tema de fábrica: un
+// fallo aquí no puede dejar en blanco el formulario de voto de un stand.
+$evento     = null;
+$temaCss    = '';
+$tituloHtml = 'Pasaporte del Evento';
+$descHtml   = '';
+$colorBarra = '#003366';
+$icono      = 'favicon.svg';
+try {
+    foreach (['Config', 'Response', 'Db', 'Validate', 'Ajustes', 'Catalogos', 'Evento'] as $lib) {
+        require_once __DIR__ . '/api/lib/' . $lib . '.php';
+    }
+    \LMT\Config::load(__DIR__ . '/api/config.php');
+    $evento = \LMT\Evento::ajustes();
+    $evento['estado'] = ['inscripcion_abierta' => \LMT\Evento::inscripcionAbierta($evento)];
+    $temaCss    = \LMT\Evento::cssTema($evento['tema'] ?? []);
+    $evento['tema_css'] = $temaCss;
+    $colorBarra = \LMT\Evento::colorTema($evento['tema'] ?? []);
+    $tituloHtml = \LMT\Evento::nombre() . ' — ' . \LMT\Evento::pie();
+    $descHtml   = (string) ($evento['evento']['descripcion'] ?? '');
+    $logo       = (string) ($evento['marca']['logo'] ?? '');
+    if (preg_match('#\Auploads/marca/[0-9a-f]{32}\.(png|jpg|webp)\z#', $logo)) $icono = $logo;
+} catch (\Throwable $e) {
+    error_log('[lmt][app] configuración del evento: ' . $e->getMessage());
+}
+
 $bootstrap = [
     'base'    => $base,
     // Apuntamos directo al front controller PHP. Funciona con o sin
     // mod_rewrite — el cliente añade `?path=...` con la ruta deseada.
     'apiBase' => $base . '/api/index.php',
-    'siteName'=> 'La Mejor Taza',
+    'siteName'=> $evento ? \LMT\Evento::nombre() : 'Pasaporte del Evento',
+    // La configuración del evento entera (es pública: la sirve igual
+    // GET /api/festival/ajustes). Con ella el primer render ya sale bien.
+    'festival'=> $evento,
     // Límites reales de las imágenes, para que el formulario anuncie los del
     // servidor y no una cifra escrita a mano que se queda desfasada cuando el
     // operador cambia api/config.php.
@@ -76,7 +114,9 @@ $bundle      = __DIR__ . '/js/components.build.js';
 $usarBundle  = is_file($bundle);
 $bundleVersion = $usarBundle ? (string) filemtime($bundle) : '';
 
-$componentes = ['Shared', 'Mapa', 'Admin', 'QRPrint', 'VoteFlow', 'Passport', 'Dashboard', 'Promotores', 'Cuentas', 'Perfil', 'Caracterizacion', 'Correo', 'App'];
+// La misma lista y el mismo orden que tools/build-components.mjs: en el modo
+// sin bundle, un componente que faltara aquí no existiría en el navegador.
+$componentes = ['Shared', 'Mapa', 'Admin', 'QRPrint', 'VoteFlow', 'Passport', 'Dashboard', 'Recorrido', 'Promotores', 'Cuentas', 'Perfil', 'Caracterizacion', 'Economia', 'Encuesta', 'Festival', 'Sistema', 'Correo', 'App'];
 
 // ¿El bundle quedó viejo respecto a algún .jsx? Es el único fallo de este
 // esquema y es silencioso, así que lo detectamos explícitamente.
@@ -118,14 +158,19 @@ header('Content-Security-Policy: ' . $csp);
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
 <meta name="color-scheme" content="light"/>
 <base href="<?= htmlspecialchars($baseHref, ENT_QUOTES) ?>"/>
-<title>La Mejor Taza — Pasaporte del Café de Nariño</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
-<link rel="apple-touch-icon" href="favicon.svg"/>
-<meta name="theme-color" content="#38322c"/>
+<title><?= htmlspecialchars($tituloHtml, ENT_QUOTES) ?></title>
+<?php if ($descHtml !== ''): ?><meta name="description" content="<?= htmlspecialchars($descHtml, ENT_QUOTES) ?>"/><?php endif; ?>
+<link rel="icon" href="<?= htmlspecialchars($icono, ENT_QUOTES) ?>"<?= $icono === 'favicon.svg' ? ' type="image/svg+xml"' : '' ?>/>
+<link rel="apple-touch-icon" href="<?= htmlspecialchars($icono, ENT_QUOTES) ?>"/>
+<meta name="theme-color" content="<?= htmlspecialchars($colorBarra, ENT_QUOTES) ?>"/>
 <!-- Tipografías servidas desde este mismo dominio: ni la CDN de Google recibe
      la IP de los visitantes, ni la interfaz depende de que sea alcanzable. -->
 <link rel="stylesheet" href="styles/fonts.css"/>
 <link rel="stylesheet" href="styles/tokens.css"/>
+<!-- Tema del evento (Panel → Configuración del evento → Apariencia). Sólo
+     variables sobre :root, validadas en el servidor; va después de tokens.css
+     para pisarlo. El panel lo reescribe en caliente al guardar. -->
+<style id="lmt-tema"><?= str_replace('</', '<\\/', $temaCss) ?></style>
 <style>
   /* min-height, NO height. Con `height: 100%` el elemento html quedaba fijado
      a la altura de la ventana y, al llevar además overflow-x: hidden, recortaba

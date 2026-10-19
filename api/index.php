@@ -28,6 +28,7 @@ require __DIR__ . '/lib/RateLimit.php';
 require __DIR__ . '/lib/Security.php';
 require __DIR__ . '/lib/QrCode.php';
 require __DIR__ . '/lib/Ajustes.php';
+require __DIR__ . '/lib/Evento.php';
 require __DIR__ . '/lib/Mailer.php';
 require __DIR__ . '/lib/Correos.php';
 require __DIR__ . '/lib/Uploads.php';

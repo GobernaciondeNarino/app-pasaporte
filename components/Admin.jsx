@@ -1,7 +1,10 @@
 // Pantallas del Panel Administrador (con autenticación real, CRUD real,
 // y navegación por rutas /admin/...).
 
-const AdminShell = ({ active, user, children }) => {
+const AdminShell = ({ active, user: userProp, children }) => {
+  // Algunas páginas no reciben el usuario; sin él se escondían los enlaces de
+  // propietario justo en esas pantallas.
+  const user = userProp || (window.LMTApi && window.LMTApi.user && window.LMTApi.user()) || null;
   // Las cuentas de acceso sólo las ve un propietario. Se oculta el enlace
   // además de que el backend lo rechace: enseñar una sección que siempre
   // responde 403 es una trampa, no una medida de seguridad.
@@ -10,9 +13,10 @@ const AdminShell = ({ active, user, children }) => {
     { id: "promotores", label: "Promotores",   sub: "Inscripciones", path: "/admin/promotores" },
     { id: "qr",         label: "Códigos QR",   sub: "Impresión",    path: "/admin/qr" },
     { id: "live",       label: "Actividad",    sub: "En vivo",      path: "/admin/live" },
+    { id: "encuesta",   label: "Encuesta",     sub: "Resultados del voto", path: "/admin/encuesta" },
     { id: "economia",   label: "Actividad económica", sub: "Compras del evento", path: "/admin/economia" },
     { id: "caracterizacion", label: "Visitantes", sub: "Caracterización", path: "/admin/caracterizacion" },
-    { id: "festival",   label: "Personalización", sub: "Títulos y fondos", path: "/admin/festival" },
+    { id: "festival",   label: "Configuración del evento", sub: "Marca, colores, formularios", path: "/admin/festival" },
     { id: "correo",     label: "Correo",       sub: "Envío y pruebas", path: "/admin/correo" },
     { id: "correos",    label: "Bitácora",     sub: "Mensajes enviados", path: "/admin/correos" },
   ].concat(user && user.rol === "propietario"
@@ -32,7 +36,7 @@ const AdminShell = ({ active, user, children }) => {
           <Wordmark size={16}/>
         </a>
         <nav className="admin-nav">
-          <div className="mono" style={{ marginBottom: 8 }}>Admin · Festival 2026</div>
+          <div className="mono" style={{ marginBottom: 8 }}>Admin · {pieDeMarca()}</div>
           {items.map((it) => (
             <a key={it.id} href={it.path} data-route style={{
               display: "flex", flexDirection: "column", alignItems: "flex-start",
@@ -64,6 +68,9 @@ const AdminShell = ({ active, user, children }) => {
 };
 
 const LoginAdmin = ({ onLogin, onVisitor }) => {
+  // Los textos de la portada son del evento (Panel → Configuración del evento).
+  const aj = usarAjustesFestival();
+  const inscripcionAbierta = !(aj.estado && aj.estado.inscripcion_abierta === false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
@@ -110,25 +117,29 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
     <div className="split">
       <div className="split-hero">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ filter: "invert(1)" }}><LogoTaza size={36}/></div>
-          <div className="mono" style={{ color: "var(--paper-3)" }}>La Mejor Taza · Festival 2026</div>
+          <EmblemaEvento size={36} claro/>
+          <div className="mono" style={{ color: "var(--paper-3)" }}>{nombreEvento(aj)} · {pieDeMarca(aj)}</div>
         </div>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 64, lineHeight: 0.95, margin: 0, fontWeight: 400, letterSpacing: "-0.02em", maxWidth: "16ch" }}>
-            El pasaporte<br/>del café<br/><span style={{ color: "var(--galeras)" }}>nariñense</span>.
+          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 64, lineHeight: 0.95, margin: 0, fontWeight: "var(--display-weight)", letterSpacing: "-0.02em", maxWidth: "16ch" }}>
+            <LemaDestacado texto={textoCfg("evento", "portada_titulo", "Tu pasaporte del evento.", aj)}/>
           </h1>
-          <p style={{ fontSize: 15, color: "var(--paper-3)", maxWidth: 420, marginTop: 24, lineHeight: 1.6 }}>
-            Recorre los stands, prueba los cafés y vota. Tu pasaporte se va
-            sellando con cada visita, y entre todos decidimos cuál es la mejor
-            taza de Nariño.
+          <p style={{ fontSize: 15, color: "var(--paper-3)", maxWidth: 420, marginTop: 24, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+            {textoCfg("evento", "portada_texto", "", aj)}
           </p>
+          {/* Cuándo y dónde: lo primero que se pregunta quien abre la portada. */}
+          <div style={{ marginTop: 22, maxWidth: 460 }}><DatosEvento oscuro compacto/></div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
-          <span className="mono" style={{ color: "var(--paper-3)" }}>¿Tienes un espacio en el festival?</span>
+          <span className="mono" style={{ color: "var(--paper-3)" }}>¿Tienes un espacio en el evento?</span>
           <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <a href="/inscripcion" data-route style={{ color: "var(--paper)", fontSize: 14, textDecoration: "underline" }}>
-              Inscribirme como promotor
-            </a>
+            {/* Con la inscripción cerrada el enlace no se ofrece: llevaría a
+                un formulario que no se puede enviar. */}
+            {inscripcionAbierta && (
+              <a href="/inscripcion" data-route style={{ color: "var(--paper)", fontSize: 14, textDecoration: "underline" }}>
+                Inscribirme como promotor
+              </a>
+            )}
             <a href="/promotor" data-route style={{ color: "var(--paper-3)", fontSize: 14 }}>
               Ya tengo acceso →
             </a>
@@ -141,9 +152,9 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
           institucional y una contraseña nada más entrar era mandarlo de vuelta.
           El acceso interno sigue estando, pero abajo y plegado. */}
       <div className="split-form">
-        <div className="mono">Festival 2026 · Nariño</div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, fontWeight: 400, margin: "8px 0 14px", lineHeight: 1.05 }}>
-          Bienvenido al<br/>festival.
+        <div className="mono">{pieDeMarca(aj)}</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 40, fontWeight: "var(--display-weight)", margin: "8px 0 14px", lineHeight: 1.05 }}>
+          Te damos la bienvenida.
         </h2>
         <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, marginBottom: 22 }}>
           No necesitas cuenta ni contraseña: entra, mira el ranking en vivo y
@@ -155,7 +166,7 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
             onClick={onVisitor || (() => window.LMTRouter.go("/festival"))}
             className="btn btn-primary"
             style={{ justifyContent: "center", padding: 15, fontSize: 15 }}>
-            Entrar al festival →
+            Entrar al evento →
           </button>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <a href="/recorrido" data-route className="btn btn-ghost" style={{ justifyContent: "center" }}>Mi recorrido</a>
@@ -231,7 +242,7 @@ const StandsList = ({ stands }) => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32, gap: 12, flexWrap: "wrap" }}>
         <div>
           <div className="mono">Registro · {stands.length} espacios</div>
-          <h1 className="titulo-xl">Espacios del festival</h1>
+          <h1 className="titulo-xl">Espacios del evento</h1>
         </div>
         <a href="/admin/stands/new" data-route className="btn btn-primary">+ Registrar espacio</a>
       </div>
@@ -245,7 +256,7 @@ const StandsList = ({ stands }) => {
         ].map(m => (
           <div key={m.k} style={{ padding: 20, border: "1px solid var(--line)", borderRadius: "var(--r-md)", background: "var(--paper)" }}>
             <div className="mono">{m.k}</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 40, fontStyle: "italic", lineHeight: 1, marginTop: 8 }}>{m.v}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: 40, fontStyle: "var(--display-style)", lineHeight: 1, marginTop: 8 }}>{m.v}</div>
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>{m.sub}</div>
           </div>
         ))}
@@ -254,7 +265,7 @@ const StandsList = ({ stands }) => {
       {stands.length === 0 ? (
         <div style={{ padding: 60, border: "1px dashed var(--line-2)", borderRadius: "var(--r-md)", textAlign: "center", color: "var(--ink-3)" }}>
           <div className="mono">Sin espacios</div>
-          <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 28, color: "var(--ink)", margin: "8px 0 16px" }}>Registra el primero.</div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 28, color: "var(--ink)", margin: "8px 0 16px" }}>Registra el primero.</div>
           <a href="/admin/stands/new" data-route className="btn btn-primary">+ Registrar espacio</a>
         </div>
       ) : (
@@ -278,7 +289,7 @@ const StandsList = ({ stands }) => {
               <div style={{ fontSize: 13, color: "var(--ink-2)" }}>{s.region}</div>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontStyle: "italic" }}>{calcScore(s.votos).toFixed(0)}</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: 20, fontStyle: "var(--display-style)" }}>{calcScore(s.votos).toFixed(0)}</span>
                   <span className="mono" style={{ fontSize: 10 }}>{totalVotos(s.votos)} votos</span>
                 </div>
                 <BarraVotos votos={s.votos}/>
@@ -345,7 +356,19 @@ const StandEditor = ({ stand }) => {
     logo: "", votos: { bueno: 0, regular: 0, malo: 0 },
     coords: { x: 0.5, y: 0.5 },
     color: "oklch(0.45 0.1 40)",
+    respuestas_extra: {},
   });
+  // Los campos son los que tiene configurados la inscripción del evento, con
+  // sus nombres. Uno desactivado se sigue enseñando si el espacio ya tiene ese
+  // dato: esconderlo haría creer que no está, y el primer «Guardar» no lo
+  // borraría, pero nadie lo podría corregir.
+  const aj = usarAjustesFestival();
+  const C = (k) => campoCfg(k);
+  const tiene = (v) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+  const ver = (k, v) => C(k).activo !== false || tiene(v);
+  const et = (k, def) => C(k).etiqueta || def;
+  const preguntasExtra = ((((aj.inscripcion || {}).preguntas) || []))
+    .filter((p) => p.activa !== false || tiene((form.respuestas_extra || {})[p.id]));
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -399,6 +422,7 @@ const StandEditor = ({ stand }) => {
         invima: form.invima ?? null,
         manipulacion_alimentos: form.manipulacion_alimentos ?? null,
         logo: form.logo || null,
+        respuestas_extra: form.respuestas_extra || {},
         coords: form.coords,
         color: form.color,
       };
@@ -445,7 +469,7 @@ const StandEditor = ({ stand }) => {
     <div className="admin-page" style={{ maxWidth: 960 }}>
       <a href="/admin/stands" data-route style={{ color: "var(--ink-2)", fontSize: 13, marginBottom: 20, display: "inline-block" }}>← Volver a espacios</a>
       <div className="mono">{isNew ? "Nuevo registro" : "Editar espacio"} · {form.id}</div>
-      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, fontWeight: 400, margin: "4px 0 28px" }}>
+      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 40, fontWeight: "var(--display-weight)", margin: "4px 0 28px" }}>
         {isNew ? "Registrar espacio" : (form.nombre || "Sin nombre")}
       </h1>
 
@@ -458,8 +482,8 @@ const StandEditor = ({ stand }) => {
             </div>
           )}
           <div className="field">
-            <label>Nombre del producto</label>
-            <input value={form.nombre} onChange={e => update("nombre", e.target.value)} placeholder="Ej: Finca El Tambo" maxLength={80} required/>
+            <label>{et("stand_nombre", "Nombre del espacio")} *</label>
+            <input value={form.nombre} onChange={e => update("nombre", e.target.value)} maxLength={80} required/>
           </div>
 
           {/* El número del recinto. Sólo lo asigna la organización, así que no
@@ -473,103 +497,112 @@ const StandEditor = ({ stand }) => {
             <SelectorSubregion id="st-region" valor={form.region} municipio={form.municipio}
               onCambio={(v) => update("region", v)}/>
           </div>
-          <div className="field">
-            <label>Dirección *</label>
-            <input value={form.direccion} onChange={e => update("direccion", e.target.value)} maxLength={255} required/>
-          </div>
+          {ver("direccion", form.direccion) && (
+            <div className="field">
+              <label>{et("direccion", "Dirección")}{C("direccion").activo !== false && C("direccion").requerido ? " *" : ""}</label>
+              <input value={form.direccion} onChange={e => update("direccion", e.target.value)} maxLength={255}/>
+            </div>
+          )}
           <div className="grid-2" style={{ gap: 20 }}>
             <div className="field">
               <label>Correo de contacto</label>
               <input type="email" value={form.correo} onChange={e => update("correo", e.target.value)} maxLength={254}/>
             </div>
-            <CampoNumerico id="st-tel" etiqueta="Teléfono" telefono maxLength={15}
+            <CampoNumerico id="st-tel" etiqueta={et("telefono", "Teléfono")} telefono maxLength={15}
               valor={form.telefono} onCambio={(v) => update("telefono", v)}/>
           </div>
-          <div className="field">
-            <label>Descripción del producto</label>
-            <textarea value={form.descripcion} onChange={e => update("descripcion", e.target.value)} rows={3} maxLength={800}/>
-          </div>
+          {ver("descripcion", form.descripcion) && (
+            <div className="field">
+              <label>{et("descripcion", "Descripción del espacio")}</label>
+              <textarea value={form.descripcion} onChange={e => update("descripcion", e.target.value)} rows={3} maxLength={800}/>
+            </div>
+          )}
 
           {/* Los mismos datos que pide la inscripción: un stand y su promotor
               son la misma cosa, y al verificar una solicitud el sistema
               rellena justo estos campos. */}
           <div className="grid-2" style={{ gap: 20 }}>
             <div className="field">
-              <label>Propietario</label>
+              <label>{et("nombre", "Responsable")}</label>
               <input value={form.propietario} onChange={e => update("propietario", e.target.value)} maxLength={120} placeholder="Nombre completo"/>
             </div>
-            <CampoNumerico id="st-doc" etiqueta="Documento del propietario"
-              valor={form.propietario_documento} onCambio={(v) => update("propietario_documento", v)}/>
+            {ver("documento", form.propietario_documento) && (
+              <CampoNumerico id="st-doc" etiqueta={et("documento", "Documento del responsable")}
+                valor={form.propietario_documento} onCambio={(v) => update("propietario_documento", v)}/>
+            )}
           </div>
-          <div className="grid-2" style={{ gap: 20 }}>
-            <CampoNumerico id="st-nit" etiqueta="NIT o RUT"
-              valor={form.nit} onCambio={(v) => update("nit", v)}/>
-            <div className="field">
-              <label>Sitio web o red social</label>
-              <input type="url" value={form.sitio_web} onChange={e => update("sitio_web", e.target.value)} maxLength={255} placeholder="https://…"/>
+          {(ver("nit", form.nit) || ver("sitio_web", form.sitio_web)) && (
+            <div className="grid-2" style={{ gap: 20 }}>
+              {ver("nit", form.nit) && (
+                <CampoNumerico id="st-nit" etiqueta={et("nit", "NIT o RUT")}
+                  valor={form.nit} onCambio={(v) => update("nit", v)}/>
+              )}
+              {ver("sitio_web", form.sitio_web) && (
+                <div className="field">
+                  <label>{et("sitio_web", "Sitio web o red social")}</label>
+                  <input type="url" value={form.sitio_web} onChange={e => update("sitio_web", e.target.value)} maxLength={255} placeholder="https://…"/>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Los mismos catálogos que pide la inscripción pública: un espacio
               creado a mano desde aquí tiene que quedar caracterizado igual que
               uno que llegó por el formulario, o los informes cuentan mitades. */}
-          <SelectorCatalogo id="st-org"
-            etiqueta="¿Qué tipo de organización es?"
-            catalogo={ORGANIZACIONES}
+          {ver("tipo_organizacion", form.tipo_organizacion) && <SelectorCatalogo id="st-org"
+            etiqueta={et("tipo_organizacion", "¿Qué tipo de organización es?")}
+            catalogo={opcionesCampo("tipo_organizacion", ORGANIZACIONES)}
             valor={form.tipo_organizacion} otro={form.tipo_organizacion_otro}
             onCambio={(v) => setForm((f) => ({ ...f, tipo_organizacion: v, tipo_organizacion_otro: v === "otro" ? f.tipo_organizacion_otro : "" }))}
             onOtro={(v) => update("tipo_organizacion_otro", v)}
-            etiquetaOtro="¿Cuál es el tipo de organización?"/>
-          <SelectorCatalogo id="st-act"
-            etiqueta="Actividad o vínculo con la cadena de valor del café"
-            catalogo={ACTIVIDADES_CAFE}
+            etiquetaOtro="¿Cuál es el tipo de organización?"/>}
+          {ver("actividad_cafe", form.actividad_cafe) && <SelectorCatalogo id="st-act"
+            etiqueta={et("actividad_cafe", "Actividad principal")}
+            catalogo={opcionesCampo("actividad_cafe", ACTIVIDADES_CAFE)}
             valor={form.actividad_cafe} otro={form.actividad_cafe_otro}
             onCambio={(v) => setForm((f) => ({ ...f, actividad_cafe: v, actividad_cafe_otro: v === "otro" ? f.actividad_cafe_otro : "" }))}
             onOtro={(v) => update("actividad_cafe_otro", v)}
-            etiquetaOtro="¿Cuál es la actividad?"/>
+            etiquetaOtro="¿Cuál es la actividad?"/>}
 
           {/* La misma ficha que rellena la inscripción pública, aquí toda
               opcional: los espacios creados antes de que existieran estos
               campos se tienen que poder seguir editando sin inventárselos. */}
-          <SelectorCatalogo id="st-pob"
-            etiqueta="¿A cuál grupo o tipo de población pertenece?"
-            catalogo={POBLACIONES}
+          {ver("poblacion", form.poblacion) && <SelectorCatalogo id="st-pob"
+            etiqueta={et("poblacion", "¿A cuál grupo o tipo de población pertenece?")}
+            catalogo={opcionesCampo("poblacion", POBLACIONES)}
             valor={form.poblacion} otro={form.poblacion_otro}
             onCambio={(v) => setForm((f) => ({ ...f, poblacion: v, poblacion_otro: v === "otro" ? f.poblacion_otro : "" }))}
             onOtro={(v) => update("poblacion_otro", v)}
-            etiquetaOtro="¿Cuál?"/>
+            etiquetaOtro="¿Cuál?"/>}
 
-          <SelectorMultiple id="st-linea"
-            etiqueta="Línea productiva en la cual participa"
-            catalogo={LINEAS_PRODUCTIVAS}
-            valores={form.linea_productiva} onCambio={(v) => update("linea_productiva", v)}/>
+          {ver("linea_productiva", form.linea_productiva) && <SelectorMultiple id="st-linea"
+            etiqueta={et("linea_productiva", "Línea en la cual participa")}
+            catalogo={opcionesCampo("linea_productiva", LINEAS_PRODUCTIVAS)}
+            valores={form.linea_productiva} onCambio={(v) => update("linea_productiva", v)}/>}
 
+          {["cert_internacional", "organico", "especial", "promedio_taza", "marca_registrada", "camara_comercio",
+            "invima", "manipulacion_alimentos", "presentacion"].some((k) => ver(k, form[k])) && (
           <div>
-            <div className="mono" style={{ marginBottom: 12 }}>Información detallada</div>
+            <div className="mono" style={{ marginBottom: 12 }}>{((((aj.inscripcion || {}).secciones) || {}).detalle || {}).titulo || "Información detallada"}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <SiNo id="st-certint" valor={form.cert_internacional ?? null}
-                onCambio={(v) => update("cert_internacional", v)}
-                etiqueta="¿Su café cuenta con certificaciones internacionales?"/>
-              <SiNo id="st-organico" valor={form.organico ?? null}
-                onCambio={(v) => update("organico", v)}
-                etiqueta="¿Su café es orgánico?"/>
-              <SiNo id="st-especial" valor={form.especial ?? null}
-                onCambio={(v) => update("especial", v)}
-                etiqueta="¿Su café es especial?"/>
-              <div className="field">
-                <label htmlFor="st-taza">Promedio de taza</label>
-                <input id="st-taza" value={form.promedio_taza || ""} maxLength={40}
-                  onChange={(e) => update("promedio_taza", e.target.value)} placeholder="Ej: 84,5 puntos SCA"/>
-              </div>
-              <SiNo id="st-marca" valor={form.marca_registrada ?? null}
+              {["cert_internacional", "organico", "especial"].filter((k) => ver(k, form[k])).map((k) => (
+                <SiNo key={k} id={"st-" + k} valor={form[k] ?? null}
+                  onCambio={(v) => update(k, v)} etiqueta={et(k, k)}/>
+              ))}
+              {ver("promedio_taza", form.promedio_taza) && (
+                <div className="field">
+                  <label htmlFor="st-taza">{et("promedio_taza", "Promedio de taza")}</label>
+                  <input id="st-taza" value={form.promedio_taza || ""} maxLength={40}
+                    onChange={(e) => update("promedio_taza", e.target.value)}/>
+                </div>
+              )}
+              {ver("marca_registrada", form.marca_registrada) && <SiNo id="st-marca" valor={form.marca_registrada ?? null}
                 onCambio={(v) => update("marca_registrada", v)}
-                etiqueta="¿Marca registrada ante la Superintendencia de Industria y Comercio?"/>
-              <SiNo id="st-camara" valor={form.camara_comercio ?? null}
+                etiqueta={et("marca_registrada", "¿Marca registrada ante la SIC?")}/>}
+              {ver("camara_comercio", form.camara_comercio) && <SiNo id="st-camara" valor={form.camara_comercio ?? null}
                 onCambio={(v) => update("camara_comercio", v)}
-                etiqueta="¿Certificado de Existencia y Representación Legal (Cámara de Comercio)?"
-                nota="Con fecha de expedición no mayor a noventa (90) días. Para pequeños
-                      productores individuales vale la certificación de la UMATA, la
-                      Secretaría de Agricultura Municipal o el Comité de Cafeteros."/>
+                etiqueta={et("camara_comercio", "¿Certificado de Cámara de Comercio?")}
+                nota={C("camara_comercio").ayuda || ""}/>}
               {form.camara_comercio === true && (
                 <div className="field">
                   <label htmlFor="st-cc-num">Número del certificado de Cámara de Comercio</label>
@@ -577,9 +610,9 @@ const StandEditor = ({ stand }) => {
                     onChange={(e) => update("camara_comercio_numero", e.target.value)}/>
                 </div>
               )}
-              <SiNo id="st-invima" valor={form.invima ?? null}
+              {ver("invima", form.invima) && <SiNo id="st-invima" valor={form.invima ?? null}
                 onCambio={(v) => update("invima", v)}
-                etiqueta="¿Acreditación sanitaria (INVIMA)?"/>
+                etiqueta={et("invima", "¿Acreditación sanitaria (INVIMA)?")}/>}
               {form.invima === true && (
                 <div className="field">
                   <label htmlFor="st-invima-det">Tipo y número de la acreditación sanitaria</label>
@@ -587,13 +620,13 @@ const StandEditor = ({ stand }) => {
                     value={form.invima_detalle || ""} onChange={(e) => update("invima_detalle", e.target.value)}/>
                 </div>
               )}
-              <SiNo id="st-manip" valor={form.manipulacion_alimentos ?? null}
+              {ver("manipulacion_alimentos", form.manipulacion_alimentos) && <SiNo id="st-manip" valor={form.manipulacion_alimentos ?? null}
                 onCambio={(v) => update("manipulacion_alimentos", v)}
-                etiqueta="¿Certificado de manipulación de alimentos vigente?"/>
-              <SelectorMultiple id="st-pres"
-                etiqueta="Presentación del producto"
-                catalogo={PRESENTACIONES}
-                valores={form.presentacion} onCambio={(v) => update("presentacion", v)}/>
+                etiqueta={et("manipulacion_alimentos", "¿Certificado de manipulación de alimentos vigente?")}/>}
+              {ver("presentacion", form.presentacion) && <SelectorMultiple id="st-pres"
+                etiqueta={et("presentacion", "Presentación del producto")}
+                catalogo={opcionesCampo("presentacion", PRESENTACIONES)}
+                valores={form.presentacion} onCambio={(v) => update("presentacion", v)}/>}
               {(form.presentacion || []).includes("otros") && (
                 <div className="field">
                   <label htmlFor="st-pres-otro">¿Qué otra presentación?</label>
@@ -603,10 +636,27 @@ const StandEditor = ({ stand }) => {
               )}
             </div>
           </div>
+          )}
+
+          {/* Las preguntas propias de la inscripción del evento, editables. */}
+          {preguntasExtra.length > 0 && (
+            <div>
+              <div className="mono" style={{ marginBottom: 12 }}>
+                {((((aj.inscripcion || {}).secciones) || {}).extra || {}).titulo || "Preguntas adicionales"}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {preguntasExtra.map((p) => (
+                  <PreguntaEntrada key={p.id} pregunta={{ ...p, requerida: false }} idBase="st"
+                    valor={(form.respuestas_extra || {})[p.id]}
+                    onCambio={(v) => setForm((f) => ({ ...f, respuestas_extra: { ...(f.respuestas_extra || {}), [p.id]: v } }))}/>
+                ))}
+              </div>
+            </div>
+          )}
 
           <SubirImagen
             actual={urlImagen(form.logo)}
-            etiqueta="Logo del producto"
+            etiqueta={et("logo", "Logo del espacio")}
             cuadrada
             encuadrable
             ruta={form.logo}
@@ -676,7 +726,7 @@ const StandEditor = ({ stand }) => {
               <SelloCircular stand={form} size={170} rotation={-6}/>
             ) : (
               <div style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 22, marginBottom: 4 }}>—</div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 22, marginBottom: 4 }}>—</div>
                 Completa el nombre<br/>para ver el sello
               </div>
             )}

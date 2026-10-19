@@ -63,7 +63,7 @@ return [
     'mail' => [
         'transport' => 'mail',
         'from'      => 'hosting@narino.gov.co',
-        'from_name' => 'La Mejor Taza — Festival',
+        'from_name' => '',                    // vacío = el nombre del evento (Panel → Configuración del evento)
         'reply_to'  => '',                    // vacío = sin Reply-To
         // Déjalo VACÍO: el fichero se crea entonces en el directorio temporal
         // del sistema, FUERA del document root. Con la ruta anterior

@@ -70,6 +70,9 @@ CREATE TABLE IF NOT EXISTS stands (
   manipulacion_alimentos INTEGER,
   presentacion           TEXT,
   presentacion_otro      TEXT,
+  -- Respuestas a las preguntas propias de la inscripción (Panel →
+  -- Configuración del evento → Inscripción), como JSON {id: valor}.
+  respuestas_extra       TEXT,
   -- Ubicación geográfica del stand, elegida en el mapa de la inscripción.
   lat           REAL,
   lng           REAL,
@@ -93,6 +96,8 @@ CREATE TABLE IF NOT EXISTS votos (
   compra     INTEGER,
   -- Cuánto gastó, si dijo que sí. Se guarda en pesos enteros.
   compra_valor INTEGER,
+  -- Respuestas a las preguntas propias de la encuesta, como JSON {id: valor}.
+  respuestas TEXT,
   texto      TEXT,
   ip_hash    TEXT,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -162,6 +167,9 @@ CREATE TABLE IF NOT EXISTS promotores (
   manipulacion_alimentos INTEGER,
   presentacion           TEXT,
   presentacion_otro      TEXT,
+  -- Respuestas a las preguntas propias de la inscripción (Panel →
+  -- Configuración del evento → Inscripción), como JSON {id: valor}.
+  respuestas_extra       TEXT,
   logo_path            TEXT,
   stand_lat            REAL,
   stand_lng            REAL,

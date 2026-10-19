@@ -70,24 +70,43 @@ function register_routes_votos(\LMT\Router $r): void
 
     // Crear voto. Anónimo, pero con CSRF + rate limit + dedupe.
     $r->post('/votos', function () {
-        $b = Security::jsonBody();
+        // `respuestas` es un mapa {id: valor} y una respuesta de selección
+        // múltiple es una lista: un nivel más de lo que admite el cuerpo
+        // por defecto.
+        $b = Security::jsonBody(['respuestas'], 2);
+
+        // Lo que se pregunta lo decide la configuración del evento (Panel →
+        // Configuración del evento → Encuesta). Lo que el formulario no
+        // enseñó no se guarda aunque llegue: sería un dato inventado.
+        $aj = \LMT\Evento::ajustes();
 
         $stand  = Validate::standId($b['stand'] ?? null);
         $emoji  = Validate::emoji($b['emoji']  ?? null);
         $correo = Validate::email($b['correo'] ?? null);
-        $compra = Validate::bool($b['compra']  ?? null);
-        $texto  = Validate::comment($b['texto'] ?? '', 500);
+        $compra = \LMT\Evento::compraActiva($aj) ? Validate::bool($b['compra'] ?? null) : null;
+        $texto  = !empty($aj['encuesta']['comentario']['activo']) ? Validate::comment($b['texto'] ?? '', 500) : '';
 
-        // Tres valoraciones de 1 a 5. Opcionales: quien vota de un toque no las
-        // toca, y ese voto tiene que seguir valiendo.
+        // Valoraciones de 1 a 5. Opcionales: quien vota de un toque no las
+        // toca, y ese voto tiene que seguir valiendo. Las desactivadas en el
+        // panel quedan en null.
+        $activas = \LMT\Evento::estrellasActivas($aj);
         $estrellas = [];
         foreach (VOTO_ESTRELLAS as $campo) {
-            $estrellas[$campo] = voto_estrella($b[$campo] ?? null);
+            $estrellas[$campo] = in_array($campo, $activas, true) ? voto_estrella($b[$campo] ?? null) : null;
+        }
+
+        // Preguntas propias de la encuesta. Una obligatoria sin responder se
+        // rechaza aquí también: el navegador no es quien decide.
+        try {
+            $respuestas = \LMT\Evento::validarRespuestas(\LMT\Evento::preguntasEncuesta($aj), $b['respuestas'] ?? [], true);
+        } catch (\RuntimeException $e) {
+            Response::error(422, $e->getMessage());
         }
         // El valor sólo tiene sentido si dijo que sí compró. Si dijo que no, se
         // descarta: guardar un importe junto a «no compré» es una contradicción
         // que luego cuadra mal en el informe de compras.
-        $compraValor = $compra === true ? voto_valor_compra($b['compra_valor'] ?? null) : null;
+        $compraValor = ($compra === true && !empty($aj['encuesta']['compra']['pide_valor']))
+            ? voto_valor_compra($b['compra_valor'] ?? null) : null;
 
         if (!$stand)  Response::error(422, 'stand_invalido');
         if (!$emoji)  Response::error(422, 'emoji_invalido');
@@ -116,12 +135,12 @@ function register_routes_votos(\LMT\Router $r): void
 
         // Insertar voto + actualizar agregados + upsert pasaporte en una transacción.
         try {
-            \LMT\Db::tx(function (\PDO $pdo) use ($stand, $emoji, $correo, $compra, $compraValor, $texto, $estrellas) {
+            \LMT\Db::tx(function (\PDO $pdo) use ($stand, $emoji, $correo, $compra, $compraValor, $texto, $estrellas, $respuestas) {
                 $insVoto = $pdo->prepare(
                     'INSERT INTO votos (stand_id, emoji, correo,
                                         est_innovacion, est_atencion, est_calidad,
-                                        compra, compra_valor, texto, ip_hash, created_at)
-                     VALUES (:s, :e, :c, :inn, :ate, :cal, :compra, :cval, :t, :ip, CURRENT_TIMESTAMP)'
+                                        compra, compra_valor, respuestas, texto, ip_hash, created_at)
+                     VALUES (:s, :e, :c, :inn, :ate, :cal, :compra, :cval, :resp, :t, :ip, CURRENT_TIMESTAMP)'
                 );
                 $insVoto->execute([
                     ':s'      => $stand,
@@ -132,6 +151,7 @@ function register_routes_votos(\LMT\Router $r): void
                     ':cal'    => $estrellas['est_calidad'],
                     ':compra' => $compra === null ? null : ($compra ? 1 : 0),
                     ':cval'   => $compraValor,
+                    ':resp'   => $respuestas ? json_encode($respuestas, JSON_UNESCAPED_UNICODE) : null,
                     ':t'      => $texto !== '' ? $texto : null,
                     ':ip'     => RateLimit::ipHash(),
                 ]);

@@ -34,24 +34,42 @@ final class Correos
     /**
      * El pie de la marca, el mismo que se ve bajo el logotipo en la web.
      *
-     * Se lee de los ajustes en vez de dejarlo escrito aquí para que cambiar el
-     * año no obligue a tocar dos sitios y acabar con un correo que anuncia una
-     * edición distinta de la que se está celebrando. Se lee de `Ajustes`
-     * directamente y no de `festival_ajustes()` porque los correos también
-     * salen desde el instalador y desde la línea de comandos, donde las rutas
-     * HTTP no están cargadas.
+     * Todo lo que identifica al evento —nombre, pie, organizador, color— se lee
+     * de la configuración del evento y no se deja escrito aquí: así un correo
+     * nunca anuncia un evento distinto del que se está celebrando. Se lee de
+     * `Evento` y no de las rutas HTTP porque los correos también salen desde
+     * el instalador y desde la línea de comandos.
      */
     private static function pieMarca(): string
     {
-        $marca = Ajustes::grupo('festival', ['marca' => ['pie' => 'Festival · Nariño 2026']])['marca'] ?? [];
-        $pie = trim((string) ($marca['pie'] ?? ''));
-        return $pie !== '' ? $pie : 'Festival · Nariño 2026';
+        return class_exists(Evento::class) ? Evento::pie() : 'Gobernación de Nariño';
+    }
+
+    /** Nombre del evento, para el asunto y la cabecera. */
+    public static function nombreEvento(): string
+    {
+        return class_exists(Evento::class) ? Evento::nombre() : 'Pasaporte del Evento';
+    }
+
+    private static function organizador(): string
+    {
+        $o = class_exists(Evento::class) ? trim((string) (Evento::ajustes()['evento']['organizador'] ?? '')) : '';
+        return $o !== '' ? $o : 'Gobernación de Nariño';
+    }
+
+    /** Color de la cabecera y de los botones: la tinta del tema del evento. */
+    private static function colorMarca(): string
+    {
+        return class_exists(Evento::class) ? Evento::colorTema(Evento::ajustes()['tema'] ?? []) : '#003366';
     }
 
     private static function envoltura(string $titulo, string $contenidoHtml): string
     {
         $t   = self::h($titulo);
         $pie = self::h(self::pieMarca());
+        $ev  = self::h(self::nombreEvento());
+        $org = self::h(self::organizador());
+        $col = self::h(self::colorMarca());
         return <<<HTML
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><title>{$t}</title></head>
@@ -59,13 +77,13 @@ final class Correos
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2ece0;padding:24px 12px;">
 <tr><td align="center">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fbf7ef;border:1px solid #e0d6c2;border-radius:10px;overflow:hidden;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#2c2620;">
-    <tr><td style="background:#2c2620;padding:22px 28px;color:#f2ece0;">
-      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#c9b99a;">{$pie}</div>
-      <div style="font-size:26px;font-style:italic;font-family:Georgia,serif;margin-top:4px;">La Mejor Taza</div>
+    <tr><td style="background:{$col};padding:22px 28px;color:#ffffff;">
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#e8e8e8;">{$pie}</div>
+      <div style="font-size:26px;font-weight:bold;font-family:Segoe UI,Helvetica,Arial,sans-serif;margin-top:4px;">{$ev}</div>
     </td></tr>
     <tr><td style="padding:28px;">{$contenidoHtml}</td></tr>
     <tr><td style="padding:18px 28px;background:#f2ece0;border-top:1px solid #e0d6c2;font-size:11px;color:#6d6154;line-height:1.6;">
-      Mensaje automático de La Mejor Taza — Gobernación de Nariño. Por favor no respondas a este correo.<br>
+      Mensaje automático de {$ev} — {$org}. Por favor no respondas a este correo.<br>
       Tus datos se tratan conforme a la Ley 1581 de 2012 de protección de datos personales.
     </td></tr>
   </table>
@@ -84,6 +102,9 @@ HTML;
      */
     public static function solicitudRecibida(string $nombre, bool $conQrAcceso = false): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $n = self::h($nombre);
 
         $bloqueQr = '';
@@ -113,7 +134,7 @@ HTML;
         $html = self::envoltura('Solicitud recibida', <<<HTML
 <p style="font-size:16px;margin:0 0 14px;">Hola {$n},</p>
 <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">
-  Recibimos tu solicitud para inscribirte como <strong>promotor de espacio</strong> del festival.
+  Recibimos tu solicitud para inscribirte como <strong>promotor de espacio</strong> en {$ev}.
   Un administrador la revisará en los próximos días hábiles.
 </p>
 {$bloqueQr}
@@ -128,12 +149,12 @@ HTML);
             ? "Cuando quede aprobada te avisaremos por este mismo correo y te enviaremos el codigo QR\nde tu espacio, listo para imprimir.\n\n"
             : "Cuando quede aprobada te enviaremos a este mismo correo tu contraseña de acceso para que\ncompletes el perfil de tu empresa y cargues tus productos.\n\n";
         $texto = "Hola {$nombre},\n\n"
-            . "Recibimos tu solicitud para inscribirte como promotor de espacio del festival La Mejor Taza.\n"
+            . "Recibimos tu solicitud para inscribirte como promotor de espacio en {$evento}.\n"
             . "Un administrador la revisará en los próximos días hábiles.\n\n"
             . $textoQr
             . $textoCierre
             . "No necesitas hacer nada más por ahora.\n";
-        return ['asunto' => 'Recibimos tu solicitud — La Mejor Taza', 'html' => $html, 'texto' => $texto];
+        return ['asunto' => 'Recibimos tu solicitud — ' . $evento, 'html' => $html, 'texto' => $texto];
     }
 
     /**
@@ -154,6 +175,9 @@ HTML);
      */
     public static function credenciales(string $nombre, string $email, ?string $clave, int $horasVigencia, array $stand = [], ?string $accesoPropio = null): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $n = self::h($nombre);
         $e = self::h($email);
         $c = self::h((string) $clave);
@@ -219,10 +243,10 @@ HTML;
                         . "primera vez que entres. No la compartas con nadie.\n";
         }
 
-        $html = self::envoltura('Bienvenido al festival', <<<HTML
+        $html = self::envoltura('Bienvenido', <<<HTML
 <p style="font-size:16px;margin:0 0 14px;">Hola {$n},</p>
 <p style="font-size:15px;line-height:1.65;margin:0 0 18px;">
-  <strong>Bienvenido al Festival del Café de Nariño.</strong> Tu inscripción como
+  <strong>Te damos la bienvenida a {$ev}.</strong> Tu inscripción como
   promotor fue verificada y tu espacio ya está registrado. Nos alegra tenerte en
   esta edición.
 </p>
@@ -235,7 +259,7 @@ HTML;
   </td></tr>
 </table>
 <p style="margin:0 0 22px;">
-  <a href="{$url}" style="display:inline-block;background:#2c2620;color:#f2ece0;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Entrar al portal del promotor</a>
+  <a href="{$url}" style="display:inline-block;background:{$col};color:#ffffff;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Entrar al portal del promotor</a>
 </p>
 {$bloqueAviso}
 <p style="font-size:14px;line-height:1.65;color:#6d6154;margin:0;">
@@ -243,7 +267,7 @@ HTML;
 </p>
 HTML);
         $texto = "Hola {$nombre},\n\n"
-            . "BIENVENIDO AL FESTIVAL DEL CAFÉ DE NARIÑO.\n"
+            . "TE DAMOS LA BIENVENIDA A " . mb_strtoupper($evento, 'UTF-8') . ".\n"
             . "Tu inscripción como promotor fue verificada y tu espacio ya está registrado.\n"
             . $textoStand
             . "\nUsuario: {$email}\n"
@@ -256,6 +280,9 @@ HTML);
 
     public static function rechazo(string $nombre, string $motivo): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $n = self::h($nombre);
         $bloqueMotivo = $motivo !== ''
             ? '<p style="font-size:15px;line-height:1.65;margin:0 0 14px;"><strong>Motivo:</strong> ' . self::h($motivo) . '</p>'
@@ -268,15 +295,15 @@ HTML);
 {$bloqueMotivo}
 <p style="font-size:15px;line-height:1.65;margin:0;">
   Si crees que se trata de un error o quieres aportar más información, responde al equipo
-  organizador del festival y con gusto revisamos tu caso de nuevo.
+  organizador del evento y con gusto revisamos tu caso de nuevo.
 </p>
 HTML);
         $texto = "Hola {$nombre},\n\n"
-            . "Revisamos tu solicitud para participar como promotor de espacio del festival La Mejor Taza\n"
+            . "Revisamos tu solicitud para participar como promotor de espacio en {$evento}\n"
             . "y por ahora no fue aprobada.\n"
             . ($motivo !== '' ? "\nMotivo: {$motivo}\n" : '')
             . "\nSi crees que se trata de un error, comunícate con el equipo organizador.\n";
-        return ['asunto' => 'Sobre tu solicitud de promotor — La Mejor Taza', 'html' => $html, 'texto' => $texto];
+        return ['asunto' => 'Sobre tu solicitud de promotor — ' . $evento, 'html' => $html, 'texto' => $texto];
     }
 
     /**
@@ -288,18 +315,21 @@ HTML);
      */
     public static function altaAdministrador(string $nombre, string $email, string $clave, string $rol, bool $esNueva = true): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $n = self::h($nombre);
         $e = self::h($email);
         $c = self::h($clave);
         $url = self::h(self::baseUrl() . '/admin');
         $rolTexto = $rol === 'propietario'
-            ? 'Propietario — además del panel del festival, puedes crear y administrar otras cuentas.'
-            : 'Organizador — tienes acceso al panel del festival: espacios, votos, pasaportes y promotores.';
+            ? 'Propietario — además del panel del evento, puedes crear y administrar otras cuentas.'
+            : 'Organizador — tienes acceso al panel del evento: espacios, votos, pasaportes y promotores.';
         $rt = self::h($rolTexto);
 
         $entrada = $esNueva
-            ? 'Te creamos una cuenta de administración en <strong>La Mejor Taza</strong>, la plataforma del Festival del Café de Nariño.'
-            : 'Restablecimos la contraseña de tu cuenta de administración en <strong>La Mejor Taza</strong>. La anterior ya no funciona.';
+            ? 'Te creamos una cuenta de administración en <strong>' . $ev . '</strong>.'
+            : 'Restablecimos la contraseña de tu cuenta de administración en <strong>' . $ev . '</strong>. La anterior ya no funciona.';
         $titulo = $esNueva ? 'Tu cuenta de administración' : 'Tu nueva contraseña';
 
         $html = self::envoltura($titulo, <<<HTML
@@ -316,7 +346,7 @@ HTML);
   </td></tr>
 </table>
 <p style="margin:0 0 22px;">
-  <a href="{$url}" style="display:inline-block;background:#2c2620;color:#f2ece0;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Entrar al panel</a>
+  <a href="{$url}" style="display:inline-block;background:{$col};color:#ffffff;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Entrar al panel</a>
 </p>
 <p style="font-size:14px;line-height:1.65;color:#6d6154;margin:0 0 8px;">
   <strong>Importante:</strong> el sistema te pedirá cambiar esta contraseña la primera vez que entres.
@@ -329,8 +359,8 @@ HTML);
 HTML);
 
         $entradaTexto = $esNueva
-            ? "Te creamos una cuenta de administración en La Mejor Taza, la plataforma del\nFestival del Café de Nariño.\n"
-            : "Restablecimos la contraseña de tu cuenta de administración en La Mejor Taza.\nLa anterior ya no funciona.\n";
+            ? "Te creamos una cuenta de administración en {$evento}.\n"
+            : "Restablecimos la contraseña de tu cuenta de administración en {$evento}.\nLa anterior ya no funciona.\n";
         $texto = "Hola {$nombre},\n\n"
             . $entradaTexto
             . "\nUsuario: {$email}\n"
@@ -343,8 +373,8 @@ HTML);
 
         return [
             'asunto' => $esNueva
-                ? 'Tu cuenta de administración — La Mejor Taza'
-                : 'Nueva contraseña de administración — La Mejor Taza',
+                ? 'Tu cuenta de administración — ' . $evento
+                : 'Nueva contraseña de administración — ' . $evento,
             'html'   => $html,
             'texto'  => $texto,
         ];
@@ -360,17 +390,20 @@ HTML);
      */
     public static function enlacePerfil(string $email, string $url): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $e = self::h($email);
         $u = self::h($url);
         $html = self::envoltura('Tu perfil de visitante', <<<HTML
 <p style="font-size:16px;margin:0 0 14px;">Hola,</p>
 <p style="font-size:15px;line-height:1.65;margin:0 0 18px;">
   Aquí tienes el enlace para completar o modificar tus datos como visitante del
-  <strong>Festival del Café de Nariño</strong>. Todo lo que nos cuentes es voluntario y nos
+  <strong>{$ev}</strong>. Todo lo que nos cuentes es voluntario y nos
   sirve para saber quién nos visita y mejorar las próximas ediciones.
 </p>
 <p style="margin:0 0 20px;">
-  <a href="{$u}" style="display:inline-block;background:#2c2620;color:#f2ece0;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Abrir mi perfil</a>
+  <a href="{$u}" style="display:inline-block;background:{$col};color:#ffffff;text-decoration:none;padding:13px 24px;border-radius:999px;font-size:15px;">Abrir mi perfil</a>
 </p>
 <p style="font-size:12px;color:#8a7c68;word-break:break-all;margin:0 0 18px;">{$u}</p>
 <p style="font-size:14px;line-height:1.65;color:#6d6154;margin:0 0 8px;">
@@ -383,17 +416,20 @@ HTML);
 HTML);
         $texto = "Hola,\n\n"
             . "Aquí tienes el enlace para completar o modificar tus datos como visitante del\n"
-            . "Festival del Café de Nariño. Todo es voluntario.\n\n"
+            . "{$evento}. Todo es voluntario.\n\n"
             . $url . "\n\n"
             . "Este enlace abre TU perfil ({$email}) sin pedir contraseña: no lo reenvíes.\n"
             . "Desde ahí también puedes borrar tus datos cuando quieras.\n\n"
             . "Si no pediste este enlace, ignora este mensaje: no se ha modificado nada.\n";
-        return ['asunto' => 'Tu perfil de visitante — La Mejor Taza', 'html' => $html, 'texto' => $texto];
+        return ['asunto' => 'Tu perfil de visitante — ' . $evento, 'html' => $html, 'texto' => $texto];
     }
 
     /** Mensaje de prueba del panel: si esto llega, el correo funciona. */
     public static function pruebaEnvio(string $destino, string $transporte): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $d = self::h($destino);
         $t = self::h($transporte);
         $cuando = self::h(date('d/m/Y H:i'));
@@ -407,7 +443,7 @@ HTML);
   </td></tr>
 </table>
 <p style="font-size:14px;line-height:1.65;color:#6d6154;margin:0;">
-  Este mensaje lo generó la prueba del panel de La Mejor Taza. Si llegó a la carpeta de correo
+  Este mensaje lo generó la prueba del panel de {$ev}. Si llegó a la carpeta de correo
   no deseado, pide a quien administra el dominio que autorice a este servidor en el registro SPF:
   mientras no lo haga, las contraseñas de los promotores acabarán en spam.
 </p>
@@ -415,12 +451,15 @@ HTML);
         $texto = "Si estás leyendo esto, el correo saliente funciona.\n\n"
             . "Destinatario: {$destino}\nTransporte: {$transporte}\nEnviado: " . date('d/m/Y H:i') . "\n\n"
             . "Si llegó a spam, pide que se autorice a este servidor en el SPF del dominio.\n";
-        return ['asunto' => 'Prueba de correo — La Mejor Taza', 'html' => $html, 'texto' => $texto];
+        return ['asunto' => 'Prueba de correo — ' . $evento, 'html' => $html, 'texto' => $texto];
     }
 
     /** Aviso al administrador de que hay una solicitud esperando. */
     public static function avisoAdmin(string $nombreProm, string $emailProm, string $municipio): array
     {
+        $col = self::h(self::colorMarca());
+        $ev  = self::h(self::nombreEvento());
+        $evento = self::nombreEvento();
         $n = self::h($nombreProm);
         $e = self::h($emailProm);
         $m = self::h($municipio !== '' ? $municipio : 'sin especificar');
@@ -432,11 +471,11 @@ HTML);
     <strong>{$n}</strong><br>{$e}<br><span style="color:#6d6154;">Municipio: {$m}</span>
   </td></tr>
 </table>
-<p style="margin:0;"><a href="{$url}" style="display:inline-block;background:#2c2620;color:#f2ece0;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:15px;">Revisar solicitudes</a></p>
+<p style="margin:0;"><a href="{$url}" style="display:inline-block;background:{$col};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:15px;">Revisar solicitudes</a></p>
 HTML);
         $texto = "Nueva solicitud de promotor pendiente de revisión.\n\n"
             . "{$nombreProm}\n{$emailProm}\nMunicipio: {$municipio}\n\n"
             . "Revísala en: " . self::baseUrl() . "/admin/promotores\n";
-        return ['asunto' => 'Nueva solicitud de promotor — La Mejor Taza', 'html' => $html, 'texto' => $texto];
+        return ['asunto' => 'Nueva solicitud de promotor — ' . $evento, 'html' => $html, 'texto' => $texto];
     }
 }

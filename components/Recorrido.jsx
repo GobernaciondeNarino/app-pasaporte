@@ -49,7 +49,7 @@ const TarjetaRecorrido = ({ stand, visitado, valoracion, titulos }) => {
         }}>
           {logo
             ? <img src={logo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
-            : <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 20, color: "var(--paper)" }}>{inicial}</span>}
+            : <span style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 20, color: "var(--paper)" }}>{inicial}</span>}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -60,7 +60,7 @@ const TarjetaRecorrido = ({ stand, visitado, valoracion, titulos }) => {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        {ESTRELLA_CAMPOS.map((campo) => {
+        {estrellasActivas().map((campo) => {
           const clave = ESTRELLA_CLAVES[campo];
           // Mi puntuación si la di; si no, la media del festival. Un stand que
           // no visité nunca tendrá «mi» valoración, y enseñar la media es lo
@@ -132,7 +132,7 @@ const RecorridoPage = ({ stands }) => {
   if (!correo) {
     return (
       <PuertaCorreo
-        titulo="Tu recorrido por el festival."
+        titulo="Tu recorrido por el evento."
         nota="Escribe el correo con el que votas en los espacios y verás cuáles llevas sellados. No hace falta contraseña."
         volverA="/festival" volverTexto="← Volver al ranking"
         onListo={(c) => setCorreo(c)}/>
@@ -144,8 +144,8 @@ const RecorridoPage = ({ stands }) => {
       <PublicHeader/>
       <section className="seccion" style={{ paddingTop: 28, paddingBottom: 40 }}>
         <div className="mono">Mi recorrido</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "min(56px, 11vw)", fontWeight: 400, margin: "6px 0 8px", lineHeight: 1 }}>
-          Los stands del festival.
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: "min(56px, 11vw)", fontWeight: "var(--display-weight)", margin: "6px 0 8px", lineHeight: 1 }}>
+          Los espacios del evento.
         </h1>
         <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 560 }}>
           {visitados.length

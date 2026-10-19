@@ -21,6 +21,10 @@ const PublicHeader = () => (
 
 const PublicDashboard = ({ stands, comentarios, onDetail }) => {
   const [tick, setTick] = React.useState(0);
+  // Los textos del evento: se repinta cuando llegan o cuando el panel guarda.
+  const aj = usarAjustesFestival();
+  const ev = aj.evento || {};
+  const conCompra = compraActiva();
   React.useEffect(() => {
     const t = setInterval(() => setTick((x) => x + 1), 5000);
     return () => clearInterval(t);
@@ -31,13 +35,14 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
       <div style={{ minHeight: "100dvh", background: "var(--paper)" }}>
         <PublicHeader/>
         <section style={{ padding: "80px 32px", textAlign: "center" }}>
-          <div className="mono">Festival 2026</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 64, fontWeight: 400, margin: "12px 0 16px", lineHeight: 1, letterSpacing: "-0.02em" }}>
-            El festival arranca pronto.
+          <div className="mono">{pieDeMarca(aj)}</div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 64, fontWeight: "var(--display-weight)", margin: "12px 0 16px", lineHeight: 1, letterSpacing: "-0.02em" }}>
+            {nombreEvento(aj)} arranca pronto.
           </h1>
           <p style={{ color: "var(--ink-2)", maxWidth: 540, margin: "0 auto 20px", fontSize: 16, lineHeight: 1.6 }}>
-            Aún no hay stands registrados. Si eres organizador inicia sesión y registra el primero.
+            Aún no hay espacios registrados. Si eres organizador inicia sesión y registra el primero.
           </p>
+          <div style={{ maxWidth: 720, margin: "0 auto 24px", textAlign: "left" }}><DatosEvento/></div>
           <a href="/admin/login" data-route className="btn btn-primary">Entrar como admin →</a>
         </section>
       </div>
@@ -64,11 +69,11 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
                style={{ paddingTop: 48, paddingBottom: 32, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 36, alignItems: "flex-end", position: "relative", overflow: "hidden", minHeight: 320 }}>
         <div>
           <div className="mono">Ranking público</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "min(96px, 12vw)", fontWeight: 400, margin: "8px 0 0", lineHeight: 0.9, letterSpacing: "-0.03em" }}>
-            ¿Cuál es la<br/>mejor taza de<br/><span style={{ color: "var(--galeras)" }}>Nariño</span>?
+          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: "min(96px, 12vw)", fontWeight: "var(--display-weight)", margin: "8px 0 0", lineHeight: 0.9, letterSpacing: "-0.03em" }}>
+            <LemaDestacado texto={textoCfg("evento", "lema", "¿Cuál es el mejor espacio del evento?", aj)}/>
           </h1>
-          <p style={{ fontSize: 15, color: "var(--ink-2)", marginTop: 18, maxWidth: 520, lineHeight: 1.6 }}>
-            El festival lo decide el público. Escanea el QR de cada stand, vota con un emoji y sella tu pasaporte.
+          <p style={{ fontSize: 15, color: "var(--ink-2)", marginTop: 18, maxWidth: 520, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+            {textoCfg("evento", "descripcion", "", aj)}
           </p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -79,12 +84,23 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
             { k: (metricas ? metricas.aprobacion + "%" : "—"), sub: "aprobación general" },
           ].map((m, i) => (
             <div key={i} style={{ padding: 18, border: "1px solid var(--line)", borderRadius: "var(--r-md)", background: "var(--paper)" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontStyle: "italic", lineHeight: 1 }}>{m.k}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: 36, fontStyle: "var(--display-style)", lineHeight: 1 }}>{m.k}</div>
               <div className="mono" style={{ marginTop: 6 }}>{m.sub}</div>
             </div>
           ))}
         </div>
       </section>
+
+      {/* Los datos básicos del evento: cuándo, dónde, quién organiza. Lo
+          primero que pregunta quien llega, y antes no estaba en ninguna parte. */}
+      {ev.mostrar_datos !== false && filasDatosEvento(aj).length > 0 && (
+        <section className="seccion" style={{ paddingBottom: 8 }}>
+          <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "18px 22px", background: "var(--paper-2)" }}>
+            <div className="mono" style={{ marginBottom: 12 }}>{nombreEvento(aj)} · Datos del evento</div>
+            <DatosEvento/>
+          </div>
+        </section>
+      )}
 
       <section style={{ padding: "24px 32px 40px" }}>
         <div className="mono" style={{ marginBottom: 14 }}>Top 3 · Podio en vivo</div>
@@ -103,15 +119,15 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
                   position: "relative", overflow: "hidden",
                 }}>
                   <div className="mono" style={{ color: actualRank === 1 ? "var(--paper-3)" : "var(--ink-3)" }}>
-                    #{actualRank} {actualRank === 1 && "· La Mejor Taza"}
+                    #{actualRank} {actualRank === 1 && "· " + textoCfg("simbolos", "primer_lugar", "Primer lugar", aj)}
                   </div>
                   <div>
-                    <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: actualRank === 1 ? 36 : 24, fontWeight: 400, lineHeight: 1, letterSpacing: "-0.01em" }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: actualRank === 1 ? 36 : 24, fontWeight: "var(--display-weight)", lineHeight: 1, letterSpacing: "-0.01em" }}>
                       {s.nombre}
                     </div>
                     <div style={{ fontSize: 12, marginTop: 6, opacity: 0.7 }}>{s.municipio}</div>
                     <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", gap: 8 }}>
-                      <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 28 }}>{calcScore(s.votos).toFixed(0)}</span>
+                      <span style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 28 }}>{calcScore(s.votos).toFixed(0)}</span>
                       <span className="mono" style={{ color: actualRank === 1 ? "var(--paper-3)" : "var(--ink-3)" }}>/100 · {totalVotos(s.votos)} votos</span>
                     </div>
                   </div>
@@ -144,7 +160,7 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
             {comentarios.slice(0, 6).map((c, i) => {
               const s = stands.find((x) => x.id === c.stand);
               if (!s) return null;
-              const emoji = { bueno: "😍", regular: "😐", malo: "😞" }[c.emoji] || "•";
+              const emoji = simboloVoto(c.emoji).emoji;
               return (
                 <a key={i} href={"/festival/" + s.id} data-route style={{
                   display: "flex", gap: 12, paddingBottom: 12,
@@ -156,12 +172,12 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{s.nombre}</div>
                     {c.texto && (
-                      <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 4, lineHeight: 1.4, fontStyle: "italic", fontFamily: "var(--font-display)" }}>
+                      <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 4, lineHeight: 1.4, fontStyle: "var(--display-style)", fontFamily: "var(--font-display)" }}>
                         "{c.texto}"
                       </div>
                     )}
                     <div className="mono" style={{ marginTop: 6 }}>
-                      {c.autor} · {c.hora} {c.compra && <span style={{ color: "var(--cafeto)" }}>· compró</span>}
+                      {c.autor} · {c.hora} {conCompra && c.compra && <span style={{ color: "var(--cafeto)" }}>· compró</span>}
                     </div>
                   </div>
                 </a>
@@ -172,7 +188,7 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
       </section>
 
       <section className="seccion" style={{ paddingBottom: 56 }}>
-        <div className="mono" style={{ marginBottom: 14 }}>Tabla completa · {stands.length} stands</div>
+        <div className="mono" style={{ marginBottom: 14 }}>Tabla completa · {stands.length} espacios</div>
         <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
           {sorted.map((s, i) => (
             <a key={s.id} href={"/festival/" + s.id} data-route className="rank-fila" style={{
@@ -180,14 +196,14 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
             }}>
               <div className="mono rank-pos" style={{ fontSize: 13 }}>{String(i + 1).padStart(2, "0")}</div>
               <div className="rank-nombre">
-                <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 20, letterSpacing: "-0.01em" }}>{s.nombre}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 20, letterSpacing: "-0.01em" }}>{s.nombre}</div>
                 <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{(s.descripcion || "").slice(0, 80)}{s.descripcion && s.descripcion.length > 80 ? "…" : ""}</div>
               </div>
               {/* Municipio y votos son DOS celdas distintas de la rejilla. Con
                   la misma clase, en móvil las dos caían en el mismo área y se
                   dibujaban una encima de la otra. */}
               <div className="rank-meta rank-municipio" style={{ fontSize: 13 }}>{s.municipio}</div>
-              <div className="rank-puntaje" style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 24 }}>{calcScore(s.votos).toFixed(0)}</div>
+              <div className="rank-puntaje" style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 24 }}>{calcScore(s.votos).toFixed(0)}</div>
               <div className="rank-meta rank-votos" style={{ fontSize: 13, color: "var(--ink-2)" }}>{totalVotos(s.votos)} votos</div>
               <div className="rank-barra"><BarraVotos votos={s.votos}/></div>
             </a>
@@ -198,7 +214,7 @@ const PublicDashboard = ({ stands, comentarios, onDetail }) => {
       <footer style={{ padding: "32px", borderTop: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <Wordmark size={14}/>
         <div className="mono" style={{ color: "var(--ink-3)" }}>
-          Comité del Café · Gobernación de Nariño · 2026
+          {textoCfg("evento", "pie_pagina", "Gobernación de Nariño", aj)}
         </div>
       </footer>
 
@@ -244,7 +260,7 @@ const MapaNarino = ({ stands, onDetail }) => {
     <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 22, position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
         <div className="mono">Mapa · Nariño</div>
-        <div className="mono" style={{ color: "var(--ink-3)" }}>{stands.length} establecimientos / fincas</div>
+        <div className="mono" style={{ color: "var(--ink-3)" }}>{stands.length} espacios</div>
       </div>
       <div style={{ aspectRatio: `${vw} / ${vh}`, position: "relative", background: "var(--paper-2)", borderRadius: "var(--r-sm)", overflow: "hidden", maxHeight: 440, margin: "0 auto" }} className="paper-texture">
         <svg width="100%" height="100%" viewBox={mapa ? mapa.viewBox : "0 0 1000 1068"} preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0 }}>
@@ -328,6 +344,9 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
   const rank = [...allStands].sort((a, b) => calcScore(b.votos) - calcScore(a.votos)).findIndex((x) => x.id === stand.id) + 1;
   const totalv = totalVotos(stand.votos) || 0;
   const titulos = window.titulosEstrellas();
+  const activas = estrellasActivas();
+  const aj = usarAjustesFestival();
+  const preguntasPublicas = (((aj.inscripcion || {}).preguntas) || []).filter((p) => p.publica && p.activa !== false);
 
   // Lo que esta persona votó aquí. Llega del pasaporte y sólo con su testigo:
   // el endpoint es público y la calificación de alguien no lo es.
@@ -370,7 +389,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
         <div>
           <a href="/festival" data-route style={{ color: "var(--ink-2)", fontSize: 13 }}>← Volver al ranking</a>
           <div className="mono" style={{ marginTop: 14 }}>Posición #{rank || "—"} · {stand.municipio}</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "min(72px, 9vw)", fontWeight: 400, margin: "8px 0 0", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: "min(72px, 9vw)", fontWeight: "var(--display-weight)", margin: "8px 0 0", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
             {stand.nombre}
           </h1>
           <p style={{ fontSize: 15, color: "var(--ink-2)", marginTop: 18, maxWidth: 540, lineHeight: 1.6 }}>{stand.descripcion}</p>
@@ -384,17 +403,17 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
             ].map((m) => (
               <div key={m.k} style={{ padding: 14, border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
                 <div className="mono">{m.k}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 32, marginTop: 6, lineHeight: 1 }}>{m.v}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 32, marginTop: 6, lineHeight: 1 }}>{m.v}</div>
                 <div className="sub-metrica" style={{ color: "var(--ink-3)" }}>{m.sub}</div>
               </div>
             ))}
           </div>
-          {/* Las tres valoraciones de todo el festival, con los títulos que
-              haya puesto el organizador. */}
-          <div style={{ marginTop: 24, padding: 18, border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-            <div className="mono" style={{ marginBottom: 10 }}>Votación del festival</div>
+          {/* Las valoraciones de todo el evento, con los títulos que haya
+              puesto el organizador. Sin ninguna activa no hay nada que enseñar. */}
+          {activas.length > 0 && <div style={{ marginTop: 24, padding: 18, border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
+            <div className="mono" style={{ marginBottom: 10 }}>Votación del evento</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 340 }}>
-              {ESTRELLA_CAMPOS.map((campo) => (
+              {activas.map((campo) => (
                 <EstrellasLectura key={campo} etiqueta={titulos[campo]} tam={16}
                   valor={(stand.estrellas || {})[ESTRELLA_CLAVES[campo]]}/>
               ))}
@@ -402,7 +421,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
             <div className="mono" style={{ marginTop: 10, color: "var(--ink-3)" }}>
               {(stand.estrellas && stand.estrellas.n) || 0} personas puntuaron con estrellas
             </div>
-          </div>
+          </div>}
 
           {/* Y la de quien está mirando, si votó aquí. */}
           {mio && mio.visitado && (
@@ -410,7 +429,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
               <div className="mono" style={{ marginBottom: 10, color: "var(--cafeto)" }}>✓ Mi votación</div>
               {mio.estrellas ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 340 }}>
-                  {ESTRELLA_CAMPOS.map((campo) => (
+                  {activas.map((campo) => (
                     <EstrellasLectura key={campo} etiqueta={titulos[campo]} tam={16}
                       valor={mio.estrellas[ESTRELLA_CLAVES[campo]]}/>
                   ))}
@@ -423,7 +442,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
               {mio.emoji && (
                 <div style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 8 }}>
                   Tu calificación: <strong style={{ fontWeight: 500 }}>
-                    {{ bueno: "Excelente", regular: "Regular", malo: "Mejorable" }[mio.emoji] || mio.emoji}
+                    {simboloVoto(mio.emoji).label}
                   </strong>
                 </div>
               )}
@@ -432,11 +451,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
 
           <div style={{ marginTop: 24, padding: 18, background: "var(--paper-2)", borderRadius: "var(--r-md)" }}>
             <div className="mono" style={{ marginBottom: 10 }}>Distribución</div>
-            {[
-              { k: "Excelente", v: stand.votos.bueno, color: "var(--good)", emoji: "😍" },
-              { k: "Regular", v: stand.votos.regular, color: "var(--meh)", emoji: "😐" },
-              { k: "Malo", v: stand.votos.malo, color: "var(--bad)", emoji: "😞" },
-            ].map((r) => {
+            {simbolosVoto().slice().reverse().map((x) => ({ k: x.label, v: stand.votos[x.id], color: x.color, emoji: x.emoji })).map((r) => {
               const pct = totalv > 0 ? (r.v / totalv) * 100 : 0;
               return (
                 <div key={r.k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0" }}>
@@ -457,7 +472,7 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
           <div style={{ minHeight: 260, background: stand.color, borderRadius: "var(--r-md)", padding: 28, color: "var(--paper)", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 24, position: "relative", overflow: "hidden" }}>
             <div className="mono" style={{ color: "oklch(0.95 0.01 75)" }}>#{numeroDeEspacio(stand, allStands)}</div>
             <div>
-              <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, lineHeight: 0.95, letterSpacing: "-0.02em" }}>{stand.nombre}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 40, lineHeight: 0.95, letterSpacing: "-0.02em" }}>{stand.nombre}</div>
               <div style={{ fontSize: 13, marginTop: 12, opacity: 0.85 }}>{stand.direccion}</div>
               <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>{stand.correo}</div>
             </div>
@@ -472,6 +487,15 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
                 : "Para votar, escanea el código QR que está en el puesto. Así el sello dice que estuviste ahí."}
             </div>
           </div>
+
+          {/* Lo que el organizador marcó como público entre sus preguntas
+              propias de la inscripción. */}
+          {preguntasPublicas.length > 0 && stand.respuestas_extra && Object.keys(stand.respuestas_extra).length > 0 && (
+            <div style={{ marginTop: 20, border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 18 }}>
+              <div className="mono" style={{ marginBottom: 10 }}>Más sobre este espacio</div>
+              <RespuestasLectura preguntas={preguntasPublicas} respuestas={stand.respuestas_extra}/>
+            </div>
+          )}
 
           {contacto.length > 0 && (
             <div style={{ marginTop: 20, border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 18 }}>
@@ -500,13 +524,13 @@ const PublicDetail = ({ stand, comentarios, allStands, onBack, onVote }) => {
           <div style={{ marginTop: 20 }}>
             <div className="mono" style={{ marginBottom: 10 }}>Comentarios recientes</div>
             {commentsForStand.length === 0 && (
-              <div style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic", fontFamily: "var(--font-display)" }}>
+              <div style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "var(--display-style)", fontFamily: "var(--font-display)" }}>
                 Aún no hay comentarios. Sé el primero.
               </div>
             )}
             {commentsForStand.map((c, i) => (
               <div key={i} style={{ padding: "12px 0", borderBottom: i < commentsForStand.length - 1 ? "1px solid var(--line)" : "none" }}>
-                <div style={{ fontSize: 13, fontFamily: "var(--font-display)", fontStyle: "italic", lineHeight: 1.4 }}>"{c.texto}"</div>
+                <div style={{ fontSize: 13, fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", lineHeight: 1.4 }}>"{c.texto}"</div>
                 <div className="mono" style={{ marginTop: 6 }}>{c.autor} · {c.hora}</div>
               </div>
             ))}

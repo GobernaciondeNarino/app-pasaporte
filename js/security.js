@@ -85,7 +85,24 @@
     return Number.isInteger(n) && n >= 1 && n <= 5;
   }
 
-  function buildVotePayload({ stand, emoji, correo, compra, compra_valor, texto, estrellas }) {
+  // Respuestas a las preguntas propias de la encuesta. Sólo viajan las claves
+  // con la forma que pone el panel (p_xxxx) y valores simples: el servidor
+  // vuelve a validarlas contra la configuración del evento.
+  function limpiarRespuestas(r) {
+    const out = {};
+    if (!r || typeof r !== "object") return out;
+    Object.keys(r).slice(0, 40).forEach((k) => {
+      if (!/^p_[a-z0-9]{4,16}$/.test(k)) return;
+      const v = r[k];
+      if (v === null || v === undefined || v === "") return;
+      if (Array.isArray(v)) { const a = v.filter((x) => typeof x === "string").slice(0, 30).map((x) => x.slice(0, 120)); if (a.length) out[k] = a; return; }
+      if (typeof v === "boolean" || typeof v === "number") { out[k] = v; return; }
+      if (typeof v === "string") out[k] = sanitizeText(v, 1000);
+    });
+    return out;
+  }
+
+  function buildVotePayload({ stand, emoji, correo, compra, compra_valor, texto, estrellas, respuestas }) {
     if (!isStandId(stand)) throw new Error("stand_invalido");
     if (!isVoteEmoji(emoji)) throw new Error("emoji_invalido");
     const correoNorm = normalizeEmail(correo);
@@ -107,6 +124,8 @@
     }
     const limpio = sanitizeText(texto || "", 500);
     if (limpio) payload.texto = limpio;
+    const resp = limpiarRespuestas(respuestas);
+    if (Object.keys(resp).length) payload.respuestas = resp;
     return payload;
   }
 

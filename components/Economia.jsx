@@ -12,7 +12,7 @@
 const Cifra = ({ etiqueta, valor, nota }) => (
   <div style={{ padding: 18, border: "1px solid var(--line)", borderRadius: "var(--r-md)", background: "var(--paper)" }}>
     <div className="mono" style={{ marginBottom: 6 }}>{etiqueta}</div>
-    <div style={{ fontFamily: "var(--font-display)", fontSize: 34, fontStyle: "italic", lineHeight: 1 }}>{valor}</div>
+    <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontSize: 34, fontStyle: "var(--display-style)", lineHeight: 1 }}>{valor}</div>
     {nota && <div className="mono" style={{ marginTop: 6, color: "var(--ink-3)" }}>{nota}</div>}
   </div>
 );
@@ -49,9 +49,18 @@ const EconomiaPage = () => {
   return (
     <AdminShell active="economia">
       <div className="mono">Actividad económica</div>
-      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, fontWeight: 400, margin: "6px 0 10px", lineHeight: 1 }}>
-        Las compras del festival.
+      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 40, fontWeight: "var(--display-weight)", margin: "6px 0 10px", lineHeight: 1 }}>
+        Las compras del evento.
       </h1>
+      {/* Con la pregunta apagada en la encuesta no entran compras nuevas: que
+          el informe no parezca congelado sin explicación. */}
+      {!compraActiva() && (
+        <Aviso tipo="info">
+          La pregunta «¿Compraste algo?» está desactivada en la encuesta del voto, así que no
+          entran compras nuevas. Lo de aquí es lo que se declaró mientras estuvo activa. Se
+          activa en <a href="/admin/festival" data-route style={{ color: "var(--grano)" }}>Configuración del evento → Encuesta</a>.
+        </Aviso>
+      )}
       <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 620, marginBottom: 22 }}>
         Sale de lo que declara el público al votar. No es la facturación del evento:
         indicar la compra y el importe es voluntario, así que <strong style={{ fontWeight: 500 }}>lo

@@ -183,7 +183,7 @@ const EnlacePorCorreo = () => {
   if (enviado) {
     return (
       <p style={{ color: "var(--ink-2)", fontSize: 13, lineHeight: 1.65, marginTop: 20 }}>
-        Si ese correo participó en el festival, en unos minutos recibirás un enlace para
+        Si ese correo participó en el evento, en unos minutos recibirás un enlace para
         abrir tu perfil. Revisa también la carpeta de correo no deseado.
       </p>
     );
@@ -223,7 +223,7 @@ const EnlacePorCorreo = () => {
  */
 const PerfilSinAcceso = ({ onListo }) => (
   <PuertaCorreo
-    titulo="Tu perfil del festival."
+    titulo="Tu perfil del evento."
     nota="Escribe el correo con el que votas en los espacios. No hace falta contraseña: si quieres una, la pones después desde aquí dentro."
     onListo={onListo}>
     <EnlacePorCorreo/>
@@ -368,7 +368,7 @@ const PerfilVisitantePage = () => {
     try {
       await window.LMTApi.guardarPerfilVisitante(correo, token, Object.assign({}, form, { acepta_datos: true }));
       setExistia(true);
-      setOk("Tus datos quedaron guardados. Gracias por ayudarnos a conocer al público del festival.");
+      setOk("Tus datos quedaron guardados. Gracias por ayudarnos a conocer al público del evento.");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(mensajeError(err, "No fue posible guardar tus datos."));
@@ -399,11 +399,11 @@ const PerfilVisitantePage = () => {
       <div className="mobile-inner">
         <a href="/pasaporte" data-route style={{ color: "var(--ink-3)", fontSize: 13 }}>← Mi pasaporte</a>
         <div className="mono" style={{ marginTop: 22 }}>Perfil del visitante</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 34, fontWeight: 400, margin: "6px 0 10px", lineHeight: 1.05 }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 34, fontWeight: "var(--display-weight)", margin: "6px 0 10px", lineHeight: 1.05 }}>
           {existia ? "Tus datos." : "Cuéntanos\nquién nos visita."}
         </h1>
         <p style={{ color: "var(--ink-2)", fontSize: 14, lineHeight: 1.65, marginBottom: 8 }}>
-          Con esto sabemos quién viene al festival y podemos preparar mejor la próxima edición.
+          Con esto sabemos quién viene al evento y podemos preparar mejor la próxima edición.
           <strong> Ningún dato es obligatorio</strong>: responde sólo lo que quieras.
         </p>
         <p className="mono" style={{ color: "var(--ink-3)", marginBottom: 24, wordBreak: "break-all" }}>{correo}</p>
@@ -497,11 +497,11 @@ const PerfilVisitantePage = () => {
               <input id="pf-entidad" value={form.entidad} onChange={(e) => set("entidad", e.target.value)} maxLength={120}/>
               <span className="ayuda">Sólo si vienes por una institución.</span>
             </div>
-            <CampoOpcion id="pf-medio" label="¿Cómo te enteraste del festival?" valor={form.como_se_entero}
+            <CampoOpcion id="pf-medio" label="¿Cómo te enteraste del evento?" valor={form.como_se_entero}
               opciones={ops.como_se_entero} etiquetas={PERFIL_ETIQUETAS.como_se_entero}
               onChange={(v) => set("como_se_entero", v)}/>
             <div className="field">
-              <label htmlFor="pf-primera">¿Es tu primera vez en el festival?</label>
+              <label htmlFor="pf-primera">¿Es tu primera vez en el evento?</label>
               <select id="pf-primera"
                 value={form.primera_visita === null || form.primera_visita === undefined ? "" : (form.primera_visita ? "si" : "no")}
                 onChange={(e) => set("primera_visita", e.target.value === "" ? null : e.target.value === "si")}>
@@ -511,7 +511,7 @@ const PerfilVisitantePage = () => {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="pf-exp">¿Qué esperas del festival?</label>
+              <label htmlFor="pf-exp">¿Qué esperas del evento?</label>
               <textarea id="pf-exp" rows={3} value={form.expectativa} onChange={(e) => set("expectativa", e.target.value)} maxLength={500}
                 style={{ border: "1px solid var(--line-2)", borderRadius: "var(--r-md)", padding: 12 }}/>
               <span className="ayuda">Lo leemos: nos sirve para armar la programación.</span>
@@ -536,7 +536,7 @@ const PerfilVisitantePage = () => {
             <input type="checkbox" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} style={{ marginTop: 3 }}/>
             <span>
               Autorizo a la Gobernación de Nariño a tratar estos datos con fines estadísticos y de
-              caracterización del público del festival, conforme a la Ley 1581 de 2012. Puedo
+              caracterización del público del evento, conforme a la Ley 1581 de 2012. Puedo
               consultarlos, corregirlos o borrarlos cuando quiera desde esta misma página.
             </span>
           </label>

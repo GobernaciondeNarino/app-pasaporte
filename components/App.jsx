@@ -2,17 +2,11 @@
 // Vive aquí (y no incrustado en app.php) para que el compilador de JSX
 // pueda precompilarlo junto al resto de componentes.
 
-const PALETTES = {
-  "nariño":  { grano: "oklch(0.42 0.09 50)", galeras: "oklch(0.55 0.13 30)", cafeto: "oklch(0.5 0.08 145)",  paper: "oklch(0.97 0.015 75)", ink: "oklch(0.22 0.02 60)" },
-  "mercado": { grano: "oklch(0.4 0.12 30)",  galeras: "oklch(0.6 0.17 45)",  cafeto: "oklch(0.55 0.11 130)", paper: "oklch(0.96 0.025 80)", ink: "oklch(0.22 0.03 50)" },
-};
-const applyPalette = (name) => {
-  const p = PALETTES[name] || PALETTES["mercado"];
-  const r = document.documentElement.style;
-  Object.entries(p).forEach(([k, v]) => r.setProperty("--" + k, v));
-};
-// Paleta del diseño aprobado (handoff Claude Design): "mercado".
-applyPalette("mercado");
+// Los colores y las tipografías ya NO se fijan aquí: los pone el tema del
+// evento (styles/tokens.css + <style id="lmt-tema"> desde app.php), que el
+// organizador cambia en Panel → Configuración del evento → Apariencia. Antes
+// este archivo aplicaba a mano la paleta «mercado» encima de todo y no había
+// forma de cambiarla sin tocar código.
 
 const App = () => {
   const [route, setRoute] = React.useState(() => window.LMTRouter.current());
@@ -153,6 +147,9 @@ const App = () => {
   if (route.path === "/admin/economia") {
     return <EconomiaPage/>;
   }
+  if (route.path === "/admin/encuesta") {
+    return <EncuestaResultadosPage user={user} stands={stands}/>;
+  }
 
   if (route.path === "/admin/festival") {
     return <FestivalPage/>;
@@ -180,7 +177,7 @@ const NotFound = ({ back }) => (
   <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, textAlign: "center", background: "var(--paper)" }}>
     <div>
       <div className="mono">404</div>
-      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 56, margin: "12px 0", lineHeight: 1 }}>Página no encontrada.</h1>
+      <h1 style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 56, margin: "12px 0", lineHeight: 1 }}>Página no encontrada.</h1>
       <a href={back} data-route className="btn btn-primary">← Volver al inicio</a>
     </div>
   </div>

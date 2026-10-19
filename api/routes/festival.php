@@ -4,161 +4,105 @@ defined('LMT_GUARD') || exit('forbidden');
 use LMT\Ajustes;
 use LMT\Response;
 use LMT\Security;
-use LMT\Validate;
 
 /**
- * Ajustes de presentación del festival.
+ * Configuración del evento.
  *
- * Son los que el organizador cambia sin tocar código: cómo se llaman las tres
- * valoraciones, cuántas columnas tiene la rejilla del recorrido en PC y en
- * móvil, y qué imágenes se usan de fondo en el pasaporte.
+ * El esquema, los valores de fábrica, las plantillas y la validación viven en
+ * api/lib/Evento.php: aquí sólo están las rutas.
  *
  * La lectura es PÚBLICA porque el navegador de cualquier visitante necesita
- * estos valores para pintar el formulario de voto y el recorrido. No hay nada
- * personal aquí: son etiquetas y números. La escritura es de administración.
+ * estos valores para pintar el evento: el nombre, los colores, las preguntas
+ * del voto y si la inscripción está abierta. No hay nada personal ni secreto
+ * aquí. La escritura es de administración.
  */
 
-/**
- * Texto por defecto de la política de tratamiento de datos.
- *
- * Vive aquí y no en el componente porque quien lo tiene que poder cambiar es el
- * área jurídica de la Gobernación, sin esperar a un despliegue: la finalidad y
- * el responsable cambian de una vigencia a otra, y un texto de habeas data
- * desactualizado no es un detalle de redacción.
- */
-const FESTIVAL_POLITICA = <<<'TXT'
-La Gobernación de Nariño, a través de la Secretaría de Agricultura y Desarrollo Rural, en calidad de responsable del tratamiento de los datos personales, realizará el tratamiento de la información suministrada mediante este formulario, de conformidad con la Ley 1581 de 2012 y demás normas aplicables en materia de protección de datos personales.
-
-Los datos personales serán tratados para las finalidades relacionadas con la inscripción, selección, organización, comunicación, participación y desarrollo de la muestra comercial "La Mejor Taza Nariño 2026", así como para identificar y caracterizar a los participantes y sus emprendimientos dentro de la cadena de valor del café.
-
-De igual manera, la información podrá ser utilizada para actividades de difusión y comunicación institucional relacionadas con la muestra, incluyendo la publicación de información sobre los emprendimientos participantes y la captura, uso y divulgación de fotografías, videos y demás material audiovisual obtenido durante las actividades desarrolladas en el evento, a través de los canales institucionales de la Gobernación de Nariño y de la Secretaría de Agricultura y Desarrollo Rural y demás dependencias.
-
-El titular declara que conoce los derechos que le asisten respecto del tratamiento de sus datos personales, entre ellos, conocer, actualizar y rectificar su información y, cuando sea procedente, solicitar su supresión o revocar la autorización otorgada.
-TXT;
-
-/** Lo que trae el sistema si nadie ha configurado nada. */
-function festival_por_defecto(): array
-{
-    return [
-        // Cómo se llama el evento allá donde aparece la marca: bajo el logotipo
-        // y en el pie de los correos. Se configura porque el año cambia y
-        // porque la muestra puede llamarse de otra forma en la siguiente
-        // edición, y no vale la pena tocar código para eso.
-        'marca' => [
-            'pie' => 'Festival · Nariño 2026',
-        ],
-        // Política de tratamiento de datos personales. El texto se enseña en un
-        // aviso emergente desde el formulario de inscripción; el enlace apunta
-        // a la política publicada por la Gobernación.
-        'datos' => [
-            'texto'  => FESTIVAL_POLITICA,
-            'enlace' => 'https://www.narino.gov.co/',
-        ],
-        'estrellas' => [
-            // Las claves NO se tocan: son las columnas de la base. Lo que el
-            // organizador cambia es cómo se llaman de cara al público.
-            'innovacion' => 'Innovación',
-            'atencion'   => 'Atención',
-            'calidad'    => 'Calidad',
-        ],
-        'recorrido' => [
-            'columnas_pc'    => 3,
-            'columnas_movil' => 2,
-        ],
-        'pasaporte' => [
-            // Rutas públicas de las imágenes de fondo. Vacío = el diseño que
-            // trae el sistema, que es el que se ve si nadie sube nada.
-            'portada'       => '',
-            'contraportada' => '',
-            'hojas'         => [],
-        ],
-    ];
-}
-
+/** Los ajustes vigentes. Se conserva el nombre: lo usan otras rutas. */
 function festival_ajustes(): array
 {
-    return Ajustes::grupo('festival', festival_por_defecto());
+    return \LMT\Evento::ajustes();
+}
+
+/** Lo que devuelve la lectura: los ajustes y el estado calculado a partir de ellos. */
+function festival_respuesta(): array
+{
+    $aj = \LMT\Evento::ajustes();
+    $aj['estado'] = [
+        'inscripcion_abierta' => \LMT\Evento::inscripcionAbierta($aj),
+    ];
+    // El CSS del tema ya calculado: el navegador lo aplica tal cual al
+    // recargar los ajustes, sin necesitar el catálogo de tipografías.
+    $aj['tema_css'] = \LMT\Evento::cssTema($aj['tema'] ?? []);
+    return $aj;
+}
+
+/** Guarda y devuelve lo guardado, ya releído de la base. */
+function festival_guardar(array $act): void
+{
+    Ajustes::guardar(\LMT\Evento::GRUPO, $act);
+    \LMT\Evento::olvidarCache();
 }
 
 function register_routes_festival(\LMT\Router $r): void
 {
     $r->get('/festival/ajustes', function () {
-        Response::ok(festival_ajustes());
+        Response::ok(festival_respuesta());
+    });
+
+    /**
+     * Lo que el panel necesita para editar y que el público no: tipografías,
+     * paletas y plantillas. Va aparte para no engordar la lectura pública,
+     * que se hace en cada visita.
+     */
+    $r->get('/admin/festival/catalogo', function () {
+        Security::requireAdmin();
+        Response::ok([
+            'fuentes'    => \LMT\Evento::fuentes(),
+            'paletas'    => \LMT\Evento::presetsTema(),
+            'plantillas' => \LMT\Evento::plantillas(),
+            'por_defecto'=> \LMT\Evento::porDefecto(),
+        ]);
     });
 
     $r->put('/admin/festival/ajustes', function () {
         Security::requireAdmin();
-        $b   = Security::jsonBody();
-        $act = festival_ajustes();
-
-        foreach (['innovacion', 'atencion', 'calidad'] as $k) {
-            $v = Validate::texto($b['estrellas'][$k] ?? null, 40);
-            if ($v !== null && $v !== '') $act['estrellas'][$k] = $v;
+        $b = Security::jsonBodyConfig();
+        try {
+            $act = \LMT\Evento::sanear($b, \LMT\Evento::ajustes());
+        } catch (\RuntimeException $e) {
+            Response::error(422, $e->getMessage());
         }
-
-        // El pie de la marca. Vacío = volver al que trae el sistema, en vez de
-        // dejar el logotipo huérfano de subtítulo por un borrado accidental.
-        if (isset($b['marca']['pie'])) {
-            $pie = Validate::texto($b['marca']['pie'], 60);
-            $act['marca']['pie'] = $pie !== '' ? $pie : festival_por_defecto()['marca']['pie'];
-        }
-
-        // Política de datos. El texto conserva sus párrafos —es un texto legal,
-        // no una etiqueta— y el enlace tiene que ser una URL de verdad: si se
-        // aceptara cualquier cosa, un `javascript:` acabaría en un enlace que
-        // pulsa el público.
-        if (isset($b['datos']['texto'])) {
-            $t = Validate::parrafos($b['datos']['texto'], 8000);
-            $act['datos']['texto'] = $t !== '' ? $t : festival_por_defecto()['datos']['texto'];
-        }
-        if (array_key_exists('enlace', (array) ($b['datos'] ?? []))) {
-            $enlace = trim((string) ($b['datos']['enlace'] ?? ''));
-            if ($enlace === '') {
-                $act['datos']['enlace'] = '';
-            } else {
-                $u = Validate::url($enlace, 400);
-                if ($u === null) Response::error(422, 'enlace_invalido');
-                $act['datos']['enlace'] = $u;
-            }
-        }
-
-        // Entre 1 y 6 columnas: por debajo no es una rejilla y por encima las
-        // tarjetas se quedan sin sitio para el nombre del stand.
-        foreach (['columnas_pc' => 6, 'columnas_movil' => 3] as $k => $max) {
-            if (isset($b['recorrido'][$k])) {
-                $n = (int) $b['recorrido'][$k];
-                $act['recorrido'][$k] = max(1, min($max, $n));
-            }
-        }
-
-        Ajustes::guardar('festival', $act);
-        Response::ok(festival_ajustes());
+        festival_guardar($act);
+        Response::ok(festival_respuesta());
     });
 
     /**
-     * Fondos del pasaporte. Se suben como cualquier otra imagen del sistema
-     * (se validan y recodifican) y se guardan sus rutas en los ajustes.
+     * Imágenes del evento: el logo y los fondos del pasaporte. Se suben como
+     * cualquier otra imagen del sistema (se validan y recodifican) y se guarda
+     * su ruta en los ajustes.
      *
-     * `destino` dice para qué hoja es: portada, contraportada o una más del
-     * montón de hojas internas.
+     * `destino` dice para qué es: el logo, la portada, la contraportada o una
+     * más del montón de hojas internas.
      */
     $r->post('/admin/festival/fondo', function () {
         Security::requireAdmin();
         $destino = (string) ($_POST['destino'] ?? 'hojas');
-        if (!in_array($destino, ['portada', 'contraportada', 'hojas'], true)) {
+        if (!in_array($destino, ['logo', 'portada', 'contraportada', 'hojas'], true)) {
             Response::error(422, 'destino_invalido');
         }
         if (empty($_FILES['archivo']) || !is_array($_FILES['archivo'])) {
             Response::error(422, 'archivo_ausente');
         }
         try {
-            $ruta = \LMT\Uploads::imagen($_FILES['archivo'], 'pasaporte');
+            $ruta = \LMT\Uploads::imagen($_FILES['archivo'], $destino === 'logo' ? 'marca' : 'pasaporte');
         } catch (\RuntimeException $e) {
             Response::error(422, $e->getMessage());
         }
 
         $act = festival_ajustes();
-        if ($destino === 'hojas') {
+        if ($destino === 'logo') {
+            $act['marca']['logo'] = $ruta;
+        } elseif ($destino === 'hojas') {
             $hojas = $act['pasaporte']['hojas'];
             // Un tope sensato: más de 20 fondos no aporta variedad y sí peso
             // de descarga en el móvil de un visitante.
@@ -168,18 +112,20 @@ function register_routes_festival(\LMT\Router $r): void
         } else {
             $act['pasaporte'][$destino] = $ruta;
         }
-        Ajustes::guardar('festival', $act);
-        Response::ok(festival_ajustes());
+        festival_guardar($act);
+        Response::ok(festival_respuesta());
     });
 
-    /** Quita un fondo. Volver a cero es volver al diseño que trae el sistema. */
+    /** Quita una imagen. Volver a cero es volver al diseño que trae el sistema. */
     $r->delete('/admin/festival/fondo', function () {
         Security::requireAdmin();
         $b       = Security::jsonBody();
         $destino = (string) ($b['destino'] ?? '');
         $act     = festival_ajustes();
 
-        if ($destino === 'portada' || $destino === 'contraportada') {
+        if ($destino === 'logo') {
+            $act['marca']['logo'] = '';
+        } elseif ($destino === 'portada' || $destino === 'contraportada') {
             $act['pasaporte'][$destino] = '';
         } elseif ($destino === 'hojas') {
             $i = isset($b['indice']) ? (int) $b['indice'] : -1;
@@ -190,8 +136,100 @@ function register_routes_festival(\LMT\Router $r): void
         } else {
             Response::error(422, 'destino_invalido');
         }
-        Ajustes::guardar('festival', $act);
-        Response::ok(festival_ajustes());
+        festival_guardar($act);
+        Response::ok(festival_respuesta());
+    });
+
+    /**
+     * Resultados de la encuesta: cada pregunta con su resumen.
+     *
+     * Sólo agregados, como la actividad económica: quién contestó qué está en
+     * la exportación de votos y no hace falta aquí. `?stand=` filtra por un
+     * espacio. Las preguntas desactivadas también salen —marcadas—, porque sus
+     * respuestas de antes siguen contando.
+     */
+    $r->get('/admin/encuesta', function () {
+        Security::requireAdmin();
+        $aj = \LMT\Evento::ajustes();
+        $stand = \LMT\Validate::standId($_GET['stand'] ?? null);
+        $sql = 'SELECT emoji, est_innovacion, est_atencion, est_calidad, compra, respuestas FROM votos';
+        $st = \LMT\Db::pdo()->prepare($sql . ($stand ? ' WHERE stand_id = :s' : ''));
+        $st->execute($stand ? [':s' => $stand] : []);
+
+        $preguntas = $aj['encuesta']['preguntas'] ?? [];
+        $acc = [];
+        foreach ($preguntas as $p) $acc[$p['id']] = ['n' => 0, 'suma' => 0, 'dist' => [], 'opciones' => [], 'textos' => []];
+        $total = 0;
+        $emojis = ['bueno' => 0, 'regular' => 0, 'malo' => 0];
+        while ($v = $st->fetch(\PDO::FETCH_ASSOC)) {
+            $total++;
+            if (isset($emojis[$v['emoji']])) $emojis[$v['emoji']]++;
+            $resp = \LMT\Evento::respuestasDe($v['respuestas'] ?? null);
+            foreach ($preguntas as $p) {
+                $id = $p['id'];
+                $val = !empty($p['sistema']) ? ($v[$id] ?? null) : ($resp[$id] ?? null);
+                if ($val === null || $val === '' || $val === []) continue;
+                $a = &$acc[$id];
+                $a['n']++;
+                switch ($p['tipo']) {
+                    case 'estrellas':
+                        $n = (int) $val;
+                        $a['suma'] += $n;
+                        $a['dist'][$n] = ($a['dist'][$n] ?? 0) + 1;
+                        break;
+                    case 'si_no':
+                        $k = ((int) $val === 1) ? 'si' : 'no';
+                        $a['dist'][$k] = ($a['dist'][$k] ?? 0) + 1;
+                        break;
+                    case 'opcion':
+                    case 'multiple':
+                        foreach ((array) $val as $o) {
+                            $o = (string) $o;
+                            $a['opciones'][$o] = ($a['opciones'][$o] ?? 0) + 1;
+                        }
+                        break;
+                    default:
+                        // Las respuestas abiertas: las últimas, para leerlas.
+                        if (count($a['textos']) < 30) $a['textos'][] = (string) $val;
+                }
+                unset($a);
+            }
+        }
+
+        $salida = [];
+        foreach ($preguntas as $p) {
+            $a = $acc[$p['id']];
+            $fila = [
+                'id' => $p['id'], 'tipo' => $p['tipo'], 'etiqueta' => $p['etiqueta'],
+                'activa' => !empty($p['activa']), 'sistema' => !empty($p['sistema']), 'n' => $a['n'],
+            ];
+            if ($p['tipo'] === 'estrellas') {
+                $fila['promedio'] = $a['n'] ? round($a['suma'] / $a['n'], 2) : null;
+                $fila['distribucion'] = array_map(fn($k) => $a['dist'][$k] ?? 0, [1, 2, 3, 4, 5]);
+            } elseif ($p['tipo'] === 'si_no') {
+                $fila['si'] = $a['dist']['si'] ?? 0;
+                $fila['no'] = $a['dist']['no'] ?? 0;
+            } elseif (in_array($p['tipo'], ['opcion', 'multiple'], true)) {
+                // Las opciones configuradas primero y en su orden; lo que se
+                // respondió con una opción que ya no existe, al final.
+                $ops = [];
+                foreach ((array) ($p['opciones'] ?? []) as $o) $ops[] = ['texto' => (string) $o, 'n' => $a['opciones'][$o] ?? 0];
+                foreach ($a['opciones'] as $o => $n) {
+                    if (!in_array((string) $o, (array) ($p['opciones'] ?? []), true)) $ops[] = ['texto' => (string) $o, 'n' => $n, 'retirada' => true];
+                }
+                $fila['opciones'] = $ops;
+            } else {
+                $fila['recientes'] = array_reverse($a['textos']);
+            }
+            $salida[] = $fila;
+        }
+
+        Response::ok([
+            'total'     => $total,
+            'emojis'    => $emojis,
+            'stand'     => $stand,
+            'preguntas' => $salida,
+        ]);
     });
 
     /**

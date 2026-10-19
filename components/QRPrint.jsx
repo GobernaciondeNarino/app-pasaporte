@@ -24,13 +24,13 @@ const QRPoster = ({ stand, variant = "vertical", paraImprimir = false }) => {
         <Wordmark size={14}/>
         <div className="mono" style={{ textAlign: "right" }}>
           #{numeroDeEspacio(stand)}<br/>
-          <span style={{ color: "var(--ink-3)" }}>Festival 2026</span>
+          <span style={{ color: "var(--ink-3)" }}>{pieDeMarca()}</span>
         </div>
       </div>
 
       <div style={{ marginTop: 20, marginBottom: 16 }}>
         <div className="mono">Escanea para calificar</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 44, fontWeight: 400, lineHeight: 1, margin: "6px 0 0", letterSpacing: "-0.01em" }}>{stand.nombre}</h1>
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 44, fontWeight: "var(--display-weight)", lineHeight: 1, margin: "6px 0 0", letterSpacing: "-0.01em" }}>{stand.nombre}</h1>
         <div style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 8 }}>
           {stand.municipio} · {stand.region}
         </div>
@@ -48,13 +48,15 @@ const QRPoster = ({ stand, variant = "vertical", paraImprimir = false }) => {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 12, color: "var(--ink-2)" }}>Califica. Opina. Sella tu pasaporte.</span>
           <div style={{ display: "flex", gap: 6, fontSize: 20 }}>
-            <span>😞</span><span>😐</span><span>😍</span>
+            {simbolosVoto().map((x) => <span key={x.id}>{x.emoji}</span>)}
           </div>
         </div>
         <div style={{ height: 1, background: "var(--line)" }}/>
         <div className="mono" style={{ marginTop: 8, display: "flex", justifyContent: "space-between" }}>
           <span>Pega en el frente del espacio</span>
-          <span>· 14—20 abr · Pasto</span>
+          {/* Cuándo y dónde, de la configuración del evento. Antes era una
+              fecha escrita a mano que se imprimía igual cada edición. */}
+          <span>{[fechasEvento((cfgEvento().evento) || {}), ((cfgEvento().evento) || {}).ciudad].filter(Boolean).join(" · ")}</span>
         </div>
       </div>
     </div>
@@ -130,7 +132,7 @@ const QRPrintView = ({ stands }) => {
     return (
       <div className="admin-page">
         <div className="mono">Códigos QR</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 36, fontWeight: 400, margin: "4px 0 18px" }}>Aún no hay espacios.</h1>
+        <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 36, fontWeight: "var(--display-weight)", margin: "4px 0 18px" }}>Aún no hay espacios.</h1>
         <a href="/admin/stands/new" data-route className="btn btn-primary">+ Registrar el primero</a>
       </div>
     );
@@ -140,7 +142,7 @@ const QRPrintView = ({ stands }) => {
     <div className="admin-page qr-print-screen">
       <QRHojas stands={hojas}/>
       <div className="mono">Códigos QR · Imprimir y pegar</div>
-      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, fontWeight: 400, margin: "4px 0 22px" }}>
+      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 40, fontWeight: "var(--display-weight)", margin: "4px 0 22px" }}>
         Carteles A5
       </h1>
 
@@ -216,7 +218,7 @@ const ActivityLive = ({ stands, comentarios }) => {
           <span className="mono" style={{ color: "var(--good)" }}>En vivo</span>
         </div>
       </div>
-      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 40, fontWeight: 400, margin: "4px 0 22px" }}>
+      <h1 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 40, fontWeight: "var(--display-weight)", margin: "4px 0 22px" }}>
         Votos en tiempo real
       </h1>
 
@@ -258,7 +260,7 @@ const ActivityLive = ({ stands, comentarios }) => {
                 <div style={{ fontSize: 14, fontWeight: 500 }}>{s.nombre}</div>
                 <div className="nota-menor" style={{ color: "var(--ink-3)" }}>{s.municipio} · {totalVotos(s.votos)} votos</div>
               </div>
-              <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 22 }}>{calcScore(s.votos).toFixed(0)}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: "var(--display-weight)", fontStyle: "var(--display-style)", fontSize: 22 }}>{calcScore(s.votos).toFixed(0)}</div>
             </div>
           ))}
         </div>
