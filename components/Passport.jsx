@@ -17,37 +17,81 @@ const PassportEmpty = () => (
   </div>
 );
 
-const PassportPage = ({ stands }) => {
+/**
+ * Qué decirle a la persona cuando su pasaporte no llega, según la causa.
+ * El código interno va aparte (CodigoError) para que lo pueda dictar.
+ */
+const textoFalloPasaporte = (e) => {
+  if (e === "OFF") return "Conectando con el servidor del evento…";
+  const code = String((e && (e.code || e.message)) || e || "");
+  const status = e && typeof e.status === "number" ? e.status : null;
+  if (code.includes("bad_email")) return "El correo no es válido.";
+  if (status === 429 || code.includes("rate_limited")) return "Hay mucha gente consultando a la vez. Lo reintentamos en unos segundos.";
+  if (status === 0 || code === "network_error") return "No hay conexión con el servidor. Revisa tu internet: lo reintentamos solos.";
+  if (status >= 500) return "El servidor tuvo un problema. Lo reintentamos en unos segundos.";
+  return "No fue posible cargar tu pasaporte.";
+};
+
+// Hace cuánto se guardó la copia, en palabras.
+const haceCuanto = (t) => {
+  const min = Math.max(0, Math.round((Date.now() - (t || 0)) / 60000));
+  if (min < 1) return "hace un momento";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `hace ${h} h` : "hace más de un día";
+};
+
+const PassportPage = ({ stands: standsTablero }) => {
   const [email, setEmail] = React.useState(() => {
     try { return localStorage.getItem("lmt.email") || ""; } catch (_) { return ""; }
   });
+  // Si el tablero no llegó, la copia de la lista guardada en este teléfono:
+  // sin ella, cada sello se descartaba y el pasaporte salía vacío.
+  const stands = window.LMTApi && window.LMTApi.standsVisitante
+    ? window.LMTApi.standsVisitante(standsTablero) : (standsTablero || []);
   const [data, setData] = React.useState(null);
   // Caracterización del visitante para la página de datos. Sólo se pide si
   // este navegador guarda el testigo del perfil: es la prueba de que quien
   // mira es el dueño del correo. Sin él, la página de datos se queda con lo
   // que ya es público (nombre en iniciales y correo enmascarado).
   const [perfil, setPerfil] = React.useState(null);
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
+  // El último fallo (el objeto, no un texto): de él salen el mensaje y el
+  // código interno. "OFF" = la API todavía no arrancó.
+  const [fallo, setFallo] = React.useState(null);
+  // Cuándo se guardó la copia que se está enseñando; 0 = datos frescos.
+  const [copiaDe, setCopiaDe] = React.useState(0);
+  // Con correo se empieza cargando: si no, el primer render enseñaba el error.
+  const [loading, setLoading] = React.useState(() => !!email);
   const [page, setPage] = React.useState(0);
   const [flipping, setFlipping] = React.useState(false);
   const [askingEmail, setAskingEmail] = React.useState(!email);
+  // Lo que hay en pantalla, para decidir en load() sin depender del render.
+  const dataRef = React.useRef(null);
+  dataRef.current = data;
+
+  // Sin ponerse en «Cargando…»: si ya hay algo en pantalla se recarga por
+  // debajo, y si no, la pantalla de carga sale porque `data` sigue vacío.
+  const usarCopia = (correo) => {
+    if (dataRef.current) return;
+    const copia = window.LMTApi && window.LMTApi.pasaporteGuardado && window.LMTApi.pasaporteGuardado(correo);
+    if (copia) { setData(copia.data); setCopiaDe(copia.t || 1); }
+  };
 
   const load = React.useCallback(async (correo) => {
-    setLoading(true); setError("");
     try {
       // Si este navegador guarda el testigo de ESTE correo, el servidor añade
       // las calificaciones al recorrido. Si no, llega el pasaporte de siempre.
       const t = (window.LMTPerfil && window.LMTPerfil.testigoDe(correo)) || "";
       const res = await window.LMTApi.getPasaporte(correo, t);
       setData(res);
+      setCopiaDe(0);
+      setFallo(null);
       setAskingEmail(false);
     } catch (e) {
-      const code = String((e && (e.code || e.message)) || e);
-      if (code.includes("not_found")) setError("Aún no hay pasaporte para ese correo. Vota en cualquier espacio para crearlo.");
-      else if (code.includes("bad_email")) setError("El correo no es válido.");
-      else setError("No fue posible cargar tu pasaporte.");
-      setData(null);
+      setFallo(e);
+      // Mejor la última copia que un «no fue posible»: los sellos ganados no
+      // desaparecen porque el servidor tarde.
+      usarCopia(correo);
     } finally {
       setLoading(false);
     }
@@ -56,20 +100,42 @@ const PassportPage = ({ stands }) => {
   // Ojo con la condición: `LMTApi.enabled` es false hasta que termina el
   // bootstrap. Si el componente monta antes (lo normal en una recarga directa
   // de /pasaporte) y sólo dependiéramos de [email, load], la carga no volvería
-  // a intentarse nunca y el usuario vería "No fue posible cargar tu pasaporte"
-  // teniendo uno perfectamente válido. Por eso también escuchamos lmt:auth,
-  // que es el evento que dispara js/api.js al acabar el arranque.
+  // a intentarse nunca. Por eso también escuchamos lmt:auth, que js/api.js
+  // dispara al acabar el arranque y otra vez cuando un arranque fallido se
+  // recupera.
   React.useEffect(() => {
     if (!email) return;
     let cancelado = false;
     const intentar = () => {
-      if (cancelado || !window.LMTApi || !window.LMTApi.enabled) return;
+      if (cancelado || !window.LMTApi) return;
+      if (!window.LMTApi.enabled) {
+        // Mientras arranca no es un fallo; si el arranque ya falló, sí, y se
+        // enseña la copia mientras js/api.js lo reintenta.
+        if (window.LMTApi.bootstrapDone && window.LMTApi.bootstrapDone()) {
+          setFallo("OFF");
+          setLoading(false);
+          usarCopia(email);
+        }
+        return;
+      }
       load(email);
     };
+    setLoading(true);
     intentar();
     window.addEventListener("lmt:auth", intentar);
     return () => { cancelado = true; window.removeEventListener("lmt:auth", intentar); };
   }, [email, load]);
+
+  // Reintento solo mientras haya un fallo: a los 8 s, luego cada 20 s. La
+  // persona no tiene que salir y volver a entrar (que era lo que gastaba aún
+  // más su cupo de consultas).
+  React.useEffect(() => {
+    if (!fallo || !email || fallo === "OFF") return;
+    const code = String((fallo && fallo.code) || "");
+    if (code.includes("bad_email")) return;
+    const t = setTimeout(() => load(email), data ? 20000 : 8000);
+    return () => clearTimeout(t);
+  }, [fallo, email, data, load]);
 
   React.useEffect(() => {
     if (!email || !window.LMTPerfil) return;
@@ -77,6 +143,7 @@ const PassportPage = ({ stands }) => {
     // El testigo es de un correo concreto: si el pasaporte que se está mirando
     // es de otro, no sirve y no se pide nada.
     if (!guardado.token || guardado.correo !== String(email).toLowerCase()) { setPerfil(null); return; }
+    if (copiaDe) return; // sin servidor no hay perfil que pedir; se pide al volver
     let cancelado = false;
     (async () => {
       try {
@@ -85,7 +152,7 @@ const PassportPage = ({ stands }) => {
       } catch (_) { if (!cancelado) setPerfil(null); }
     })();
     return () => { cancelado = true; };
-  }, [email, data]);
+  }, [email, data, copiaDe]);
 
   // La misma puerta que el recorrido y el perfil: el correo basta, y quien
   // haya puesto clave a su perfil la escribe aquí. Además del correo trae el
@@ -97,25 +164,36 @@ const PassportPage = ({ stands }) => {
         titulo="Tu pasaporte del evento."
         nota="Escribe el correo con el que votas en los espacios. No hace falta contraseña."
         volverA="/festival" volverTexto="← Volver al ranking"
-        onListo={(correo) => { setEmail(correo); setAskingEmail(false); }}/>
+        onListo={(correo) => { setData(null); setFallo(null); setCopiaDe(0); setEmail(correo); setAskingEmail(false); }}/>
     );
   }
 
-  if (loading) {
+  if (loading && !data) {
     return <div className="mobile-page"><div className="mobile-inner"><div className="splash">Cargando pasaporte…</div></div></div>;
   }
 
-  if (error || !data) {
+  if (!data) {
+    const esperando = fallo === "OFF" || (fallo && fallo.status !== 400);
     return (
       <div className="mobile-page">
         <div className="mobile-inner" style={{ textAlign: "center", padding: 40 }}>
           <div className="mono">Pasaporte</div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 32, fontWeight: "var(--display-weight)", margin: "8px 0 16px", lineHeight: 1.1 }}>
-            {error || "No fue posible cargar tu pasaporte."}
+          <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 32, fontWeight: "var(--display-weight)", margin: "8px 0 12px", lineHeight: 1.1 }}>
+            {fallo ? textoFalloPasaporte(fallo) : "No fue posible cargar tu pasaporte."}
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-            <button className="btn btn-ghost" onClick={() => { setAskingEmail(true); setError(""); }}>Cambiar correo</button>
-            <a href="/festival" data-route className="btn btn-primary" style={{ justifyContent: "center" }}>Volver al ranking</a>
+          {esperando && (
+            <p style={{ color: "var(--ink-2)", lineHeight: 1.6, margin: "0 0 8px" }}>
+              Tus sellos están guardados en el servidor: no se pierden.
+            </p>
+          )}
+          <CodigoError codigo={codigoDiagnostico(fallo || "OFF", "PAS")}/>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", marginTop: 18 }}>
+            <button className="btn btn-primary" style={{ justifyContent: "center" }} onClick={() => {
+              if (window.LMTApi && window.LMTApi.enabled) { setLoading(true); load(email); }
+              else window.dispatchEvent(new CustomEvent("lmt:reintentar"));
+            }}>Reintentar ahora</button>
+            <button className="btn btn-ghost" onClick={() => { setAskingEmail(true); setFallo(null); }}>Cambiar correo</button>
+            <a href="/festival" data-route className="btn btn-ghost" style={{ justifyContent: "center" }}>Volver al ranking</a>
           </div>
         </div>
       </div>
@@ -124,7 +202,27 @@ const PassportPage = ({ stands }) => {
 
   const visitadosIds = data.visitados || [];
   const visitados = visitadosIds.map((id) => stands.find((s) => s.id === id)).filter(Boolean);
-  if (!visitados.length) return <PassportEmpty/>;
+  if (!visitados.length) {
+    // Con sellos y sin lista de espacios no es un pasaporte vacío: falta la
+    // lista. Decir «aún no tienes pasaporte» aquí era lo que hacía creer a la
+    // gente que había perdido su recorrido.
+    if (visitadosIds.length) {
+      const errT = window.LMTApi && window.LMTApi.errorTablero;
+      return (
+        <div className="mobile-page">
+          <div className="mobile-inner" style={{ textAlign: "center", padding: 40 }}>
+            <div className="mono">Pasaporte</div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontSize: 30, fontWeight: "var(--display-weight)", margin: "8px 0 12px", lineHeight: 1.1 }}>
+              Tienes {visitadosIds.length} {visitadosIds.length === 1 ? "sello" : "sellos"}. Cargando los espacios del evento…
+            </h2>
+            <p style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>Se abrirá solo en cuanto lleguen.</p>
+            <CodigoError codigo={errT ? codigoDiagnostico(errT, "PAS-TAB") : "PAS-TAB-espera"}/>
+          </div>
+        </div>
+      );
+    }
+    return <PassportEmpty/>;
+  }
 
   const passport = {
     nombre: (perfil && perfil.nombre) || data.nombre || "Visitante",
@@ -161,8 +259,23 @@ const PassportPage = ({ stands }) => {
     { type: "end", fondo: fondos.contraportada },
   ];
 
+  // Copia guardada o servidor que no responde: se dice, con el código, pero
+  // el pasaporte se puede seguir mirando.
+  const aviso = (copiaDe || fallo) ? (
+    <div role="status" style={{
+      margin: "10px 4px 0", padding: "8px 12px", borderRadius: "var(--r-sm)", fontSize: 12, lineHeight: 1.45,
+      border: "1px solid rgba(255,255,255,0.28)", color: "var(--paper)", background: "rgba(255,255,255,0.06)",
+    }}>
+      {copiaDe
+        ? <>El servidor no respondió: ves la copia guardada en este teléfono ({haceCuanto(copiaDe)}). Se actualiza sola en cuanto responda.</>
+        : <>No se pudo actualizar el pasaporte; lo reintentamos solos.</>}
+      {fallo && <CodigoError oscuro codigo={codigoDiagnostico(fallo, "PAS")}/>}
+    </div>
+  ) : null;
+
   return (
     <PassportBook
+      aviso={aviso}
       passport={passport}
       pages={pages}
       visitados={visitados}
@@ -180,7 +293,7 @@ const PassportPage = ({ stands }) => {
 // monta encima; si no puede —sin WebGL, sin three.js, contexto perdido— el
 // render en CSS de siempre queda visible y los botones ←/→ siguen mandando.
 // El 3D es una capa reemplazable, nunca el mecanismo de navegación.
-const PassportBook = ({ passport, pages, visitados, visitadosIds, stands, page, setPage, flipping, setFlipping }) => {
+const PassportBook = ({ aviso, passport, pages, visitados, visitadosIds, stands, page, setPage, flipping, setFlipping }) => {
   const wrapRef = React.useRef(null);
   const libroRef = React.useRef(null);
   const [book3d, setBook3d] = React.useState(false);
@@ -313,6 +426,7 @@ const PassportBook = ({ passport, pages, visitados, visitadosIds, stands, page, 
           }} style={{ color: "var(--paper-3)", fontSize: 12, whiteSpace: "nowrap" }}>Cerrar</button>
           <MenuPublico oscuro/>
         </div>
+        {aviso}
 
         {/* El montador inserta su canvas como PRIMER hijo con z-index 0; el
             render CSS vive encima con z-index 1 y desaparece cuando el libro

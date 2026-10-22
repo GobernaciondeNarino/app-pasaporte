@@ -42,7 +42,17 @@ function register_routes_sistema(\LMT\Router $r): void
     /** Qué hay ahora mismo en la base. Es lo que se va a borrar. */
     $r->get('/admin/sistema/inventario', function () {
         admin_requiere_propietario();
-        Response::ok(['inventario' => sistema_inventario(), 'frase' => SISTEMA_FRASE]);
+        Response::ok([
+            'inventario' => sistema_inventario(),
+            'frase' => SISTEMA_FRASE,
+            // Cómo ve el servidor a quien está mirando este panel. Es su propia
+            // IP: no se enseña la de nadie más.
+            'red' => [
+                'ip'  => \LMT\RateLimit::ipCliente(),
+                'via' => \LMT\RateLimit::origenIp(),
+                'remota' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            ],
+        ]);
     });
 
     $r->post('/admin/sistema/reiniciar', function () {

@@ -10,7 +10,7 @@ if (!defined('LMT_GUARD')) define('LMT_GUARD', true);
 // primero que hay que mirar cuando algo falla en producción: sin ella, decidir
 // si revertir se convierte en «creo que subimos lo último». El historial y el
 // procedimiento de reversión de cada versión están en CHANGELOG.md.
-if (!defined('LMT_VERSION')) define('LMT_VERSION', '3.0.0');
+if (!defined('LMT_VERSION')) define('LMT_VERSION', '3.0.1');
 
 // Front controller — no exponer detalles de errores al cliente.
 ini_set('display_errors', '0');
@@ -41,7 +41,8 @@ use LMT\Session;
 use LMT\Router;
 
 set_exception_handler(function (\Throwable $e) {
-    error_log('[lmt][unhandled] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    // La misma referencia que verá la persona en el código del error.
+    error_log('[lmt][unhandled] ref=' . Response::referencia() . ' ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
     if (!headers_sent()) Response::error(500, 'internal_error', Config::debug() ? $e->getMessage() : null);
     else exit;
 });
@@ -55,9 +56,7 @@ Security::applyHeaders();
 Session::start();
 
 // Anti-flood global por IP
-if (!\LMT\RateLimit::hit('global', \LMT\RateLimit::ipHash())) {
-    Response::error(429, 'rate_limited');
-}
+\LMT\RateLimit::exigir('global', \LMT\RateLimit::ipHash());
 
 // CSRF/Origin para métodos no seguros
 Security::requireCsrfAndOrigin();

@@ -7,6 +7,148 @@ en el que empieza y el procedimiento de reversión, incluida la parte que el
 
 ---
 
+## v3.0.1 — El pasaporte ya no se pierde a mitad de la feria
+
+**Punto de reversión (v3.0.0, la que está en producción):** `5e96f7e`
+
+### El fallo
+
+En la 1ª Feria de Atención al Ciudadano (tic.narino.gov.co/feria), quien ya
+llevaba varios espacios sellados veía de pronto **«No fue posible cargar tu
+pasaporte»**, el **recorrido salía vacío** como si no hubiera visitado nada y,
+poco después, **el QR ya no abría el voto**. Se reproduce con la v3.0.0 tal
+cual: una persona que mira su pasaporte y su recorrido después de cada voto
+se queda fuera al **tercer sello**, y al sexto el voto ya no carga.
+
+### Por qué pasaba
+
+1. **Toda la feria contaba como una sola persona.** El sitio está detrás de
+   Cloudflare y el servidor veía la IP de Cloudflare, no la de cada teléfono.
+   Los límites «por IP» (120 peticiones por minuto en total) se repartían
+   entre todo el público: con unas decenas de personas usando la app, todas
+   recibían `429`.
+2. **El dueño del pasaporte tenía el cupo de un desconocido.** Abrir el
+   propio pasaporte contaba contra un límite de 10 consultas por hora y correo
+   pensado para frenar a quien sondea correos ajenos. El pasaporte, el
+   recorrido y la ficha de cada espacio lo gastaban en unos pocos sellos.
+3. **La app no se recuperaba.** Si al abrirla el servidor respondía `429`, la
+   conexión quedaba marcada como caída hasta recargar; el recorrido se tragaba
+   el error y pintaba la rejilla apagada; el voto por QR se quedaba en
+   «Cargando…» para siempre si no llegaba la lista de espacios.
+4. **El voto podía darse por hecho sin enviarse.** Con la conexión marcada
+   como caída, el formulario validaba el voto en el teléfono y enseñaba
+   «¡Listo!» **sin mandarlo al servidor**: ese sello no existía.
+
+### Qué cambia
+
+**Servidor**
+
+- **IP real del visitante** (`api/lib/RateLimit.php`): detrás de Cloudflare se
+  usa `CF-Connecting-IP`, sólo si la conexión llega desde los rangos
+  publicados por Cloudflare (no se puede falsificar entrando directo al
+  servidor). Para otro proxy delante, `'trusted_proxies'` en `api/config.php`;
+  `'trust_proxy' => true` sin lista sólo se cree a proxies de la red interna.
+- **Límites con mínimo para ferias.** Los de uso público no bajan de un mínimo
+  aunque `api/config.php` diga menos: global 600/min por IP, voto 30/min por
+  IP y espacio, pasaporte 120/min por IP, etc. (tabla en
+  `docs/CODIGOS-DE-ERROR.md`). **No hace falta editar el `config.php` de
+  producción.**
+- **El titular no tiene el cupo de un desconocido**: con su testigo, abrir su
+  pasaporte y su recorrido cuenta en `pasaporte_titular` (1200/hora). Sin
+  testigo sigue el límite anti-sondeo (30/hora por correo).
+- La puerta del pasaporte sólo cuenta intentos por correo si el perfil tiene
+  clave (sin clave no hay nada que adivinar).
+- Cada `429` dice **qué límite saltó** y trae `Retry-After`.
+- Cada error lleva una **referencia** (`ref`) que se escribe en el log de PHP
+  junto a la ruta (con el correo enmascarado) para los `429` y `5xx`.
+- **Panel → Sistema → «Cómo te ve el servidor»**: enseña la IP con la que el
+  servidor ve a quien mira y por dónde llegó (Cloudflare, proxy o directa).
+
+**Pantallas**
+
+- **Código interno en cada error**, p. ej. `PAS-429-pasaporte_correo-#k3f9q2`:
+  pantalla, estado, motivo y referencia del log. Tabla completa en
+  [docs/CODIGOS-DE-ERROR.md](docs/CODIGOS-DE-ERROR.md).
+- Las lecturas se **reintentan solas** (dos veces seguidas, respetando
+  `Retry-After`, y luego cada pocos segundos); el arranque fallido se
+  reintenta con esperas crecientes y, al volver, las pantallas se cargan solas.
+- **Copia en el teléfono** del último pasaporte y de la lista de espacios (sin
+  datos privados de los promotores): si el servidor no responde, el pasaporte
+  y el recorrido enseñan la copia con un aviso, en vez de vacío o error. La
+  copia se borra con «Cerrar» en el pasaporte.
+- El **voto nunca se da por hecho** si no llegó al servidor: dice «tu voto NO
+  se registró» con su código y se vuelve a tocar.
+- El voto por QR abre con la copia de la lista si el tablero tarda, y si no
+  hay ninguna dice «Estamos cargando los espacios» con su código y un botón de
+  reintento, en vez de un «Cargando…» eterno.
+- Un solo ciclo de actualización del tablero (antes se podían acumular dos y
+  duplicar las peticiones), más lento fuera del ranking (30 s).
+- **Todos los scripts llevan versión en la URL** (`js/api.js?v=…`). Cloudflare
+  guarda los `.js` cuatro horas: sin esto, tras actualizar, un teléfono podía
+  recibir las pantallas nuevas con el `api.js` viejo.
+
+### Actualizar producción (desde v3.0.0)
+
+Producción es exactamente `5e96f7e`. **No hay cambios de base de datos** y
+**no se toca `api/config.php`** (los mínimos de los límites viven en el
+código).
+
+Reemplazar en el servidor, con la misma ruta:
+
+| Archivo | Por qué |
+| --- | --- |
+| `app.php` | versión en la URL de todos los scripts |
+| `api/index.php` | versión 3.0.1, límite global con nombre, referencia en el log |
+| `api/lib/RateLimit.php` | IP real tras Cloudflare, mínimos, nombre del límite |
+| `api/lib/Response.php` | referencia `ref`, `Retry-After`, registro de 429/5xx |
+| `api/routes/auth.php` | nombre del límite en el 429 |
+| `api/routes/correo.php` | nombre del límite en el 429 |
+| `api/routes/pasaportes.php` | cupo propio para el titular |
+| `api/routes/promotores.php` | nombre del límite en el 429 |
+| `api/routes/sistema.php` | «Cómo te ve el servidor» |
+| `api/routes/visitantes.php` | puerta sin cupo por correo si no hay clave |
+| `api/routes/votos.php` | nombre del límite en el 429 |
+| `js/api.js` | reintentos, copias, arranque que se recupera |
+| `js/components.build.js` | pantallas compiladas (códigos, copias, voto) |
+
+Recomendado, para que el código fuente coincida con lo compilado (no cambia
+nada en ejecución): `components/Admin.jsx`, `App.jsx`, `Passport.jsx`,
+`Recorrido.jsx`, `Shared.jsx`, `Sistema.jsx`, `VoteFlow.jsx`. Opcional:
+`install.php` y `api/config.example.php` (valores nuevos para instalaciones
+futuras), `README.md`, `CHANGELOG.md`, `docs/CODIGOS-DE-ERROR.md`.
+
+Atajo equivalente: subir las carpetas **`api/lib/`**, **`api/routes/`**,
+**`js/`** y **`components/`** completas, más **`app.php`** y
+**`api/index.php`**. **No** subir la carpeta `api/` entera: dentro está el
+`config.php` de producción.
+
+Después de subir:
+
+1. **Purgar la caché de Cloudflare** (Caching → Purge Cache → *Custom purge*
+   con `https://tic.narino.gov.co/feria/js/api.js` y
+   `https://tic.narino.gov.co/feria/js/components.build.js`, o *Purge
+   Everything*). Con la versión en la URL no es imprescindible, pero así
+   nadie se queda con la copia vieja.
+2. Con sesión de administrador abierta, visitar
+   `https://tic.narino.gov.co/feria/api/index.php?path=health`: `"version"` debe
+   decir `3.0.1`.
+3. Desde un teléfono **con datos móviles**, Panel → **Sistema**: «Cómo te ve el
+   servidor» debe enseñar la IP del teléfono **vía Cloudflare**. Si sale una
+   IP interna, ver `docs/CODIGOS-DE-ERROR.md` → «Comprobar la IP».
+4. Opcional: vaciar los contadores para que nadie arrastre un bloqueo de antes:
+   `DELETE FROM rate_limits;`
+
+### Cómo volver atrás
+
+```bash
+git revert --no-commit 5e96f7e..HEAD && git commit -m "Volver a v3.0.0"
+```
+
+O volver a subir los archivos de la tabla desde `5e96f7e`. No hay nada que
+deshacer en la base de datos.
+
+---
+
 ## v3.0.0 — Pasaporte del Evento: una plataforma configurable para cualquier evento
 
 **Punto de reversión (v2.7.3, La Mejor Taza):** `959f19c`

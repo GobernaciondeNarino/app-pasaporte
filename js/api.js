@@ -48,7 +48,9 @@
   // csrf_invalid y el cliente no lo reintentaba nunca: el usuario se quedaba
   // sin poder votar hasta recargar la página. Ahora se refresca y se reintenta
   // UNA vez, que cubre el caso real sin arriesgar bucles.
-  async function request(path, opts = {}, reintento = false) {
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function request(path, opts = {}, reintento = false, intento = 0) {
     const method = (opts.method || "GET").toUpperCase();
     const headers = Object.assign({ "Accept": "application/json" }, opts.headers || {});
     if (opts.body && !(opts.body instanceof FormData)) {
@@ -64,12 +66,37 @@
     else if (typeof opts.body === "string") body = opts.body;
     else if (opts.body) body = JSON.stringify(opts.body);
 
-    const res = await fetch(urlFor(path), {
-      method,
-      credentials: "same-origin",
-      headers,
-      body,
-    });
+    // Una lectura que falla por saturación (429), por un error pasajero del
+    // servidor o por la red se reintenta sola dos veces, esperando lo que pida
+    // el servidor. En la feria, el día que hubo 429 la persona veía «No fue
+    // posible cargar tu pasaporte» a la primera, cuando un segundo después ya
+    // habría cargado. Sólo las lecturas: repetir un voto o un guardado a
+    // ciegas no es seguro.
+    const reintentable = (method === "GET" || method === "HEAD") && intento < 2;
+    let res;
+    try {
+      res = await fetch(urlFor(path), {
+        method,
+        credentials: "same-origin",
+        headers,
+        body,
+      });
+    } catch (errRed) {
+      if (reintentable) {
+        await esperar(1200 * (intento + 1));
+        return request(path, opts, reintento, intento + 1);
+      }
+      const err = new Error("network_error");
+      err.status = 0;
+      err.code = "network_error";
+      throw err;
+    }
+    if (reintentable && (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504)) {
+      const pide = parseInt(res.headers.get("Retry-After") || "", 10);
+      const ms = Math.min(isNaN(pide) ? 2000 : pide * 1000, 4000) * (intento + 1);
+      await esperar(ms);
+      return request(path, opts, reintento, intento + 1);
+    }
     let data = null;
     try { data = await res.json(); } catch (_) {}
     if (!res.ok || (data && data.ok === false)) {
@@ -82,6 +109,10 @@
       const err = new Error(code);
       err.status = res.status;
       err.code = code;
+      // Para el código interno que enseña la pantalla: qué límite saltó
+      // («limite:pasaporte_correo») y la referencia que quedó en el log.
+      err.detalle = (data && typeof data.message === "string") ? data.message : "";
+      err.ref = (data && typeof data.ref === "string") ? data.ref : "";
       throw err;
     }
     return data && data.data !== undefined ? data.data : data;
@@ -142,16 +173,44 @@
     };
   }
 
-  async function bootstrap() {
+  /**
+   * Arranque: sesión y token CSRF.
+   *
+   * Si falla, NO se da la API por perdida para siempre. Antes un único fallo
+   * de /auth/me —un 429 en plena feria— dejaba `enabled = false` hasta que la
+   * persona recargaba, y el pasaporte enseñaba «No fue posible cargar tu
+   * pasaporte» sin volver a intentarlo nunca. Ahora se reintenta con esperas
+   * crecientes y, cuando responde, se avisa con `lmt:auth`: las pantallas ya
+   * escuchan ese evento para volver a cargar.
+   */
+  let reintentosArranque = 0;
+  let timerArranque = null;
+  let arrancando = null;
+  function bootstrap() {
+    // Un solo arranque a la vez y un solo reintento en cola: «Reintentar
+    // ahora» y el voto pueden pedirlo mientras ya hay uno esperando.
+    if (arrancando) return arrancando;
+    clearTimeout(timerArranque);
+    arrancando = arrancar().finally(() => { arrancando = null; });
+    return arrancando;
+  }
+  async function arrancar() {
     try {
       const me = await request("/auth/me");
       user = me.user || null;
       promotor = me.promotor || null;
       csrf = me.csrf || "";
       window.LMTApi.enabled = true;
+      window.LMTApi.errorArranque = null;
+      reintentosArranque = 0;
     } catch (e) {
       console.warn("[lmt] API no disponible:", e.message);
       window.LMTApi.enabled = false;
+      // Las pantallas lo ponen en su código de error («PAS-OFF-429-global»):
+      // sin API no hay pasaporte, y así se sabe por qué no la hubo.
+      window.LMTApi.errorArranque = e;
+      const espera = Math.min(30000, 2000 * Math.pow(2, reintentosArranque++));
+      timerArranque = setTimeout(() => { bootstrap(); }, espera);
     } finally {
       bootstrapDone = true;
       dispatchAuth();
@@ -159,11 +218,12 @@
   }
 
   async function pollDashboard() {
-    if (!window.LMTApi.enabled) return;
+    window.LMTApi.ultimoTableroOk = false;
     try {
       const data = await request("/dashboard");
       if (Array.isArray(data.stands)) {
         window.STANDS_DATA = data.stands.map(mapStand);
+        if (window.STANDS_DATA.length) guardarStands(window.STANDS_DATA);
       }
       if (Array.isArray(data.votos)) {
         const standMap = Object.fromEntries((window.STANDS_DATA || []).map((s) => [s.id, s]));
@@ -178,8 +238,14 @@
         }));
       }
       window.LMTApi.metricas = data.metricas || null;
+      window.LMTApi.ultimoTableroOk = true;
+      window.LMTApi.errorTablero = null;
       dispatchData();
-    } catch (_) { /* silencioso */ }
+    } catch (e) {
+      // Sin aviso aquí: cicloTablero() reintenta. Se guarda para el código de
+      // error de la pantalla de voto si se queda sin la lista de espacios.
+      window.LMTApi.errorTablero = e;
+    }
   }
 
   async function signInAdmin(email, password) {
@@ -358,6 +424,17 @@
     try { const me = await request("/auth/me"); csrf = me.csrf || ""; } catch (_) {}
   }
 
+  /**
+   * Intenta arrancar la API ya, sin esperar al siguiente reintento. Devuelve
+   * si quedó disponible. Lo usa el voto: antes, sin API, se daba el voto por
+   * hecho sin mandarlo y la persona perdía ese sello sin saberlo.
+   */
+  async function reconectar() {
+    if (window.LMTApi.enabled) return true;
+    await bootstrap();
+    return !!window.LMTApi.enabled;
+  }
+
   async function submitVote(raw) {
     if (!window.LMTSecurity) throw new Error("seguridad_no_cargada");
     const payload = window.LMTSecurity.buildVotePayload(raw);
@@ -418,7 +495,79 @@
   // endpoint público, así que esa parte no puede ir sin prueba de propiedad.
   async function getPasaporte(correo, token) {
     const t = token ? "?t=" + encodeURIComponent(token) : "";
-    return request("/pasaportes/" + correo + t);   // urlFor codifica; no duplicar
+    const res = await request("/pasaportes/" + correo + t);   // urlFor codifica; no duplicar
+    guardarPasaporte(correo, res);
+    return res;
+  }
+
+  /**
+   * Copia del último pasaporte y de la lista de espacios en este teléfono.
+   *
+   * En la feria, cuando el servidor no respondía, el pasaporte decía «No fue
+   * posible cargar» y el recorrido salía vacío, como si la persona no hubiera
+   * visitado nada. Con la copia se enseña lo último que se supo —avisando de
+   * que es una copia— mientras se reintenta. Hay UN pasaporte guardado (el de
+   * la última persona) y se borra con LMTPerfil.olvidar().
+   */
+  const CLAVE_PASAPORTE = "lmt.pasaporte.copia";
+  const CLAVE_STANDS = "lmt.stands.copia";
+  // Lo que se calificó y cuándo se visitó sólo llega con el testigo; sin él
+  // tampoco sale de la copia (teléfono prestado que escribe otro correo).
+  const PRIVADO_PASAPORTE = ["valoraciones", "estrellas_mias", "sellado_en", "ultima_visita"];
+  // De la lista de espacios no se guarda lo que el panel trae sólo al admin.
+  const PRIVADO_STAND = ["propietario_documento", "nit", "telefono", "correo", "camara_comercio_numero", "invima_detalle", "respuestas_extra"];
+
+  function guardarPasaporte(correo, data) {
+    if (!data || typeof data !== "object") return;
+    try {
+      localStorage.setItem(CLAVE_PASAPORTE, JSON.stringify({
+        correo: String(correo || "").toLowerCase(), t: Date.now(), data,
+      }));
+    } catch (_) { /* sin espacio o navegación privada: no pasa nada */ }
+  }
+  function pasaporteGuardado(correo) {
+    try {
+      const o = JSON.parse(localStorage.getItem(CLAVE_PASAPORTE) || "null");
+      const c = String(correo || "").toLowerCase();
+      if (!o || !o.data || o.correo !== c) return null;
+      const data = Object.assign({}, o.data);
+      if (!(window.LMTPerfil && window.LMTPerfil.testigoDe(c))) PRIVADO_PASAPORTE.forEach((k) => { delete data[k]; });
+      return { t: o.t || 0, data };
+    } catch (_) { return null; }
+  }
+  /** Añade un sello a la copia al votar, para que cuente aunque no se recargue. */
+  function sellarCopia(correo, standId) {
+    const o = pasaporteGuardado(correo);
+    if (!o || !standId) return;
+    const visitados = Array.isArray(o.data.visitados) ? o.data.visitados.slice() : [];
+    if (visitados.indexOf(standId) === -1) visitados.push(standId);
+    try {
+      const crudo = JSON.parse(localStorage.getItem(CLAVE_PASAPORTE) || "null");
+      crudo.data.visitados = visitados;
+      localStorage.setItem(CLAVE_PASAPORTE, JSON.stringify(crudo));
+    } catch (_) {}
+  }
+  function guardarStands(lista) {
+    try {
+      const limpia = lista.map((s) => {
+        const c = Object.assign({}, s);
+        PRIVADO_STAND.forEach((k) => { delete c[k]; });
+        return c;
+      });
+      localStorage.setItem(CLAVE_STANDS, JSON.stringify({ t: Date.now(), stands: limpia }));
+    } catch (_) {}
+  }
+  /**
+   * La lista de espacios para las pantallas del visitante: la del tablero si
+   * llegó y, si no, la copia. NUNCA para el panel: le faltan los datos
+   * privados y un «Guardar» con ella los borraría.
+   */
+  function standsVisitante(stands) {
+    if (Array.isArray(stands) && stands.length) return stands;
+    try {
+      const o = JSON.parse(localStorage.getItem(CLAVE_STANDS) || "null");
+      return o && Array.isArray(o.stands) ? o.stands : [];
+    } catch (_) { return []; }
   }
 
   async function listStands()           { return (await request("/stands")).map(mapStand); }
@@ -496,6 +645,10 @@
     resumenVisitantes,
     expectativasVisitantes,
     getPasaporte,
+    reconectar,
+    pasaporteGuardado,
+    sellarCopia,
+    standsVisitante,
     listStands,
     getStand,
     createStand,
@@ -563,6 +716,7 @@
         localStorage.removeItem("lmt.perfil.correo");
         localStorage.removeItem("lmt.perfil.token");
         localStorage.removeItem("lmt.email");
+        localStorage.removeItem("lmt.pasaporte.copia");
       } catch (_) {}
     },
   };
@@ -615,18 +769,66 @@
     },
   };
 
+  /**
+   * Cada cuánto se refresca el tablero.
+   *
+   * Cada 5 s sólo donde se mira en vivo: el ranking público y la actividad del
+   * panel. En el voto, el pasaporte o el recorrido basta con tener los
+   * espacios; antes cada móvil abierto en cualquier pantalla consultaba el
+   * tablero 12 veces por minuto, y con decenas de visitantes detrás de la
+   * misma IP eso era justo lo que agotaba el límite de peticiones.
+   */
+  const intervaloTablero = () => {
+    let ruta = "/";
+    try { ruta = (window.LMTRouter && window.LMTRouter.currentPath()) || location.pathname; } catch (_) {}
+    return /^\/(festival|admin\/live|admin\/?$|admin\/stands\/?$)/.test(ruta) ? 5000 : 30000;
+  };
+
+  let fallosTablero = 0;
+  // Un solo ciclo vivo. Mientras una consulta está en vuelo pollTimer es null,
+  // y sin esta marca cualquier «si no hay ciclo, arráncalo» (volver a la
+  // pestaña, recuperar la API) abría un segundo bucle y duplicaba el ritmo.
+  let tableroEnCurso = false;
+  async function cicloTablero() {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+    if (document.hidden || tableroEnCurso) return;
+    tableroEnCurso = true;
+    const antes = (window.STANDS_DATA || []).length;
+    try { await pollDashboard(); } finally { tableroEnCurso = false; }
+    const ok = window.LMTApi.ultimoTableroOk;
+    fallosTablero = ok ? 0 : fallosTablero + 1;
+    // Sin datos todavía (la primera carga falló), se insiste pronto: el
+    // formulario de voto los necesita para saber qué espacio se escaneó.
+    const espera = ok
+      ? intervaloTablero()
+      : Math.min(30000, (antes ? 4000 : 1500) * Math.pow(2, fallosTablero - 1));
+    if (!document.hidden) pollTimer = setTimeout(cicloTablero, espera);
+  }
+
   // Arranque automático
   bootstrap().then(() => {
     window.LMTFestival.cargar();
-    pollDashboard();
-    pollTimer = setInterval(pollDashboard, 5000);
+    cicloTablero();
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
-        clearInterval(pollTimer); pollTimer = null;
+        clearTimeout(pollTimer); pollTimer = null;
       } else if (!pollTimer) {
-        pollDashboard();
-        pollTimer = setInterval(pollDashboard, 5000);
+        cicloTablero();
       }
+    });
+    // Al cambiar de pantalla, el ritmo cambia: entrar al ranking lo acelera.
+    window.addEventListener("popstate", () => { if (pollTimer && !document.hidden) { clearTimeout(pollTimer); cicloTablero(); } });
+    // «Reintentar ahora» de una pantalla: arranque inmediato si faltaba y el
+    // tablero al día, sin esperar al próximo turno.
+    window.addEventListener("lmt:reintentar", () => {
+      if (!window.LMTApi.enabled) bootstrap();
+      cicloTablero();
+    });
+    // Si el arranque falló y luego se recupera, se carga lo que faltó.
+    window.addEventListener("lmt:auth", () => {
+      if (window.LMTApi.enabled && !(window.STANDS_DATA || []).length && !pollTimer) cicloTablero();
+      if (window.LMTApi.enabled && !window.LMTFestival.ajustes()) window.LMTFestival.cargar();
     });
   });
 })();

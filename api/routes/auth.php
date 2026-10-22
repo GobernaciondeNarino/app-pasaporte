@@ -25,9 +25,7 @@ function register_routes_auth(\LMT\Router $r): void
     });
 
     $r->post('/auth/login', function () {
-        if (!RateLimit::hit('login', RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('login', RateLimit::ipHash());
 
         $body  = Security::jsonBody();
         $email = Validate::email($body['email'] ?? null);

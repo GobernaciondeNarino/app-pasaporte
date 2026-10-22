@@ -32,6 +32,26 @@ const AMBITOS = [
   },
 ];
 
+const IP_INTERNA = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|f[cd][0-9a-f]{2}:|fe80:)/i;
+
+const DiagnosticoRed = ({ red }) => {
+  const via = { cloudflare: "Cloudflare", proxy: "proxy de confianza", directa: "conexión directa" }[red.via] || red.via;
+  const interna = red.via === "directa" && IP_INTERNA.test(red.ip || "");
+  return (
+    <div style={{ border: `1px solid ${interna ? "var(--bad)" : "var(--line)"}`, borderRadius: "var(--r-md)", padding: 20, marginTop: 18 }}>
+      <div className="mono" style={{ marginBottom: 8 }}>Cómo te ve el servidor</div>
+      <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+        Tu IP: <strong className="mono" style={{ textTransform: "none", letterSpacing: 0 }}>{red.ip}</strong> · vía {via}
+      </div>
+      <p style={{ fontSize: 13, lineHeight: 1.6, color: interna ? "var(--bad)" : "var(--ink-2)", margin: "6px 0 0", maxWidth: 680 }}>
+        {interna
+          ? <>El servidor ve una IP de la red interna, no la tuya: todos los visitantes contarían como uno solo para los límites y se quedarían sin pasaporte en plena feria. Añade la IP del proxy ({red.remota}) a <code>'trusted_proxies'</code> en <code>api/config.php</code>.</>
+          : <>Cada visitante cuenta por su propia IP. Compruébalo desde el teléfono con datos móviles: aquí debe salir la IP de ese teléfono, no la de Cloudflare ni la del servidor.</>}
+      </p>
+    </div>
+  );
+};
+
 const SistemaPage = () => {
   const [info, setInfo] = React.useState(null);
   const [sel, setSel] = React.useState({});
@@ -106,6 +126,11 @@ const SistemaPage = () => {
           ))}
         </div>
       </div>
+
+      {/* Cómo ve el servidor a quien mira. Si ve una IP de la red interna,
+          todos los visitantes cuentan como uno para los límites: es lo que
+          dejó a la gente sin pasaporte en la feria. */}
+      {info && info.red && <DiagnosticoRed red={info.red}/>}
 
       <div style={{ marginTop: 24 }}>
         <div className="mono" style={{ marginBottom: 12 }}>Qué quieres borrar</div>

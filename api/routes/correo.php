@@ -178,9 +178,7 @@ function register_routes_correo(\LMT\Router $r): void
         $b = Security::jsonBody();
         $destino = Validate::email($b['destino'] ?? null);
         if (!$destino) Response::error(422, 'correo_invalido');
-        if (!\LMT\RateLimit::hit('correo_prueba', \LMT\RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        \LMT\RateLimit::exigir('correo_prueba', \LMT\RateLimit::ipHash());
 
         $cfg = Mailer::cfg();
         $pl = Correos::pruebaEnvio($destino, (string) $cfg['transport']);

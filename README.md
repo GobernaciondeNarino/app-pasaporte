@@ -14,12 +14,14 @@ nombres técnicos que no ve nadie.
 
 > **Guía para quien organiza un evento:**
 > [docs/CONFIGURACION-DEL-EVENTO.md](docs/CONFIGURACION-DEL-EVENTO.md).
+> **Si una pantalla enseña un «Código …»:**
+> [docs/CODIGOS-DE-ERROR.md](docs/CODIGOS-DE-ERROR.md).
 
 > Frontend estático (React + Three.js, sin build step) sobre un backend
 > **PHP 8 + PDO** con MySQL/MariaDB o SQLite. Toda la capa de seguridad
 > (sesiones, CSRF, rate limiting, validación) vive en el servidor.
 
-**Versión 3.0.0.** Qué trae cada versión y —lo que de verdad importa el día del
+**Versión 3.0.1.** Qué trae cada versión y —lo que de verdad importa el día del
 evento— **cómo volver atrás**, en [CHANGELOG.md](CHANGELOG.md). La versión
 desplegada se consulta en `/api/health` con sesión de administrador.
 
@@ -1049,12 +1051,16 @@ return [
     'allowed_origins' => [
         'https://lamejortaza.co',
     ],
+    // Los de uso público no bajan del mínimo de api/lib/RateLimit.php; la
+    // lista completa y su porqué, en api/config.example.php.
     'rate_limits' => [
         'login'      => ['window' => 600, 'max' => 5],
-        'vote'       => ['window' => 60,  'max' => 1],
-        'vote_email' => ['window' => 600, 'max' => 12],
-        'global'     => ['window' => 60,  'max' => 120],
+        'vote'       => ['window' => 60,  'max' => 30],
+        'vote_email' => ['window' => 600, 'max' => 40],
+        'global'     => ['window' => 60,  'max' => 600],
     ],
+    // Cloudflare se reconoce solo; otro proxy delante, su IP o red aquí.
+    'trusted_proxies' => [],
     'force_https' => true,
     'debug'       => false,
 ];
@@ -1440,6 +1446,7 @@ la-mejor-taza/
 ├── router.php                 # router para `php -S` en desarrollo
 ├── .htaccess                  # cabeceras globales + rewrites
 ├── docs/CONFIGURACION-DEL-EVENTO.md  # guía para quien organiza un evento
+├── docs/CODIGOS-DE-ERROR.md   # qué significa cada «Código PAS-429-…» de las pantallas
 ├── components/                # JSX precompilado a js/components.build.js
 │   ├── Festival.jsx           # Panel → Configuración del evento (pestañas, borrador, plantillas)
 │   ├── Encuesta.jsx           # Panel → Encuesta (resultados por pregunta)

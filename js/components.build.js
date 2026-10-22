@@ -1,7 +1,7 @@
 // GENERADO POR tools/build-components.mjs — NO EDITAR A MANO.
 // Fuente: components/Shared.jsx, components/Mapa.jsx, components/Admin.jsx, components/QRPrint.jsx, components/VoteFlow.jsx, components/Passport.jsx, components/Dashboard.jsx, components/Recorrido.jsx, components/Promotores.jsx, components/Cuentas.jsx, components/Perfil.jsx, components/Caracterizacion.jsx, components/Economia.jsx, components/Encuesta.jsx, components/Festival.jsx, components/Sistema.jsx, components/Correo.jsx, components/App.jsx
 // Regenerar tras tocar cualquier .jsx:  node tools/build-components.mjs
-// Huella de las fuentes: c8ea8628f7572767
+// Huella de las fuentes: f53f3a42a19d9fd4
 /* components/Shared.jsx */
 (function () {
 const LogoTaza = ({
@@ -831,6 +831,7 @@ const ERRORES = {
   password_repetida: "La nueva contraseña debe ser distinta de la actual.",
   password_change_required: "Primero debes cambiar tu contraseña temporal.",
   rate_limited: "Demasiadas solicitudes seguidas. Espera un momento.",
+  network_error: "No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.",
   nombre_empresa_invalido: "El nombre de la empresa es obligatorio.",
   nombre_producto_invalido: "El nombre del producto es obligatorio.",
   altura_invalida: "La altura debe estar entre 0 y 6000 msnm.",
@@ -883,22 +884,83 @@ const ERRORES = {
   clave_corta: "La clave debe tener al menos 6 caracteres.",
   internal_error: "Error interno del servidor. Revisa el log de errores de PHP: suele ser una tabla que falta (vuelve a ejecutar db/schema) o el envío de correo mal configurado."
 };
-const mensajeError = (e, porDefecto) => {
+const PANTALLAS_ERROR = [[/^\/pasaporte/, "PAS"], [/^\/recorrido/, "REC"], [/^\/s\//, "VOT"], [/^\/inscripcion/, "INS"], [/^\/perfil/, "PER"], [/^\/promotor/, "PTA"], [/^\/admin/, "ADM"], [/^\/festival/, "TAB"]];
+const pantallaError = () => {
+  const ruta = rutaActual();
+  for (const [re, pre] of PANTALLAS_ERROR) if (re.test(ruta)) return pre;
+  return "INI";
+};
+const limpiarCodigo = (t, max = 40) => String(t || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, max);
+const partesCodigo = e => {
+  const code = limpiarCodigo(e && (e.code || e.message) || e);
+  const status = e && typeof e.status === "number" ? e.status : null;
+  let estado,
+    motivo = code;
+  if (status === 0 || code === "network_error") {
+    estado = "RED";
+    motivo = "";
+  } else if (status) estado = String(status);else estado = "CLI";
+  const detalle = e && typeof e.detalle === "string" ? e.detalle : "";
+  if (status === 429 && detalle.indexOf("limite:") === 0) motivo = limpiarCodigo(detalle.slice(7));
+  const ref = e && e.ref && (status === 429 || status >= 500) ? "#" + limpiarCodigo(e.ref, 12) : "";
+  return [estado, motivo, ref].filter(Boolean);
+};
+const codigoDiagnostico = (e, pantalla) => {
+  const pre = pantalla || pantallaError();
+  if (!e) return pre;
+  if (e === "OFF") {
+    const causa = window.LMTApi && window.LMTApi.errorArranque;
+    return [pre, "OFF"].concat(causa ? partesCodigo(causa) : []).join("-");
+  }
+  return [pre].concat(partesCodigo(e)).join("-");
+};
+const SEP_CODIGO = " · Código ";
+const mensajeError = (e, porDefecto, pantalla) => {
   const code = String(e && (e.code || e.message) || e || "");
-  for (const k of Object.keys(ERRORES)) if (code.includes(k)) return ERRORES[k];
-  const limpio = code.replace(/[^a-zA-Z0-9_ .:-]/g, "").slice(0, 60);
-  return (porDefecto || "Ocurrió un error.") + (limpio ? ` (código: ${limpio})` : "");
+  let texto = "";
+  for (const k of Object.keys(ERRORES)) if (code.includes(k)) {
+    texto = ERRORES[k];
+    break;
+  }
+  if (!texto) texto = porDefecto || "Ocurrió un error.";
+  return texto + SEP_CODIGO + codigoDiagnostico(e, pantalla);
+};
+const CodigoError = ({
+  codigo,
+  oscuro = false
+}) => {
+  if (!codigo) return null;
+  return React.createElement("div", {
+    className: "mono",
+    style: {
+      marginTop: 6,
+      fontSize: 11,
+      letterSpacing: "0.04em",
+      textTransform: "none",
+      color: oscuro ? "rgba(255,255,255,0.7)" : "var(--ink-3)",
+      userSelect: "all",
+      WebkitUserSelect: "all"
+    }
+  }, "C\xF3digo ", codigo);
 };
 const Aviso = ({
   tipo = "error",
-  children
+  children,
+  margen = 14
 }) => {
   if (!children) return null;
   const color = tipo === "ok" ? "var(--good)" : tipo === "info" ? "var(--ink-2)" : "var(--bad)";
+  let texto = children,
+    codigo = "";
+  if (typeof children === "string" && children.indexOf(SEP_CODIGO) > 0) {
+    const i = children.lastIndexOf(SEP_CODIGO);
+    texto = children.slice(0, i);
+    codigo = children.slice(i + SEP_CODIGO.length);
+  }
   return React.createElement("div", {
     role: tipo === "error" ? "alert" : "status",
     style: {
-      marginTop: 14,
+      marginTop: margen,
       padding: "10px 12px",
       fontSize: 13,
       lineHeight: 1.5,
@@ -907,7 +969,9 @@ const Aviso = ({
       borderRadius: "var(--r-sm)",
       background: `color-mix(in oklch, ${color} 6%, var(--paper))`
     }
-  }, children);
+  }, texto, React.createElement(CodigoError, {
+    codigo: codigo
+  }));
 };
 const CampoNumerico = ({
   id,
@@ -1020,6 +1084,7 @@ const usarPuerta = alEntrar => {
     const normal = sec.normalizeEmail(limpio);
     setBusy(true);
     try {
+      if (window.LMTApi && !window.LMTApi.enabled && window.LMTApi.reconectar) await window.LMTApi.reconectar();
       const res = await window.LMTApi.accesoVisitante(normal, pideClave ? clave : "");
       if (res && res.protegido && !res.token) {
         setPideClave(true);
@@ -2203,6 +2268,9 @@ Object.assign(window, {
   ERRORES,
   mensajeError,
   Aviso,
+  codigoDiagnostico,
+  CodigoError,
+  SEP_CODIGO,
   SubirImagen,
   ayudaImagen,
   urlImagen,
@@ -2894,13 +2962,15 @@ const LoginAdmin = ({
     }
     setBusy(true);
     try {
-      if (!window.LMTApi || !window.LMTApi.enabled) throw new Error("api_unavailable");
+      const api = window.LMTApi;
+      if (!api || !(api.enabled || api.reconectar && (await api.reconectar()))) throw new Error("api_unavailable");
       const u = await window.LMTApi.signInAdmin(email, password);
       if (!u || !u.admin) throw new Error("forbidden");
       onLogin();
     } catch (e) {
       const code = e && (e.code || e.message);
-      if (code === "rate_limited") setError("Demasiados intentos. Espera unos minutos.");else if (code === "api_unavailable") setError("La API no está disponible. ¿Ejecutaste el asistente de instalación?");else if (code === "forbidden") setError("Esa cuenta no tiene permisos de administrador.");else setError("No fue posible iniciar sesión. Verifica las credenciales.");
+      const poner = (t, codigo) => setError(t + SEP_CODIGO + codigo);
+      if (code === "rate_limited") poner("Demasiados intentos. Espera unos minutos.", codigoDiagnostico(e, "ADM"));else if (code === "api_unavailable") poner("La API no está disponible. ¿Ejecutaste el asistente de instalación?", codigoDiagnostico("OFF", "ADM"));else if (code === "forbidden") setError("Esa cuenta no tiene permisos de administrador.");else poner("No fue posible iniciar sesión. Verifica las credenciales.", codigoDiagnostico(e, "ADM"));
     } finally {
       setBusy(false);
     }
@@ -3104,12 +3174,8 @@ const LoginAdmin = ({
     onChange: e => setPassword(e.target.value),
     maxLength: 128,
     required: true
-  })), error && React.createElement("div", {
-    role: "alert",
-    style: {
-      fontSize: 13,
-      color: "var(--bad)"
-    }
+  })), React.createElement(Aviso, {
+    margen: 0
   }, error), React.createElement("button", {
     className: "btn btn-primary",
     type: "submit",
@@ -3642,7 +3708,8 @@ const StandEditor = ({
       window.LMTRouter.go(isNew ? "/admin/qr" : "/admin/stands");
     } catch (e) {
       const code = String(e && (e.code || e.message) || e);
-      if (code.includes("bad_id")) setError("Identificador inválido (sólo minúsculas, números y guión).");else if (code.includes("bad_nombre")) setError("Nombre obligatorio (máx. 80).");else if (code.includes("bad_municipio")) setError("Municipio obligatorio (máx. 80).");else if (code.includes("direccion_requerida")) setError(ERRORES.direccion_requerida);else if (code.includes("detalle_requerido")) setError(ERRORES.detalle_requerido);else if (code.includes("tipo_organizacion_invalido")) setError(ERRORES.tipo_organizacion_invalido);else if (code.includes("actividad_cafe_invalida")) setError(ERRORES.actividad_cafe_invalida);else if (code.includes("poblacion_invalida")) setError(ERRORES.poblacion_invalida);else if (code.includes("numero_invalido")) setError(ERRORES.numero_invalido);else if (code.includes("unauthorized")) setError("Tu sesión expiró. Vuelve a iniciar sesión.");else setError("No fue posible guardar: " + code);
+      const poner = t => setError(t + SEP_CODIGO + codigoDiagnostico(e, "ADM"));
+      if (code.includes("bad_id")) poner("Identificador inválido (sólo minúsculas, números y guión).");else if (code.includes("bad_nombre")) poner("Nombre obligatorio (máx. 80).");else if (code.includes("bad_municipio")) poner("Municipio obligatorio (máx. 80).");else if (code.includes("direccion_requerida")) poner(ERRORES.direccion_requerida);else if (code.includes("detalle_requerido")) poner(ERRORES.detalle_requerido);else if (code.includes("tipo_organizacion_invalido")) poner(ERRORES.tipo_organizacion_invalido);else if (code.includes("actividad_cafe_invalida")) poner(ERRORES.actividad_cafe_invalida);else if (code.includes("poblacion_invalida")) poner(ERRORES.poblacion_invalida);else if (code.includes("numero_invalido")) poner(ERRORES.numero_invalido);else if (code.includes("unauthorized")) poner("Tu sesión expiró. Vuelve a iniciar sesión.");else poner("No fue posible guardar el espacio.");
     } finally {
       setBusy(false);
     }
@@ -3659,7 +3726,7 @@ const StandEditor = ({
       await window.LMTApi.pollDashboard();
       window.LMTRouter.go("/admin/stands");
     } catch (e) {
-      setError("No fue posible borrar: " + (e.code || e.message));
+      setError("No fue posible borrar el espacio." + SEP_CODIGO + codigoDiagnostico(e, "ADM"));
     } finally {
       setBusy(false);
     }
@@ -4031,15 +4098,8 @@ const StandEditor = ({
       ...form.coords,
       y: parseFloat(e.target.value)
     })
-  }))), error && React.createElement("div", {
-    role: "alert",
-    style: {
-      padding: "10px 12px",
-      border: "1px solid var(--bad)",
-      color: "var(--bad)",
-      borderRadius: "var(--r-sm)",
-      fontSize: 13
-    }
+  }))), React.createElement(Aviso, {
+    margen: 0
   }, error), React.createElement("div", {
     className: "acciones",
     style: {
@@ -4857,22 +4917,29 @@ const VoteForm = ({
         texto: conComentario ? data.texto : "",
         respuestas: data.respuestas
       };
-      if (window.LMTApi && window.LMTApi.enabled) {
-        const res = await window.LMTApi.submitVote(payload);
-        if (res && res.perfil_token) window.LMTPerfil.guardar(correo, res.perfil_token);
-      } else if (sec) {
-        sec.buildVotePayload(payload);
+      const api = window.LMTApi;
+      if (!api || !(api.enabled || api.reconectar && (await api.reconectar()))) {
+        const err = new Error("api_off");
+        err.code = "api_off";
+        throw err;
       }
+      const res = await window.LMTApi.submitVote(payload);
+      if (res && res.perfil_token) window.LMTPerfil.guardar(correo, res.perfil_token);
       try {
         localStorage.setItem("lmt.email", sec ? sec.normalizeEmail(correo) : correo.toLowerCase());
       } catch (_) {}
+      if (window.LMTApi.sellarCopia) window.LMTApi.sellarCopia(correo, stand.id);
       onComplete(data);
     } catch (e) {
       const code = String(e && (e.code || e.message) || e);
+      const status = e && typeof e.status === "number" ? e.status : null;
+      let texto;
       if (code.includes("ya_votaste")) {
-        setSubmitError("Ya registraste un voto para este espacio con ese correo.");
+        texto = "Ya registraste un voto para este espacio con ese correo.";
         setYaVoto(true);
-      } else if (code.includes("rate_limited")) setSubmitError("Demasiados votos seguidos. Espera un momento e intenta de nuevo.");else if (code.includes("correo_invalido")) setSubmitError("El correo no es válido.");else if (code.includes("emoji_invalido")) setSubmitError("Selecciona una calificación.");else if (code.includes("stand_no_existe")) setSubmitError("Este espacio ya no está disponible.");else if (code.includes("csrf")) setSubmitError("Sesión expirada. Recarga la página y vuelve a intentar.");else setSubmitError("No fue posible registrar tu voto. Intenta de nuevo.");
+      } else if (code === "api_off") texto = "No hay conexión con el servidor del evento: tu voto NO se registró. Revisa tu internet y vuelve a tocar tu calificación.";else if (status === 0 || code === "network_error") texto = "Se cortó la conexión y tu voto no llegó. Vuelve a tocar tu calificación.";else if (code.includes("rate_limited")) texto = "Demasiados votos seguidos. Espera un momento e intenta de nuevo.";else if (code.includes("correo_invalido")) texto = "El correo no es válido.";else if (code.includes("emoji_invalido")) texto = "Selecciona una calificación.";else if (code.includes("stand_no_existe")) texto = "Este espacio ya no está disponible.";else if (code.includes("csrf")) texto = "Sesión expirada. Recarga la página y vuelve a intentar.";else texto = "No fue posible registrar tu voto. Intenta de nuevo.";
+      const codigo = code.includes("ya_votaste") ? "" : code === "api_off" ? codigoDiagnostico("OFF", "VOT") : codigoDiagnostico(e, "VOT");
+      setSubmitError(codigo ? texto + SEP_CODIGO + codigo : texto);
       setSubmitting(false);
     }
   };
@@ -5190,17 +5257,7 @@ const VoteForm = ({
       color: "var(--ink-3)",
       marginTop: 6
     }
-  }, "Toca un emoji arriba para enviar tu voto con esto."))), submitError && React.createElement("div", {
-    role: "alert",
-    style: {
-      marginTop: 16,
-      padding: "10px 12px",
-      border: "1px solid var(--bad)",
-      color: "var(--bad)",
-      borderRadius: "var(--r-sm)",
-      fontSize: 13
-    }
-  }, submitError), yaVoto && React.createElement("div", {
+  }, "Toca un emoji arriba para enviar tu voto con esto."))), React.createElement(Aviso, null, submitError), yaVoto && React.createElement("div", {
     style: {
       marginTop: 14,
       display: "flex",
@@ -5433,8 +5490,25 @@ const PassportEmpty = () => React.createElement("div", {
     justifyContent: "center"
   }
 }, "\u2190 Ver el ranking")));
+const textoFalloPasaporte = e => {
+  if (e === "OFF") return "Conectando con el servidor del evento…";
+  const code = String(e && (e.code || e.message) || e || "");
+  const status = e && typeof e.status === "number" ? e.status : null;
+  if (code.includes("bad_email")) return "El correo no es válido.";
+  if (status === 429 || code.includes("rate_limited")) return "Hay mucha gente consultando a la vez. Lo reintentamos en unos segundos.";
+  if (status === 0 || code === "network_error") return "No hay conexión con el servidor. Revisa tu internet: lo reintentamos solos.";
+  if (status >= 500) return "El servidor tuvo un problema. Lo reintentamos en unos segundos.";
+  return "No fue posible cargar tu pasaporte.";
+};
+const haceCuanto = t => {
+  const min = Math.max(0, Math.round((Date.now() - (t || 0)) / 60000));
+  if (min < 1) return "hace un momento";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `hace ${h} h` : "hace más de un día";
+};
 const PassportPage = ({
-  stands
+  stands: standsTablero
 }) => {
   const [email, setEmail] = React.useState(() => {
     try {
@@ -5443,25 +5517,36 @@ const PassportPage = ({
       return "";
     }
   });
+  const stands = window.LMTApi && window.LMTApi.standsVisitante ? window.LMTApi.standsVisitante(standsTablero) : standsTablero || [];
   const [data, setData] = React.useState(null);
   const [perfil, setPerfil] = React.useState(null);
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
+  const [fallo, setFallo] = React.useState(null);
+  const [copiaDe, setCopiaDe] = React.useState(0);
+  const [loading, setLoading] = React.useState(() => !!email);
   const [page, setPage] = React.useState(0);
   const [flipping, setFlipping] = React.useState(false);
   const [askingEmail, setAskingEmail] = React.useState(!email);
+  const dataRef = React.useRef(null);
+  dataRef.current = data;
+  const usarCopia = correo => {
+    if (dataRef.current) return;
+    const copia = window.LMTApi && window.LMTApi.pasaporteGuardado && window.LMTApi.pasaporteGuardado(correo);
+    if (copia) {
+      setData(copia.data);
+      setCopiaDe(copia.t || 1);
+    }
+  };
   const load = React.useCallback(async correo => {
-    setLoading(true);
-    setError("");
     try {
       const t = window.LMTPerfil && window.LMTPerfil.testigoDe(correo) || "";
       const res = await window.LMTApi.getPasaporte(correo, t);
       setData(res);
+      setCopiaDe(0);
+      setFallo(null);
       setAskingEmail(false);
     } catch (e) {
-      const code = String(e && (e.code || e.message) || e);
-      if (code.includes("not_found")) setError("Aún no hay pasaporte para ese correo. Vota en cualquier espacio para crearlo.");else if (code.includes("bad_email")) setError("El correo no es válido.");else setError("No fue posible cargar tu pasaporte.");
-      setData(null);
+      setFallo(e);
+      usarCopia(correo);
     } finally {
       setLoading(false);
     }
@@ -5470,9 +5555,18 @@ const PassportPage = ({
     if (!email) return;
     let cancelado = false;
     const intentar = () => {
-      if (cancelado || !window.LMTApi || !window.LMTApi.enabled) return;
+      if (cancelado || !window.LMTApi) return;
+      if (!window.LMTApi.enabled) {
+        if (window.LMTApi.bootstrapDone && window.LMTApi.bootstrapDone()) {
+          setFallo("OFF");
+          setLoading(false);
+          usarCopia(email);
+        }
+        return;
+      }
       load(email);
     };
+    setLoading(true);
     intentar();
     window.addEventListener("lmt:auth", intentar);
     return () => {
@@ -5481,12 +5575,20 @@ const PassportPage = ({
     };
   }, [email, load]);
   React.useEffect(() => {
+    if (!fallo || !email || fallo === "OFF") return;
+    const code = String(fallo && fallo.code || "");
+    if (code.includes("bad_email")) return;
+    const t = setTimeout(() => load(email), data ? 20000 : 8000);
+    return () => clearTimeout(t);
+  }, [fallo, email, data, load]);
+  React.useEffect(() => {
     if (!email || !window.LMTPerfil) return;
     const guardado = window.LMTPerfil.leer();
     if (!guardado.token || guardado.correo !== String(email).toLowerCase()) {
       setPerfil(null);
       return;
     }
+    if (copiaDe) return;
     let cancelado = false;
     (async () => {
       try {
@@ -5499,7 +5601,7 @@ const PassportPage = ({
     return () => {
       cancelado = true;
     };
-  }, [email, data]);
+  }, [email, data, copiaDe]);
   if (askingEmail) {
     return React.createElement(PuertaCorreo, {
       titulo: "Tu pasaporte del evento.",
@@ -5507,12 +5609,15 @@ const PassportPage = ({
       volverA: "/festival",
       volverTexto: "\u2190 Volver al ranking",
       onListo: correo => {
+        setData(null);
+        setFallo(null);
+        setCopiaDe(0);
         setEmail(correo);
         setAskingEmail(false);
       }
     });
   }
-  if (loading) {
+  if (loading && !data) {
     return React.createElement("div", {
       className: "mobile-page"
     }, React.createElement("div", {
@@ -5521,7 +5626,8 @@ const PassportPage = ({
       className: "splash"
     }, "Cargando pasaporte\u2026")));
   }
-  if (error || !data) {
+  if (!data) {
+    const esperando = fallo === "OFF" || fallo && fallo.status !== 400;
     return React.createElement("div", {
       className: "mobile-page"
     }, React.createElement("div", {
@@ -5538,26 +5644,46 @@ const PassportPage = ({
         fontStyle: "var(--display-style)",
         fontSize: 32,
         fontWeight: "var(--display-weight)",
-        margin: "8px 0 16px",
+        margin: "8px 0 12px",
         lineHeight: 1.1
       }
-    }, error || "No fue posible cargar tu pasaporte."), React.createElement("div", {
+    }, fallo ? textoFalloPasaporte(fallo) : "No fue posible cargar tu pasaporte."), esperando && React.createElement("p", {
+      style: {
+        color: "var(--ink-2)",
+        lineHeight: 1.6,
+        margin: "0 0 8px"
+      }
+    }, "Tus sellos est\xE1n guardados en el servidor: no se pierden."), React.createElement(CodigoError, {
+      codigo: codigoDiagnostico(fallo || "OFF", "PAS")
+    }), React.createElement("div", {
       style: {
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        alignItems: "center"
+        alignItems: "center",
+        marginTop: 18
       }
     }, React.createElement("button", {
+      className: "btn btn-primary",
+      style: {
+        justifyContent: "center"
+      },
+      onClick: () => {
+        if (window.LMTApi && window.LMTApi.enabled) {
+          setLoading(true);
+          load(email);
+        } else window.dispatchEvent(new CustomEvent("lmt:reintentar"));
+      }
+    }, "Reintentar ahora"), React.createElement("button", {
       className: "btn btn-ghost",
       onClick: () => {
         setAskingEmail(true);
-        setError("");
+        setFallo(null);
       }
     }, "Cambiar correo"), React.createElement("a", {
       href: "/festival",
       "data-route": true,
-      className: "btn btn-primary",
+      className: "btn btn-ghost",
       style: {
         justifyContent: "center"
       }
@@ -5565,7 +5691,39 @@ const PassportPage = ({
   }
   const visitadosIds = data.visitados || [];
   const visitados = visitadosIds.map(id => stands.find(s => s.id === id)).filter(Boolean);
-  if (!visitados.length) return React.createElement(PassportEmpty, null);
+  if (!visitados.length) {
+    if (visitadosIds.length) {
+      const errT = window.LMTApi && window.LMTApi.errorTablero;
+      return React.createElement("div", {
+        className: "mobile-page"
+      }, React.createElement("div", {
+        className: "mobile-inner",
+        style: {
+          textAlign: "center",
+          padding: 40
+        }
+      }, React.createElement("div", {
+        className: "mono"
+      }, "Pasaporte"), React.createElement("h2", {
+        style: {
+          fontFamily: "var(--font-display)",
+          fontStyle: "var(--display-style)",
+          fontSize: 30,
+          fontWeight: "var(--display-weight)",
+          margin: "8px 0 12px",
+          lineHeight: 1.1
+        }
+      }, "Tienes ", visitadosIds.length, " ", visitadosIds.length === 1 ? "sello" : "sellos", ". Cargando los espacios del evento\u2026"), React.createElement("p", {
+        style: {
+          color: "var(--ink-2)",
+          lineHeight: 1.6
+        }
+      }, "Se abrir\xE1 solo en cuanto lleguen."), React.createElement(CodigoError, {
+        codigo: errT ? codigoDiagnostico(errT, "PAS-TAB") : "PAS-TAB-espera"
+      })));
+    }
+    return React.createElement(PassportEmpty, null);
+  }
   const passport = {
     nombre: perfil && perfil.nombre || data.nombre || "Visitante",
     correo: email || data.correo || "",
@@ -5601,7 +5759,24 @@ const PassportPage = ({
     type: "end",
     fondo: fondos.contraportada
   }];
+  const aviso = copiaDe || fallo ? React.createElement("div", {
+    role: "status",
+    style: {
+      margin: "10px 4px 0",
+      padding: "8px 12px",
+      borderRadius: "var(--r-sm)",
+      fontSize: 12,
+      lineHeight: 1.45,
+      border: "1px solid rgba(255,255,255,0.28)",
+      color: "var(--paper)",
+      background: "rgba(255,255,255,0.06)"
+    }
+  }, copiaDe ? React.createElement(React.Fragment, null, "El servidor no respondi\xF3: ves la copia guardada en este tel\xE9fono (", haceCuanto(copiaDe), "). Se actualiza sola en cuanto responda.") : React.createElement(React.Fragment, null, "No se pudo actualizar el pasaporte; lo reintentamos solos."), fallo && React.createElement(CodigoError, {
+    oscuro: true,
+    codigo: codigoDiagnostico(fallo, "PAS")
+  })) : null;
   return React.createElement(PassportBook, {
+    aviso: aviso,
     passport: passport,
     pages: pages,
     visitados: visitados,
@@ -5615,6 +5790,7 @@ const PassportPage = ({
   });
 };
 const PassportBook = ({
+  aviso,
   passport,
   pages,
   visitados,
@@ -5767,7 +5943,7 @@ const PassportBook = ({
     }
   }, "Cerrar"), React.createElement(MenuPublico, {
     oscuro: true
-  })), React.createElement("div", {
+  })), aviso, React.createElement("div", {
     className: "pasaporte-horizontal"
   }, React.createElement("div", {
     ref: wrapRef,
@@ -8075,10 +8251,16 @@ const TarjetaRecorrido = ({
   }, visitado ? "✓ Sellado" : "Sin sellar"));
 };
 const RecorridoPage = ({
-  stands
+  stands: standsTablero
 }) => {
+  const stands = window.LMTApi && window.LMTApi.standsVisitante ? window.LMTApi.standsVisitante(standsTablero) : standsTablero || [];
   const [pasaporte, setPasaporte] = React.useState(null);
   const [cargando, setCargando] = React.useState(true);
+  const [fallo, setFallo] = React.useState(null);
+  const [copiaDe, setCopiaDe] = React.useState(0);
+  const pasaporteRef = React.useRef(null);
+  pasaporteRef.current = pasaporte;
+  const [intento, setIntento] = React.useState(0);
   const [cols, setCols] = React.useState(columnasConfiguradas);
   const [titulos, setTitulos] = React.useState(() => window.titulosEstrellas());
   React.useEffect(() => {
@@ -8096,13 +8278,38 @@ const RecorridoPage = ({
       return;
     }
     let cancelado = false;
+    const usarCopia = () => {
+      if (pasaporteRef.current) return;
+      const copia = window.LMTApi && window.LMTApi.pasaporteGuardado && window.LMTApi.pasaporteGuardado(correo);
+      if (copia) {
+        setPasaporte(copia.data);
+        setCopiaDe(copia.t || 1);
+      }
+    };
     const intentar = async () => {
-      if (cancelado || !window.LMTApi || !window.LMTApi.enabled) return;
+      if (cancelado || !window.LMTApi) return;
+      if (!window.LMTApi.enabled) {
+        if (window.LMTApi.bootstrapDone && window.LMTApi.bootstrapDone()) {
+          setFallo("OFF");
+          usarCopia();
+          setCargando(false);
+        }
+        return;
+      }
       try {
         const t = window.LMTPerfil && window.LMTPerfil.testigoDe(correo) || "";
         const res = await window.LMTApi.getPasaporte(correo, t);
-        if (!cancelado) setPasaporte(res);
-      } catch (_) {} finally {
+        if (!cancelado) {
+          setPasaporte(res);
+          setFallo(null);
+          setCopiaDe(0);
+        }
+      } catch (e) {
+        if (!cancelado) {
+          setFallo(e);
+          usarCopia();
+        }
+      } finally {
         if (!cancelado) setCargando(false);
       }
     };
@@ -8112,7 +8319,16 @@ const RecorridoPage = ({
       cancelado = true;
       window.removeEventListener("lmt:auth", intentar);
     };
-  }, [correo]);
+  }, [correo, intento]);
+  React.useEffect(() => {
+    if (!fallo || fallo === "OFF") return;
+    if (String(fallo && fallo.code || "").includes("bad_email")) return;
+    const t = setTimeout(() => setIntento(n => n + 1), pasaporte ? 20000 : 10000);
+    return () => clearTimeout(t);
+  }, [fallo, pasaporte]);
+  const reintentarYa = () => {
+    if (window.LMTApi && window.LMTApi.enabled) setIntento(n => n + 1);else window.dispatchEvent(new CustomEvent("lmt:reintentar"));
+  };
   const visitados = pasaporte && pasaporte.visitados || [];
   const misEstrellas = pasaporte && pasaporte.estrellas_mias || {};
   const setVisitados = React.useMemo(() => new Set(visitados), [visitados]);
@@ -8173,7 +8389,30 @@ const RecorridoPage = ({
       marginTop: 20,
       color: "var(--ink-3)"
     }
-  }, "Cargando tu recorrido\u2026"), React.createElement("div", {
+  }, "Cargando tu recorrido\u2026"), !cargando && fallo && React.createElement("div", {
+    role: pasaporte ? "status" : "alert",
+    style: {
+      marginTop: 18,
+      padding: "10px 12px",
+      fontSize: 13,
+      lineHeight: 1.5,
+      maxWidth: 640,
+      border: `1px solid ${pasaporte ? "var(--line)" : "var(--bad)"}`,
+      borderRadius: "var(--r-sm)",
+      color: pasaporte ? "var(--ink-2)" : "var(--bad)"
+    }
+  }, copiaDe ? React.createElement(React.Fragment, null, "El servidor no respondi\xF3: ves la copia guardada en este tel\xE9fono. Tus sellos no se pierden y la lista se actualiza sola.") : pasaporte ? React.createElement(React.Fragment, null, "No se pudo actualizar tu recorrido; lo reintentamos solos.") : React.createElement(React.Fragment, null, "No pudimos cargar tu recorrido ahora mismo. Tus sellos est\xE1n guardados en el servidor: lo reintentamos solos."), React.createElement(CodigoError, {
+    codigo: codigoDiagnostico(fallo, "REC")
+  }), React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost",
+    onClick: reintentarYa,
+    style: {
+      marginTop: 8,
+      padding: "6px 12px",
+      fontSize: 13
+    }
+  }, "Reintentar ahora")), React.createElement("div", {
     className: "recorrido-grid",
     style: {
       marginTop: 22,
@@ -8186,12 +8425,23 @@ const RecorridoPage = ({
     titulos: titulos,
     visitado: setVisitados.has(s.id),
     valoracion: misEstrellas[s.id] || null
-  }))), !stands.length && React.createElement("p", {
+  }))), !stands.length && (window.LMTApi && window.LMTApi.ultimoTableroOk ? React.createElement("p", {
     style: {
       marginTop: 24,
       color: "var(--ink-2)"
     }
-  }, "Todav\xEDa no hay espacios registrados.")));
+  }, "Todav\xEDa no hay espacios registrados.") : React.createElement("div", {
+    style: {
+      marginTop: 24,
+      color: "var(--ink-2)"
+    }
+  }, React.createElement("p", {
+    style: {
+      margin: 0
+    }
+  }, visitados.length ? `Tienes ${visitados.length} ${visitados.length === 1 ? "sello" : "sellos"}. ` : "", "Cargando los espacios del evento\u2026"), window.LMTApi && window.LMTApi.errorTablero && React.createElement(CodigoError, {
+    codigo: codigoDiagnostico(window.LMTApi.errorTablero, "REC-TAB")
+  })))));
 };
 Object.assign(window, {
   RecorridoPage,
@@ -15359,6 +15609,49 @@ const AMBITOS = [{
   titulo: "Bitácora de correos",
   nota: "El registro de los mensajes enviados. No afecta a nadie, sólo limpia el historial de las pruebas."
 }];
+const IP_INTERNA = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|f[cd][0-9a-f]{2}:|fe80:)/i;
+const DiagnosticoRed = ({
+  red
+}) => {
+  const via = {
+    cloudflare: "Cloudflare",
+    proxy: "proxy de confianza",
+    directa: "conexión directa"
+  }[red.via] || red.via;
+  const interna = red.via === "directa" && IP_INTERNA.test(red.ip || "");
+  return React.createElement("div", {
+    style: {
+      border: `1px solid ${interna ? "var(--bad)" : "var(--line)"}`,
+      borderRadius: "var(--r-md)",
+      padding: 20,
+      marginTop: 18
+    }
+  }, React.createElement("div", {
+    className: "mono",
+    style: {
+      marginBottom: 8
+    }
+  }, "C\xF3mo te ve el servidor"), React.createElement("div", {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.6
+    }
+  }, "Tu IP: ", React.createElement("strong", {
+    className: "mono",
+    style: {
+      textTransform: "none",
+      letterSpacing: 0
+    }
+  }, red.ip), " \xB7 v\xEDa ", via), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.6,
+      color: interna ? "var(--bad)" : "var(--ink-2)",
+      margin: "6px 0 0",
+      maxWidth: 680
+    }
+  }, interna ? React.createElement(React.Fragment, null, "El servidor ve una IP de la red interna, no la tuya: todos los visitantes contar\xEDan como uno solo para los l\xEDmites y se quedar\xEDan sin pasaporte en plena feria. A\xF1ade la IP del proxy (", red.remota, ") a ", React.createElement("code", null, "'trusted_proxies'"), " en ", React.createElement("code", null, "api/config.php"), ".") : React.createElement(React.Fragment, null, "Cada visitante cuenta por su propia IP. Compru\xE9balo desde el tel\xE9fono con datos m\xF3viles: aqu\xED debe salir la IP de ese tel\xE9fono, no la de Cloudflare ni la del servidor.")));
+};
 const SistemaPage = () => {
   const [info, setInfo] = React.useState(null);
   const [sel, setSel] = React.useState({});
@@ -15447,7 +15740,9 @@ const SistemaPage = () => {
       marginTop: 4,
       color: k === "admins" ? "var(--good)" : "var(--ink-3)"
     }
-  }, label, k === "admins" ? " · intactos" : ""))))), React.createElement("div", {
+  }, label, k === "admins" ? " · intactos" : ""))))), info && info.red && React.createElement(DiagnosticoRed, {
+    red: info.red
+  }), React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -16260,9 +16555,10 @@ const App = () => {
   }
   const voteMatch = route.path.match(/^\/s\/([a-z0-9\-]+)$/);
   if (voteMatch) {
-    const stand = stands.find(s => s.id === voteMatch[1]);
+    const lista = window.LMTApi && window.LMTApi.standsVisitante ? window.LMTApi.standsVisitante(stands) : stands;
+    const stand = lista.find(s => s.id === voteMatch[1]);
     if (!stand) {
-      if (!stands.length) return React.createElement(Splash, null);
+      if (!lista.length) return React.createElement(EsperandoEspacios, null);
       return React.createElement(NotFound, {
         back: "/"
       });
@@ -16401,6 +16697,51 @@ const App = () => {
 const Splash = () => React.createElement("div", {
   className: "splash"
 }, "Cargando\u2026");
+const EsperandoEspacios = () => {
+  const [lento, setLento] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setLento(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!lento) return React.createElement(Splash, null);
+  const err = window.LMTApi && window.LMTApi.errorTablero || null;
+  const apagada = window.LMTApi && !window.LMTApi.enabled;
+  return React.createElement("div", {
+    className: "mobile-page"
+  }, React.createElement("div", {
+    className: "mobile-inner",
+    style: {
+      textAlign: "center",
+      padding: 40
+    }
+  }, React.createElement("div", {
+    className: "mono"
+  }, "Conectando"), React.createElement("h2", {
+    style: {
+      fontFamily: "var(--font-display)",
+      fontStyle: "var(--display-style)",
+      fontWeight: "var(--display-weight)",
+      fontSize: 28,
+      lineHeight: 1.15,
+      margin: "8px 0 12px"
+    }
+  }, "Estamos cargando los espacios del evento."), React.createElement("p", {
+    style: {
+      color: "var(--ink-2)",
+      lineHeight: 1.6,
+      margin: 0
+    }
+  }, "El servidor tarda en responder. Lo reintentamos solos; si tienes poca se\xF1al, ac\xE9rcate a una zona con mejor conexi\xF3n."), React.createElement(CodigoError, {
+    codigo: err ? codigoDiagnostico(err, "VOT-TAB") : apagada ? codigoDiagnostico("OFF", "VOT") : "VOT-TAB-espera"
+  }), React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      justifyContent: "center",
+      marginTop: 18
+    },
+    onClick: () => window.dispatchEvent(new CustomEvent("lmt:reintentar"))
+  }, "Reintentar ahora")));
+};
 const NotFound = ({
   back
 }) => React.createElement("div", {

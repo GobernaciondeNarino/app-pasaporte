@@ -89,12 +89,17 @@ function register_routes_visitantes(\LMT\Router $r): void
         // Dos límites: uno por IP, contra quien pruebe correos en serie, y otro
         // por correo, contra quien pruebe claves de una persona concreta desde
         // muchas IP.
-        if (!RateLimit::hit('perfil_acceso', RateLimit::ipHash())) Response::error(429, 'rate_limited');
-        if (!RateLimit::hit('perfil_acceso_correo', hash('sha256', $correo))) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_acceso', RateLimit::ipHash());
 
         $stmt = Db::pdo()->prepare('SELECT acceso_hash FROM visitantes WHERE correo = :c');
         $stmt->execute([':c' => $correo]);
         $hash = (string) ($stmt->fetchColumn() ?: '');
+
+        // El límite por correo frena a quien prueba CLAVES de una persona: sólo
+        // tiene sentido si ese perfil tiene clave. Sin ella, escribir el correo
+        // ya abre el perfil, y contar los intentos sólo dejaba fuera a quien
+        // volvía a escribir el suyo varias veces durante la feria.
+        if ($hash !== '') RateLimit::exigir('perfil_acceso_correo', hash('sha256', $correo));
 
         if ($hash !== '') {
             // Sin clave no es un error todavía: el formulario aún no sabía que
@@ -122,7 +127,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($b['correo'] ?? null);
         $token  = is_string($b['token'] ?? null) ? $b['token'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
 
         $actual = is_string($b['clave_actual'] ?? null) ? $b['clave_actual'] : '';
@@ -161,7 +166,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($_GET['correo'] ?? null);
         $token  = is_string($_GET['t'] ?? null) ? $_GET['t'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
 
         $stmt = Db::pdo()->prepare('SELECT * FROM visitantes WHERE correo = :c');
@@ -184,7 +189,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($b['correo'] ?? null);
         $token  = is_string($b['token'] ?? null) ? $b['token'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
 
         // Sin autorización no se guarda nada: es lo que exige la ley para los
@@ -272,7 +277,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($_POST['correo'] ?? null);
         $token  = is_string($_POST['token'] ?? null) ? $_POST['token'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('foto_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('foto_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
         if (empty($_FILES['archivo']) || !is_array($_FILES['archivo'])) {
             Response::error(422, 'archivo_ausente');
@@ -313,7 +318,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($b['correo'] ?? null);
         $token  = is_string($b['token'] ?? null) ? $b['token'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
 
         $pdo = Db::pdo();
@@ -333,7 +338,7 @@ function register_routes_visitantes(\LMT\Router $r): void
         $correo = Validate::email($b['correo'] ?? null);
         $token  = is_string($b['token'] ?? null) ? $b['token'] : '';
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_visitante', RateLimit::ipHash())) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_visitante', RateLimit::ipHash());
         if (!visitante_token_valido($correo, $token)) Response::error(403, 'token_invalido');
 
         // Borrar el perfil tiene que llevarse la foto del disco. Dejar el
@@ -358,8 +363,8 @@ function register_routes_visitantes(\LMT\Router $r): void
         $b = Security::jsonBody();
         $correo = Validate::email($b['correo'] ?? null);
         if (!$correo) Response::error(422, 'correo_invalido');
-        if (!RateLimit::hit('perfil_enlace', RateLimit::ipHash())) Response::error(429, 'rate_limited');
-        if (!RateLimit::hit('perfil_enlace_correo', hash('sha256', $correo))) Response::error(429, 'rate_limited');
+        RateLimit::exigir('perfil_enlace', RateLimit::ipHash());
+        RateLimit::exigir('perfil_enlace_correo', hash('sha256', $correo));
 
         $stmt = Db::pdo()->prepare('SELECT 1 FROM votos WHERE correo = :c LIMIT 1');
         $stmt->execute([':c' => $correo]);

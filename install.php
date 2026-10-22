@@ -283,21 +283,26 @@ return [
 
     'allowed_origins' => %s,
 
+    // Pensados para una feria: cientos de teléfonos detrás del mismo wifi.
+    // Los de uso público no pueden bajar del mínimo de api/lib/RateLimit.php.
     'rate_limits' => [
         'login'             => ['window' => 600,  'max' => 5],
-        'vote'              => ['window' => 60,   'max' => 1],
-        'vote_email'        => ['window' => 600,  'max' => 12],
-        'pasaporte'         => ['window' => 60,   'max' => 20],
-        'pasaporte_correo'  => ['window' => 3600, 'max' => 10],
+        'vote'              => ['window' => 60,   'max' => 30],
+        'vote_email'        => ['window' => 600,  'max' => 40],
+        'pasaporte'         => ['window' => 60,   'max' => 120],
+        'pasaporte_correo'  => ['window' => 3600, 'max' => 30],
+        'pasaporte_titular' => ['window' => 3600, 'max' => 1200],
         'promotor_registro' => ['window' => 3600, 'max' => 5],
-        'promotor_login'    => ['window' => 900,  'max' => 15],
+        'promotor_login'    => ['window' => 900,  'max' => 60],
         'promotor_upload'   => ['window' => 3600, 'max' => 60],
         'promotor_logo_publico' => ['window' => 3600, 'max' => 10], // logos en la inscripción (sin sesión)
-        'perfil_visitante'  => ['window' => 600,  'max' => 30],
-        'perfil_enlace'     => ['window' => 3600, 'max' => 10],
+        'perfil_acceso'     => ['window' => 600,  'max' => 200],
+        'perfil_visitante'  => ['window' => 600,  'max' => 200],
+        'foto_visitante'    => ['window' => 3600, 'max' => 60],
+        'perfil_enlace'     => ['window' => 3600, 'max' => 40],
         'perfil_enlace_correo' => ['window' => 3600, 'max' => 3],
         'correo_prueba'     => ['window' => 600,  'max' => 10],
-        'global'            => ['window' => 60,   'max' => 120],
+        'global'            => ['window' => 60,   'max' => 600],
     ],
 
     // Correo saliente: lo usa el módulo de promotores para entregar la
@@ -335,6 +340,8 @@ return [
 
     'diag_token'  => '',
     'trust_proxy' => {$forceHttps},
+    // Cloudflare se reconoce solo. Otro proxy delante: su IP o red (CIDR) aquí.
+    'trusted_proxies' => [],
     'force_https' => {$forceHttps},
     'debug'       => false,
 ];

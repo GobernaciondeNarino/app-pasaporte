@@ -13,9 +13,7 @@ function register_routes_pasaportes(\LMT\Router $r): void
         // enumerar correos para saber quién participó y qué stands visitó
         // (datos personales — Ley 1581/2012). Limitamos por IP para blindar
         // el sondeo automatizado sin romper el uso legítimo.
-        if (!RateLimit::hit('pasaporte', RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('pasaporte', RateLimit::ipHash());
 
         // urldecode() aquí decodificaba POR SEGUNDA VEZ lo que el servidor ya
         // había decodificado al poblar la ruta: "%2540" acababa siendo "@".
@@ -25,9 +23,15 @@ function register_routes_pasaportes(\LMT\Router $r): void
 
         // Limitar también por correo consultado, no sólo por IP: un ataque
         // dirigido contra una persona concreta es UNA petición desde cada IP.
-        if (!RateLimit::hit('pasaporte_correo', hash('sha256', $correo))) {
-            Response::error(429, 'rate_limited');
-        }
+        //
+        // Pero ese límite es para quien NO es el dueño. El titular trae su
+        // testigo y abre su pasaporte, su recorrido y la ficha de cada espacio
+        // una y otra vez —es lo que se hace en una feria—; con el mismo cupo de
+        // 10 consultas por hora que un desconocido, a los pocos sellos se
+        // quedaba fuera de su propio pasaporte y el recorrido le salía vacío.
+        $testigo = is_string($_GET['t'] ?? null) ? $_GET['t'] : '';
+        $esTitular = \visitante_token_valido($correo, $testigo);
+        RateLimit::exigir($esTitular ? 'pasaporte_titular' : 'pasaporte_correo', hash('sha256', $correo));
 
         $stmt = Db::pdo()->prepare('SELECT correo, nombre, inicio, visitados FROM pasaportes WHERE correo = :c');
         $stmt->execute([':c' => $correo]);

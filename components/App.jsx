@@ -82,10 +82,14 @@ const App = () => {
   // 3. Voto desde QR — mobile real
   const voteMatch = route.path.match(/^\/s\/([a-z0-9\-]+)$/);
   if (voteMatch) {
-    const stand = stands.find((s) => s.id === voteMatch[1]);
+    // Si el tablero no llegó, la copia de la lista guardada en el teléfono:
+    // el QR se puede seguir escaneando aunque /dashboard tarde.
+    const lista = window.LMTApi && window.LMTApi.standsVisitante ? window.LMTApi.standsVisitante(stands) : stands;
+    const stand = lista.find((s) => s.id === voteMatch[1]);
     if (!stand) {
-      // Stand puede no estar aún si la primera carga aún no llegó
-      if (!stands.length) return <Splash/>;
+      // Sin lista todavía: antes era un «Cargando…» eterno si el tablero
+      // fallaba. Ahora dice qué pasa y reintenta solo (js/api.js).
+      if (!lista.length) return <EsperandoEspacios/>;
       return <NotFound back="/"/>;
     }
     return <MobileVotePage stand={stand}/>;
@@ -172,6 +176,32 @@ const App = () => {
 };
 
 const Splash = () => (<div className="splash">Cargando…</div>);
+
+// El voto por QR sin la lista de espacios. Los primeros segundos es una carga
+// normal; si se alarga, se dice por qué y se ofrece reintentar ya.
+const EsperandoEspacios = () => {
+  const [lento, setLento] = React.useState(false);
+  React.useEffect(() => { const t = setTimeout(() => setLento(true), 6000); return () => clearTimeout(t); }, []);
+  if (!lento) return <Splash/>;
+  const err = (window.LMTApi && window.LMTApi.errorTablero) || null;
+  const apagada = window.LMTApi && !window.LMTApi.enabled;
+  return (
+    <div className="mobile-page">
+      <div className="mobile-inner" style={{ textAlign: "center", padding: 40 }}>
+        <div className="mono">Conectando</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "var(--display-style)", fontWeight: "var(--display-weight)", fontSize: 28, lineHeight: 1.15, margin: "8px 0 12px" }}>
+          Estamos cargando los espacios del evento.
+        </h2>
+        <p style={{ color: "var(--ink-2)", lineHeight: 1.6, margin: 0 }}>
+          El servidor tarda en responder. Lo reintentamos solos; si tienes poca señal, acércate a una zona con mejor conexión.
+        </p>
+        <CodigoError codigo={err ? codigoDiagnostico(err, "VOT-TAB") : apagada ? codigoDiagnostico("OFF", "VOT") : "VOT-TAB-espera"}/>
+        <button className="btn btn-primary" style={{ justifyContent: "center", marginTop: 18 }}
+          onClick={() => window.dispatchEvent(new CustomEvent("lmt:reintentar"))}>Reintentar ahora</button>
+      </div>
+    </div>
+  );
+};
 
 const NotFound = ({ back }) => (
   <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, textAlign: "center", background: "var(--paper)" }}>

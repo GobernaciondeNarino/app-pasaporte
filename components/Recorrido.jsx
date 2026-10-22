@@ -81,9 +81,19 @@ const TarjetaRecorrido = ({ stand, visitado, valoracion, titulos }) => {
   );
 };
 
-const RecorridoPage = ({ stands }) => {
+const RecorridoPage = ({ stands: standsTablero }) => {
+  // Si el tablero no llegó, la copia de la lista guardada en este teléfono.
+  const stands = window.LMTApi && window.LMTApi.standsVisitante
+    ? window.LMTApi.standsVisitante(standsTablero) : (standsTablero || []);
   const [pasaporte, setPasaporte] = React.useState(null);
   const [cargando, setCargando] = React.useState(true);
+  // El último fallo al pedir el pasaporte ("OFF" = la API no arrancó) y, si se
+  // está enseñando la copia del teléfono, cuándo se guardó.
+  const [fallo, setFallo] = React.useState(null);
+  const [copiaDe, setCopiaDe] = React.useState(0);
+  const pasaporteRef = React.useRef(null);
+  pasaporteRef.current = pasaporte;
+  const [intento, setIntento] = React.useState(0);
   const [cols, setCols] = React.useState(columnasConfiguradas);
   const [titulos, setTitulos] = React.useState(() => window.titulosEstrellas());
 
@@ -97,22 +107,52 @@ const RecorridoPage = ({ stands }) => {
   // es. Se pide con la misma puerta que el pasaporte y el perfil.
   const [correo, setCorreo] = React.useState(() => (window.LMTPerfil && window.LMTPerfil.correoConocido()) || "");
 
+  // Antes un fallo se tragaba en silencio y la rejilla salía toda apagada:
+  // la persona creía que había perdido su recorrido. Ahora se enseña la copia
+  // del teléfono si la hay, se dice qué pasó con su código y se reintenta.
   React.useEffect(() => {
     if (!correo) { setCargando(false); return; }
     let cancelado = false;
+    const usarCopia = () => {
+      if (pasaporteRef.current) return;
+      const copia = window.LMTApi && window.LMTApi.pasaporteGuardado && window.LMTApi.pasaporteGuardado(correo);
+      if (copia) { setPasaporte(copia.data); setCopiaDe(copia.t || 1); }
+    };
     const intentar = async () => {
-      if (cancelado || !window.LMTApi || !window.LMTApi.enabled) return;
+      if (cancelado || !window.LMTApi) return;
+      if (!window.LMTApi.enabled) {
+        if (window.LMTApi.bootstrapDone && window.LMTApi.bootstrapDone()) {
+          setFallo("OFF"); usarCopia(); setCargando(false);
+        }
+        return;
+      }
       try {
         const t = (window.LMTPerfil && window.LMTPerfil.testigoDe(correo)) || "";
         const res = await window.LMTApi.getPasaporte(correo, t);
-        if (!cancelado) setPasaporte(res);
-      } catch (_) { /* sin pasaporte: se ve el catálogo entero apagado */ }
+        if (!cancelado) { setPasaporte(res); setFallo(null); setCopiaDe(0); }
+      } catch (e) {
+        if (!cancelado) { setFallo(e); usarCopia(); }
+      }
       finally { if (!cancelado) setCargando(false); }
     };
     intentar();
     window.addEventListener("lmt:auth", intentar);
     return () => { cancelado = true; window.removeEventListener("lmt:auth", intentar); };
-  }, [correo]);
+  }, [correo, intento]);
+
+  // Reintento solo mientras haya un fallo («OFF» lo reintenta js/api.js y
+  // avisa con lmt:auth).
+  React.useEffect(() => {
+    if (!fallo || fallo === "OFF") return;
+    if (String((fallo && fallo.code) || "").includes("bad_email")) return;
+    const t = setTimeout(() => setIntento((n) => n + 1), pasaporte ? 20000 : 10000);
+    return () => clearTimeout(t);
+  }, [fallo, pasaporte]);
+
+  const reintentarYa = () => {
+    if (window.LMTApi && window.LMTApi.enabled) setIntento((n) => n + 1);
+    else window.dispatchEvent(new CustomEvent("lmt:reintentar"));
+  };
 
   const visitados = (pasaporte && pasaporte.visitados) || [];
   const misEstrellas = (pasaporte && pasaporte.estrellas_mias) || {};
@@ -157,6 +197,23 @@ const RecorridoPage = ({ stands }) => {
           <p className="mono" style={{ marginTop: 20, color: "var(--ink-3)" }}>Cargando tu recorrido…</p>
         )}
 
+        {!cargando && fallo && (
+          <div role={pasaporte ? "status" : "alert"} style={{
+            marginTop: 18, padding: "10px 12px", fontSize: 13, lineHeight: 1.5, maxWidth: 640,
+            border: `1px solid ${pasaporte ? "var(--line)" : "var(--bad)"}`, borderRadius: "var(--r-sm)",
+            color: pasaporte ? "var(--ink-2)" : "var(--bad)",
+          }}>
+            {copiaDe
+              ? <>El servidor no respondió: ves la copia guardada en este teléfono. Tus sellos no se pierden y la lista se actualiza sola.</>
+              : pasaporte
+                ? <>No se pudo actualizar tu recorrido; lo reintentamos solos.</>
+                : <>No pudimos cargar tu recorrido ahora mismo. Tus sellos están guardados en el servidor: lo reintentamos solos.</>}
+            <CodigoError codigo={codigoDiagnostico(fallo, "REC")}/>
+            <button type="button" className="btn btn-ghost" onClick={reintentarYa}
+              style={{ marginTop: 8, padding: "6px 12px", fontSize: 13 }}>Reintentar ahora</button>
+          </div>
+        )}
+
         <div className="recorrido-grid"
           style={{
             marginTop: 22,
@@ -172,9 +229,20 @@ const RecorridoPage = ({ stands }) => {
           ))}
         </div>
 
-        {!stands.length && (
-          <p style={{ marginTop: 24, color: "var(--ink-2)" }}>Todavía no hay espacios registrados.</p>
-        )}
+        {/* Sin lista no siempre es «no hay espacios»: puede que el tablero
+            aún no haya respondido. Decir lo primero con sellos ganados era
+            lo que hacía pensar que se había perdido el recorrido. */}
+        {!stands.length && (window.LMTApi && window.LMTApi.ultimoTableroOk
+          ? <p style={{ marginTop: 24, color: "var(--ink-2)" }}>Todavía no hay espacios registrados.</p>
+          : <div style={{ marginTop: 24, color: "var(--ink-2)" }}>
+              <p style={{ margin: 0 }}>
+                {visitados.length ? `Tienes ${visitados.length} ${visitados.length === 1 ? "sello" : "sellos"}. ` : ""}
+                Cargando los espacios del evento…
+              </p>
+              {window.LMTApi && window.LMTApi.errorTablero && (
+                <CodigoError codigo={codigoDiagnostico(window.LMTApi.errorTablero, "REC-TAB")}/>
+              )}
+            </div>)}
       </section>
     </div>
   );

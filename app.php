@@ -114,6 +114,16 @@ $bundle      = __DIR__ . '/js/components.build.js';
 $usarBundle  = is_file($bundle);
 $bundleVersion = $usarBundle ? (string) filemtime($bundle) : '';
 
+// Todos los scripts propios llevan su fecha en la URL, no sólo el bundle.
+// Cloudflare guarda los .js cuatro horas: al actualizar, el bundle nuevo
+// llegaba con el js/api.js viejo de la caché y la mezcla rompía el voto.
+// Con ?v= cada versión es otra URL y la caché no puede mezclarlas.
+$conVersion = static function (string $ruta): string {
+    $archivo = __DIR__ . '/' . $ruta;
+    $v = is_file($archivo) ? (string) filemtime($archivo) : '';
+    return htmlspecialchars($ruta . ($v !== '' ? '?v=' . $v : ''), ENT_QUOTES);
+};
+
 // La misma lista y el mismo orden que tools/build-components.mjs: en el modo
 // sin bundle, un componente que faltara aquí no existiría en el navegador.
 $componentes = ['Shared', 'Mapa', 'Admin', 'QRPrint', 'VoteFlow', 'Passport', 'Dashboard', 'Recorrido', 'Promotores', 'Cuentas', 'Perfil', 'Caracterizacion', 'Economia', 'Encuesta', 'Festival', 'Sistema', 'Correo', 'App'];
@@ -205,28 +215,28 @@ window.LMT_API_BASE  = window.LMT_BOOTSTRAP.apiBase;
 </script>
 
 <!-- Utilidades de seguridad -->
-<script src="js/security.js"></script>
+<script src="<?= $conVersion('js/security.js') ?>"></script>
 
 <!-- Geometría de los 64 municipios de Nariño (TopoJSON pre-proyectado a paths
      SVG; sin dependencias en runtime). Expone window.NARINO_MAPA. -->
-<script src="js/narino-municipios.js"></script>
+<script src="<?= $conVersion('js/narino-municipios.js') ?>"></script>
 
 <!-- three.js (animaciones) — auto-hospedado para no depender de CDNs externas.
      Desde r160 el único build soportado es un módulo ES, y los módulos corren
      después de los scripts clásicos: js/three-loader.js expone whenThree() para
      que los consumidores esperen sin condiciones de carrera. -->
-<script src="js/three-loader.js"></script>
+<script src="<?= $conVersion('js/three-loader.js') ?>"></script>
 <script type="module" nonce="<?= htmlspecialchars($nonce, ENT_QUOTES) ?>">
   import * as THREE from "./js/vendor/three.module.min.js";
   window.THREE = THREE;
   window.dispatchEvent(new CustomEvent("lmt:three-ready"));
 </script>
-<script src="js/three-background.js"></script>
-<script src="js/passport-book.js"></script>
+<script src="<?= $conVersion('js/three-background.js') ?>"></script>
+<script src="<?= $conVersion('js/passport-book.js') ?>"></script>
 
 <!-- Cliente del backend PHP + router del SPA -->
-<script src="js/router.js"></script>
-<script src="js/api.js"></script>
+<script src="<?= $conVersion('js/router.js') ?>"></script>
+<script src="<?= $conVersion('js/api.js') ?>"></script>
 
 <!-- React — builds de PRODUCCIÓN auto-hospedadas. Antes se cargaban las de
      desarrollo desde unpkg.com: más pesadas, más lentas, y con la aplicación

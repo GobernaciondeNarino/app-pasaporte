@@ -83,25 +83,41 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
         texto: conComentario ? data.texto : "",
         respuestas: data.respuestas,
       };
-      if (window.LMTApi && window.LMTApi.enabled) {
-        // El voto devuelve el testigo del perfil: es el único momento en que
-        // alguien demuestra, en el mismo acto, que ese correo es suyo.
-        const res = await window.LMTApi.submitVote(payload);
-        if (res && res.perfil_token) window.LMTPerfil.guardar(correo, res.perfil_token);
-      } else if (sec) {
-        sec.buildVotePayload(payload);
+      // Sin API el voto NO se da por hecho. Antes, si el arranque había
+      // fallado (un 429 en plena feria), esta rama sólo validaba el voto en el
+      // teléfono, enseñaba «¡listo!» y el sello nunca llegaba al servidor: el
+      // pasaporte y el recorrido salían luego sin ese espacio.
+      const api = window.LMTApi;
+      if (!api || !(api.enabled || (api.reconectar && await api.reconectar()))) {
+        const err = new Error("api_off");
+        err.code = "api_off";
+        throw err;
       }
+      // El voto devuelve el testigo del perfil: es el único momento en que
+      // alguien demuestra, en el mismo acto, que ese correo es suyo.
+      const res = await window.LMTApi.submitVote(payload);
+      if (res && res.perfil_token) window.LMTPerfil.guardar(correo, res.perfil_token);
       try { localStorage.setItem("lmt.email", sec ? sec.normalizeEmail(correo) : correo.toLowerCase()); } catch (_) {}
+      // El sello entra ya en la copia del pasaporte de este teléfono.
+      if (window.LMTApi.sellarCopia) window.LMTApi.sellarCopia(correo, stand.id);
       onComplete(data);
     } catch (e) {
       const code = String((e && (e.code || e.message)) || e);
-      if (code.includes("ya_votaste")) { setSubmitError("Ya registraste un voto para este espacio con ese correo."); setYaVoto(true); }
-      else if (code.includes("rate_limited")) setSubmitError("Demasiados votos seguidos. Espera un momento e intenta de nuevo.");
-      else if (code.includes("correo_invalido")) setSubmitError("El correo no es válido.");
-      else if (code.includes("emoji_invalido")) setSubmitError("Selecciona una calificación.");
-      else if (code.includes("stand_no_existe")) setSubmitError("Este espacio ya no está disponible.");
-      else if (code.includes("csrf")) setSubmitError("Sesión expirada. Recarga la página y vuelve a intentar.");
-      else setSubmitError("No fue posible registrar tu voto. Intenta de nuevo.");
+      const status = e && typeof e.status === "number" ? e.status : null;
+      let texto;
+      if (code.includes("ya_votaste")) { texto = "Ya registraste un voto para este espacio con ese correo."; setYaVoto(true); }
+      else if (code === "api_off") texto = "No hay conexión con el servidor del evento: tu voto NO se registró. Revisa tu internet y vuelve a tocar tu calificación.";
+      else if (status === 0 || code === "network_error") texto = "Se cortó la conexión y tu voto no llegó. Vuelve a tocar tu calificación.";
+      else if (code.includes("rate_limited")) texto = "Demasiados votos seguidos. Espera un momento e intenta de nuevo.";
+      else if (code.includes("correo_invalido")) texto = "El correo no es válido.";
+      else if (code.includes("emoji_invalido")) texto = "Selecciona una calificación.";
+      else if (code.includes("stand_no_existe")) texto = "Este espacio ya no está disponible.";
+      else if (code.includes("csrf")) texto = "Sesión expirada. Recarga la página y vuelve a intentar.";
+      else texto = "No fue posible registrar tu voto. Intenta de nuevo.";
+      // «Ya votaste» no es un fallo del sistema: no lleva código interno.
+      const codigo = code.includes("ya_votaste") ? ""
+        : code === "api_off" ? codigoDiagnostico("OFF", "VOT") : codigoDiagnostico(e, "VOT");
+      setSubmitError(codigo ? texto + SEP_CODIGO + codigo : texto);
       setSubmitting(false);
     }
   };
@@ -305,11 +321,8 @@ const VoteForm = ({ stand, onComplete, savedEmail }) => {
         </div>
       )}
 
-      {submitError && (
-        <div role="alert" style={{ marginTop: 16, padding: "10px 12px", border: "1px solid var(--bad)", color: "var(--bad)", borderRadius: "var(--r-sm)", fontSize: 13 }}>
-          {submitError}
-        </div>
-      )}
+      {/* Aviso separa el texto del código interno y lo pone debajo. */}
+      <Aviso>{submitError}</Aviso>
 
       {/* Ya había votado aquí. El mensaje solo dejaba a la persona parada en
           una pantalla sin salida; lo que quiere es seguir con su recorrido. */}

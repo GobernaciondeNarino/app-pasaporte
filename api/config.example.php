@@ -97,23 +97,31 @@ return [
         'max_dim'   => 1600,                  // se redimensiona a este lado máximo
     ],
 
-    // Rate limits por IP (segundos / max hits).
+    // Rate limits (segundos / max hits). Cuentan por IP del visitante —la real,
+    // también detrás de Cloudflare (ver 'trusted_proxies')— o por correo.
+    // Los de uso público tienen un MÍNIMO en api/lib/RateLimit.php: un valor
+    // más bajo aquí se sube a ese mínimo. En una feria cientos de teléfonos
+    // comparten el wifi del recinto o la misma antena, y con los de antes
+    // (120/min global, 10 consultas/hora del propio pasaporte) la gente se
+    // quedaba sin pasaporte a los pocos sellos.
     'rate_limits' => [
         'login'             => ['window' => 600, 'max' => 5],   // 5 intentos / 10 min
-        'vote'              => ['window' => 60,  'max' => 1],   // 1 voto / min / IP / stand
-        'vote_email'        => ['window' => 600, 'max' => 12],  // 12 votos / 10 min / correo
-        'pasaporte'         => ['window' => 60,  'max' => 20],  // 20 consultas / min / IP (anti-enumeración)
-        'pasaporte_correo'  => ['window' => 3600, 'max' => 10],  // 10 consultas / hora / correo (anti-sondeo dirigido)
+        'vote'              => ['window' => 60,  'max' => 30],  // votos / min / IP / stand (wifi compartido)
+        'vote_email'        => ['window' => 600, 'max' => 40],  // votos / 10 min / correo
+        'pasaporte'         => ['window' => 60,  'max' => 120], // consultas / min / IP (anti-enumeración)
+        'pasaporte_correo'  => ['window' => 3600, 'max' => 30], // consultas / hora a un correo SIN su testigo
+        'pasaporte_titular' => ['window' => 3600, 'max' => 1200], // el dueño abriendo su pasaporte y su recorrido
         'promotor_registro' => ['window' => 3600, 'max' => 5],  // 5 inscripciones / hora / IP
-        'promotor_login'    => ['window' => 900, 'max' => 15],  // 15 intentos / 15 min / IP
+        'promotor_login'    => ['window' => 900, 'max' => 60],  // intentos / 15 min / IP
         'promotor_upload'   => ['window' => 3600, 'max' => 60], // 60 imágenes / hora / promotor
         'promotor_logo_publico' => ['window' => 3600, 'max' => 10], // logos en la inscripción (sin sesión)
-        'perfil_visitante'  => ['window' => 600, 'max' => 30],  // perfil del visitante / 10 min / IP
-        'foto_visitante'    => ['window' => 3600, 'max' => 12], // fotos de perfil / hora / IP (sin sesión)
-        'perfil_enlace'     => ['window' => 3600, 'max' => 10], // enlaces de perfil / hora / IP
+        'perfil_acceso'     => ['window' => 600, 'max' => 200], // puerta del pasaporte / 10 min / IP
+        'perfil_visitante'  => ['window' => 600, 'max' => 200], // perfil del visitante / 10 min / IP
+        'foto_visitante'    => ['window' => 3600, 'max' => 60], // fotos de perfil / hora / IP (sin sesión)
+        'perfil_enlace'     => ['window' => 3600, 'max' => 40], // enlaces de perfil / hora / IP
         'perfil_enlace_correo' => ['window' => 3600, 'max' => 3], // por correo, para no usarlo de arma
         'correo_prueba'     => ['window' => 600, 'max' => 10],  // pruebas de envío desde el panel
-        'global'            => ['window' => 60,  'max' => 120], // anti-flood
+        'global'            => ['window' => 60,  'max' => 600], // anti-flood por IP
     ],
 
     // Token para el endpoint de diagnóstico api/diag.php. Déjalo vacío para
@@ -131,6 +139,16 @@ return [
     // esa cabecera se ignora: si no hay proxy, cualquiera podría enviarla y
     // hacer creer al servidor que la conexión es segura.
     'trust_proxy' => false,
+
+    // IP de cada visitante. Detrás de Cloudflare se reconoce sola (cabecera
+    // CF-Connecting-IP, sólo si la conexión llega desde los rangos publicados
+    // por Cloudflare). Si delante hay OTRO proxy o balanceador, pon aquí su IP
+    // o su red (CIDR), p. ej. ['10.0.0.5', '10.20.0.0/16']: entonces se lee
+    // X-Forwarded-For de ese proxy. Vacío y con 'trust_proxy' => true, se cree
+    // a cualquier proxy de la red interna (10.x, 172.16–31.x, 192.168.x,
+    // 127.x), nunca a una IP pública. Panel → Sistema enseña cómo te ve el
+    // servidor; si sale una IP interna, falta configurar esto.
+    'trusted_proxies' => [],
 
     // Modo debug (NUNCA true en producción).
     'debug' => false,

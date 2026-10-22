@@ -126,12 +126,8 @@ function register_routes_votos(\LMT\Router $r): void
 
         // Rate limits combinados (anti-spam)
         $ip = RateLimit::ipHash();
-        if (!RateLimit::hit('vote', $ip . '|' . $stand)) {
-            Response::error(429, 'rate_limited');
-        }
-        if (!RateLimit::hit('vote_email', hash('sha256', $correo))) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('vote', $ip . '|' . $stand);
+        RateLimit::exigir('vote_email', hash('sha256', $correo));
 
         // Insertar voto + actualizar agregados + upsert pasaporte en una transacción.
         try {

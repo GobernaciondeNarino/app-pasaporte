@@ -98,16 +98,19 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
     if (!password || password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres"); return; }
     setBusy(true);
     try {
-      if (!window.LMTApi || !window.LMTApi.enabled) throw new Error("api_unavailable");
+      // Si el arranque falló, se intenta otra vez antes de dar la API por caída.
+      const api = window.LMTApi;
+      if (!api || !(api.enabled || (api.reconectar && await api.reconectar()))) throw new Error("api_unavailable");
       const u = await window.LMTApi.signInAdmin(email, password);
       if (!u || !u.admin) throw new Error("forbidden");
       onLogin();
     } catch (e) {
       const code = e && (e.code || e.message);
-      if (code === "rate_limited") setError("Demasiados intentos. Espera unos minutos.");
-      else if (code === "api_unavailable") setError("La API no está disponible. ¿Ejecutaste el asistente de instalación?");
+      const poner = (t, codigo) => setError(t + SEP_CODIGO + codigo);
+      if (code === "rate_limited") poner("Demasiados intentos. Espera unos minutos.", codigoDiagnostico(e, "ADM"));
+      else if (code === "api_unavailable") poner("La API no está disponible. ¿Ejecutaste el asistente de instalación?", codigoDiagnostico("OFF", "ADM"));
       else if (code === "forbidden") setError("Esa cuenta no tiene permisos de administrador.");
-      else setError("No fue posible iniciar sesión. Verifica las credenciales.");
+      else poner("No fue posible iniciar sesión. Verifica las credenciales.", codigoDiagnostico(e, "ADM"));
     } finally {
       setBusy(false);
     }
@@ -199,7 +202,7 @@ const LoginAdmin = ({ onLogin, onVisitor }) => {
                 <input id="lg-pass" type="password" autoComplete="current-password"
                   value={password} onChange={(e) => setPassword(e.target.value)} maxLength={128} required/>
               </div>
-              {error && <div role="alert" style={{ fontSize: 13, color: "var(--bad)" }}>{error}</div>}
+              <Aviso margen={0}>{error}</Aviso>
               <button className="btn btn-primary" type="submit" disabled={busy}
                 style={{ justifyContent: "center", padding: 14, opacity: busy ? 0.6 : 1 }}>
                 {busy ? "Validando…" : "Entrar al panel →"}
@@ -489,17 +492,18 @@ const StandEditor = ({ stand }) => {
       window.LMTRouter.go(isNew ? "/admin/qr" : "/admin/stands");
     } catch (e) {
       const code = String((e && (e.code || e.message)) || e);
-      if (code.includes("bad_id")) setError("Identificador inválido (sólo minúsculas, números y guión).");
-      else if (code.includes("bad_nombre")) setError("Nombre obligatorio (máx. 80).");
-      else if (code.includes("bad_municipio")) setError("Municipio obligatorio (máx. 80).");
-      else if (code.includes("direccion_requerida")) setError(ERRORES.direccion_requerida);
-      else if (code.includes("detalle_requerido")) setError(ERRORES.detalle_requerido);
-      else if (code.includes("tipo_organizacion_invalido")) setError(ERRORES.tipo_organizacion_invalido);
-      else if (code.includes("actividad_cafe_invalida")) setError(ERRORES.actividad_cafe_invalida);
-      else if (code.includes("poblacion_invalida")) setError(ERRORES.poblacion_invalida);
-      else if (code.includes("numero_invalido")) setError(ERRORES.numero_invalido);
-      else if (code.includes("unauthorized")) setError("Tu sesión expiró. Vuelve a iniciar sesión.");
-      else setError("No fue posible guardar: " + code);
+      const poner = (t) => setError(t + SEP_CODIGO + codigoDiagnostico(e, "ADM"));
+      if (code.includes("bad_id")) poner("Identificador inválido (sólo minúsculas, números y guión).");
+      else if (code.includes("bad_nombre")) poner("Nombre obligatorio (máx. 80).");
+      else if (code.includes("bad_municipio")) poner("Municipio obligatorio (máx. 80).");
+      else if (code.includes("direccion_requerida")) poner(ERRORES.direccion_requerida);
+      else if (code.includes("detalle_requerido")) poner(ERRORES.detalle_requerido);
+      else if (code.includes("tipo_organizacion_invalido")) poner(ERRORES.tipo_organizacion_invalido);
+      else if (code.includes("actividad_cafe_invalida")) poner(ERRORES.actividad_cafe_invalida);
+      else if (code.includes("poblacion_invalida")) poner(ERRORES.poblacion_invalida);
+      else if (code.includes("numero_invalido")) poner(ERRORES.numero_invalido);
+      else if (code.includes("unauthorized")) poner("Tu sesión expiró. Vuelve a iniciar sesión.");
+      else poner("No fue posible guardar el espacio.");
     } finally { setBusy(false); }
   };
 
@@ -518,7 +522,7 @@ const StandEditor = ({ stand }) => {
       await window.LMTApi.pollDashboard();
       window.LMTRouter.go("/admin/stands");
     } catch (e) {
-      setError("No fue posible borrar: " + (e.code || e.message));
+      setError("No fue posible borrar el espacio." + SEP_CODIGO + codigoDiagnostico(e, "ADM"));
     } finally { setBusy(false); }
   };
 
@@ -760,7 +764,7 @@ const StandEditor = ({ stand }) => {
             </div>
           </div>
 
-          {error && <div role="alert" style={{ padding: "10px 12px", border: "1px solid var(--bad)", color: "var(--bad)", borderRadius: "var(--r-sm)", fontSize: 13 }}>{error}</div>}
+          <Aviso margen={0}>{error}</Aviso>
 
           <div className="acciones" style={{ marginTop: 8 }}>
             <button className="btn btn-primary" onClick={save} disabled={busy} style={{ opacity: busy ? 0.6 : 1 }}>

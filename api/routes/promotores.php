@@ -51,9 +51,7 @@ function register_routes_promotores(\LMT\Router $r):void
         // fecha de cierre. Cerrada, el formulario ni se enseña; esto es para
         // quien lo tuviera abierto en otra pestaña o llame a la API a mano.
         if (!\LMT\Evento::inscripcionAbierta()) Response::error(403, 'inscripciones_cerradas');
-        if (!RateLimit::hit('promotor_registro', RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('promotor_registro', RateLimit::ipHash());
 
         $b = Security::jsonBody(['respuestas_extra'], 2);
         // Qué campos se piden y cuáles son obligatorios lo decide la
@@ -284,9 +282,7 @@ function register_routes_promotores(\LMT\Router $r):void
         // Sin inscripción abierta no hay a qué asociar el logo: aceptar
         // ficheros de un anónimo para nada sólo llenaría el disco.
         if (!\LMT\Evento::inscripcionAbierta()) Response::error(403, 'inscripciones_cerradas');
-        if (!RateLimit::hit('promotor_logo_publico', RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('promotor_logo_publico', RateLimit::ipHash());
         $ruta = promotor_guardar_imagen('inscripciones');
         Response::ok([
             'logo'      => $ruta,
@@ -296,9 +292,7 @@ function register_routes_promotores(\LMT\Router $r):void
     });
 
     $r->post('/promotores/login', function () {
-        if (!RateLimit::hit('promotor_login', RateLimit::ipHash())) {
-            Response::error(429, 'rate_limited');
-        }
+        RateLimit::exigir('promotor_login', RateLimit::ipHash());
 
         $b     = Security::jsonBody();
         $email = Validate::email($b['email'] ?? null);
@@ -609,7 +603,7 @@ function register_routes_promotores(\LMT\Router $r):void
     /** Logo de la empresa (multipart/form-data, campo "archivo"). */
     $r->post('/promotores/logo', function () {
         $pid = Security::requirePromotor();
-        if (!RateLimit::hit('promotor_upload', 'p' . $pid)) Response::error(429, 'rate_limited');
+        RateLimit::exigir('promotor_upload', 'p' . $pid);
 
         $pdo = Db::pdo();
         $sel = $pdo->prepare('SELECT id, logo_path FROM empresas WHERE promotor_id = :pid');
@@ -630,7 +624,7 @@ function register_routes_promotores(\LMT\Router $r):void
         $pid = Security::requirePromotor();
         $id  = Validate::entero($params['id'] ?? null, 1, PHP_INT_MAX);
         if ($id === null) Response::error(400, 'bad_id');
-        if (!RateLimit::hit('promotor_upload', 'p' . $pid)) Response::error(429, 'rate_limited');
+        RateLimit::exigir('promotor_upload', 'p' . $pid);
 
         $pdo = Db::pdo();
         $sel = $pdo->prepare('SELECT foto_path FROM productos WHERE id = :id AND promotor_id = :pid');

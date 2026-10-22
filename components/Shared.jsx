@@ -577,6 +577,7 @@ const ERRORES = {
   password_repetida: "La nueva contraseña debe ser distinta de la actual.",
   password_change_required: "Primero debes cambiar tu contraseña temporal.",
   rate_limited: "Demasiadas solicitudes seguidas. Espera un momento.",
+  network_error: "No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.",
   nombre_empresa_invalido: "El nombre de la empresa es obligatorio.",
   nombre_producto_invalido: "El nombre del producto es obligatorio.",
   altura_invalida: "La altura debe estar entre 0 y 6000 msnm.",
@@ -636,24 +637,95 @@ const ERRORES = {
     "Error interno del servidor. Revisa el log de errores de PHP: suele ser una tabla que falta (vuelve a ejecutar db/schema) o el envío de correo mal configurado.",
 };
 
-const mensajeError = (e, porDefecto) => {
-  const code = String((e && (e.code || e.message)) || e || "");
-  for (const k of Object.keys(ERRORES)) if (code.includes(k)) return ERRORES[k];
-  // Si el código es desconocido, mostrarlo: un mensaje genérico obliga a
-  // adivinar, y quien administra el festival no tiene acceso a los logs.
-  const limpio = code.replace(/[^a-zA-Z0-9_ .:-]/g, "").slice(0, 60);
-  return (porDefecto || "Ocurrió un error.") + (limpio ? ` (código: ${limpio})` : "");
+/**
+ * Código interno de un error: PANTALLA-ESTADO-motivo-#referencia.
+ *
+ *   PAS-429-pasaporte_correo-#k3f9q2   el pasaporte chocó con ese límite
+ *   REC-RED                            no hubo conexión con el servidor
+ *   PAS-OFF-429-global                 la app no llegó a arrancar la API
+ *   VOT-409-ya_votaste                 la respuesta del servidor, tal cual
+ *
+ * La persona sólo tiene que dictarlo o mandar la captura: la pantalla, el
+ * estado HTTP y el motivo dicen qué pasó, y la referencia (sólo en 429 y 5xx,
+ * que son los que el servidor registra) lleva a la línea exacta del log de
+ * PHP. La tabla completa está en docs/CODIGOS-DE-ERROR.md.
+ */
+const PANTALLAS_ERROR = [
+  [/^\/pasaporte/, "PAS"], [/^\/recorrido/, "REC"], [/^\/s\//, "VOT"],
+  [/^\/inscripcion/, "INS"], [/^\/perfil/, "PER"], [/^\/promotor/, "PTA"],
+  [/^\/admin/, "ADM"], [/^\/festival/, "TAB"],
+];
+const pantallaError = () => {
+  const ruta = rutaActual();
+  for (const [re, pre] of PANTALLAS_ERROR) if (re.test(ruta)) return pre;
+  return "INI";
+};
+const limpiarCodigo = (t, max = 40) => String(t || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, max);
+
+// ESTADO-motivo-#referencia de un error de la API (o del navegador).
+const partesCodigo = (e) => {
+  const code = limpiarCodigo((e && (e.code || e.message)) || e);
+  const status = e && typeof e.status === "number" ? e.status : null;
+  let estado, motivo = code;
+  if (status === 0 || code === "network_error") { estado = "RED"; motivo = ""; }
+  else if (status) estado = String(status);
+  else estado = "CLI"; // lo decidió el navegador, sin preguntar al servidor
+  const detalle = e && typeof e.detalle === "string" ? e.detalle : "";
+  if (status === 429 && detalle.indexOf("limite:") === 0) motivo = limpiarCodigo(detalle.slice(7));
+  const ref = e && e.ref && (status === 429 || status >= 500) ? "#" + limpiarCodigo(e.ref, 12) : "";
+  return [estado, motivo, ref].filter(Boolean);
 };
 
-const Aviso = ({ tipo = "error", children }) => {
+const codigoDiagnostico = (e, pantalla) => {
+  const pre = pantalla || pantallaError();
+  if (!e) return pre;
+  if (e === "OFF") {
+    // Sin API: se añade por qué no arrancó, si se sabe («PAS-OFF-429-global»).
+    const causa = window.LMTApi && window.LMTApi.errorArranque;
+    return [pre, "OFF"].concat(causa ? partesCodigo(causa) : []).join("-");
+  }
+  return [pre].concat(partesCodigo(e)).join("-");
+};
+
+// Separa el texto del código dentro de un mensaje; Aviso lo enseña aparte.
+const SEP_CODIGO = " · Código ";
+
+const mensajeError = (e, porDefecto, pantalla) => {
+  const code = String((e && (e.code || e.message)) || e || "");
+  let texto = "";
+  for (const k of Object.keys(ERRORES)) if (code.includes(k)) { texto = ERRORES[k]; break; }
+  // Si el código es desconocido, se dice el genérico de la pantalla: el
+  // código interno de abajo ya lleva el motivo exacto.
+  if (!texto) texto = porDefecto || "Ocurrió un error.";
+  return texto + SEP_CODIGO + codigoDiagnostico(e, pantalla);
+};
+
+/** El código interno, discreto y fácil de copiar con una pulsación larga. */
+const CodigoError = ({ codigo, oscuro = false }) => {
+  if (!codigo) return null;
+  return (
+    <div className="mono" style={{
+      marginTop: 6, fontSize: 11, letterSpacing: "0.04em", textTransform: "none",
+      color: oscuro ? "rgba(255,255,255,0.7)" : "var(--ink-3)", userSelect: "all", WebkitUserSelect: "all",
+    }}>Código {codigo}</div>
+  );
+};
+
+const Aviso = ({ tipo = "error", children, margen = 14 }) => {
   if (!children) return null;
   const color = tipo === "ok" ? "var(--good)" : tipo === "info" ? "var(--ink-2)" : "var(--bad)";
+  let texto = children, codigo = "";
+  if (typeof children === "string" && children.indexOf(SEP_CODIGO) > 0) {
+    const i = children.lastIndexOf(SEP_CODIGO);
+    texto = children.slice(0, i);
+    codigo = children.slice(i + SEP_CODIGO.length);
+  }
   return (
     <div role={tipo === "error" ? "alert" : "status"} style={{
-      marginTop: 14, padding: "10px 12px", fontSize: 13, lineHeight: 1.5,
+      marginTop: margen, padding: "10px 12px", fontSize: 13, lineHeight: 1.5,
       border: `1px solid ${color}`, color, borderRadius: "var(--r-sm)",
       background: `color-mix(in oklch, ${color} 6%, var(--paper))`,
-    }}>{children}</div>
+    }}>{texto}<CodigoError codigo={codigo}/></div>
   );
 };
 
@@ -768,6 +840,9 @@ const usarPuerta = (alEntrar) => {
     const normal = sec.normalizeEmail(limpio);
     setBusy(true);
     try {
+      // Si el arranque de la API falló, se reintenta ahora: si no, la puerta
+      // quedaba cerrada hasta recargar.
+      if (window.LMTApi && !window.LMTApi.enabled && window.LMTApi.reconectar) await window.LMTApi.reconectar();
       const res = await window.LMTApi.accesoVisitante(normal, pideClave ? clave : "");
       // Perfil con clave: no es un error, es que todavía no la habíamos pedido.
       if (res && res.protegido && !res.token) { setPideClave(true); return; }
@@ -1716,7 +1791,7 @@ Object.assign(window, {
   TIPOS_PREGUNTA, PreguntaEntrada, preguntaSinResponder, textoRespuesta, RespuestasLectura,
   DatosEvento, filasDatosEvento, fechasEvento, LemaDestacado, MontanasSilueta, SelloCircular, Placeholder, QRCode,
   BarraVotos, calcScore, totalVotos, standUrl,
-  ERRORES, mensajeError, Aviso,
+  ERRORES, mensajeError, Aviso, codigoDiagnostico, CodigoError, SEP_CODIGO,
   SubirImagen, ayudaImagen, urlImagen, BloqueForm, EncuadreImagen, encuadreCaja,
   Estrella, EstrellasEntrada, EstrellasLectura,
   ESTRELLA_CAMPOS, ESTRELLA_CLAVES, titulosEstrellas, pesos,
